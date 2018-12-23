@@ -27,13 +27,19 @@ public:
         amp_denom = denom;
     }
 
-    void set_period(double period, int64_t denom=1l<<32)
+    void set_period_fract(uint64_t period_denom, uint64_t period_num)
     {
-        period_num = denom/period;
-        period_denom = denom;
+        this->period_num = period_num;
+        this->period_denom = period_denom;
     }
 
-    void set_frequency(double freq, int64_t samplerate)
+    void set_period(double period, uint64_t denom=65536)
+    {
+        period_num = denom;
+        period_denom = denom * period;
+    }
+
+    void set_frequency(double freq, uint64_t samplerate)
     {
         period_num = round(freq*4294967296.0/samplerate);
         period_denom = 1;
@@ -51,7 +57,7 @@ protected:
     }
 
     int64_t amp_num, amp_denom;
-    int64_t period_num, period_denom;
+    uint64_t period_num, period_denom;
 };
 
 template<oscillator_type Type, oscillator_type... Modulators>
@@ -64,7 +70,16 @@ public:
         else modulators.set_amplitude(i-1, amplitude, denom);
     }
 
-    void set_period(unsigned i, double period, int64_t denom=1l<<32)
+    void set_period_fract(
+        unsigned i,
+        uint64_t period_denom,
+        uint64_t period_num
+    ){
+        if(i == 0) oscillator<Type>::set_period_fract(period_denom, period_num);
+        else modulators.set_period_fract(i-1, period_denom, period_num);
+    }
+
+    void set_period(unsigned i, double period, uint64_t denom=65536)
     {
         if(i == 0) oscillator<Type>::set_period(period, denom);
         else modulators.set_period(i-1, period, denom);
@@ -76,11 +91,19 @@ public:
         else modulators.set_frequency(i-1, freq, samplerate);
     }
 
-    inline int64_t calc_sample(int64_t x)
-    {
-        x = oscillator<Type>::period_num*x/oscillator<Type>::period_denom;
-        int64_t phase_shift = modulators.calc_sample(x);
-        return oscillator<Type>::func(x+phase_shift);
+    inline int64_t calc_sample(
+        int64_t x,
+        uint64_t period_num,
+        uint64_t period_denom
+    ){
+        period_num *= oscillator<Type>::period_num;
+        period_denom *= oscillator<Type>::period_denom;
+        normalize_fract(period_num, period_denom);
+        int64_t phase_shift = modulators.calc_sample(
+            x, period_num, period_denom
+        );
+        x = period_num*x/period_denom;
+        return oscillator<Type>::func(x + phase_shift);
     }
 
 protected:
@@ -96,19 +119,33 @@ public:
         oscillator<Type>::set_amplitude(amplitude, denom);
     }
 
-    void set_period(unsigned i, double period, int64_t denom=1l<<32)
+    void set_period_fract(
+        unsigned i,
+        uint64_t period_denom,
+        uint64_t period_num
+    ){
+        oscillator<Type>::set_period_fract(period_denom, period_num);
+    }
+
+    void set_period(unsigned i, double period, uint64_t denom=65536)
     {
         oscillator<Type>::set_period(period, denom);
     }
 
-    void set_frequency(unsigned i, double freq, int64_t samplerate)
+    void set_frequency(unsigned i, double freq, uint64_t samplerate)
     {
         oscillator<Type>::set_frequency(freq, samplerate);
     }
 
-    inline int64_t calc_sample(int64_t x)
-    {
-        x = oscillator<Type>::period_num*x/oscillator<Type>::period_denom;
+    inline int64_t calc_sample(
+        int64_t x,
+        uint64_t period_num,
+        uint64_t period_denom
+    ){
+        period_num *= oscillator<Type>::period_num;
+        period_denom *= oscillator<Type>::period_denom;
+        normalize_fract(period_num, period_denom);
+        x = period_num*x/period_denom;
         return oscillator<Type>::func(x);
     }
 };
@@ -135,7 +172,7 @@ public:
     void synthesize(int32_t* samples, unsigned sample_count)
     {
         for(unsigned i = 0; i < sample_count; ++i, ++t)
-            samples[i] = calc_sample(t);
+            samples[i] = calc_sample(t, 1, 1);
     }
 private:
     int64_t t;

@@ -5,7 +5,8 @@ project(
 )
 
 src = [
-  'src/main.cc'
+  'src/main.cc',
+  'src/audio.cc'
 ]
 
 cc = meson.get_compiler('cpp')
