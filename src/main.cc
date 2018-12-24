@@ -1,3 +1,4 @@
+#include <cstdio>
 #include "fm.hh"
 #include "audio.hh"
 #include <stdexcept>
@@ -30,8 +31,8 @@ int main()
     fm.set_period(1, 0.5);
     fm.set_amplitude(1, 0.2);
     fm.set_period(2, 4);
-    fm.set_amplitude(2, 0.1);
-    fm.set_period(3, 4);
+    fm.set_amplitude(2, 0.5);
+    fm.set_period(3, 1);
     fm.set_amplitude(3, 1.0);
 
     output.start();
