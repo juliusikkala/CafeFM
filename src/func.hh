@@ -54,4 +54,13 @@ inline void normalize_fract(uint64_t& num, uint64_t& denom)
 #endif
 }
 
+inline int64_t lerp(
+    int64_t a,
+    int64_t b,
+    int64_t num,
+    int64_t denom
+){
+    return a + num * (b - a) / denom;
+}
+
 #endif

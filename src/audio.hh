@@ -11,9 +11,8 @@ public:
     template<typename Synth>
     audio_output(
         Synth& s,
-        unsigned samplerate = 44100,
         unsigned buffer_size = paFramesPerBufferUnspecified
-    ): samplerate(samplerate)
+    ): samplerate(s.get_samplerate())
     {
         PaError err = Pa_OpenDefaultStream(
             &stream,
