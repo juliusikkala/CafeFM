@@ -384,4 +384,10 @@ private:
     std::vector<typename carrier_type::context> contexts;
 };
 
+instrument* create_fm_synth(
+    uint64_t samplerate,
+    const std::vector<oscillator_type>& oscillators,
+    instrument* copy_oscillators
+);
+
 #endif

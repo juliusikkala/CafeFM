@@ -1,8 +1,8 @@
 #include "fm.hh"
+#include <stdexcept>
 
 basic_oscillator::context::context()
 : time_offset(0), phase_offset(0), t(0), x(0) {}
-
 
 void basic_oscillator::context::period_changed()
 {
@@ -51,4 +51,78 @@ void basic_oscillator::set_frequency(double freq, uint64_t samplerate)
 {
     period_num = round(freq*4294967296.0/samplerate);
     period_denom = 1;
+}
+
+// This is why the compilation is so extremely slow :D
+template<unsigned depth, oscillator_type... Modulators>
+instrument* fm_search_tree(
+    uint64_t samplerate,
+    const std::vector<oscillator_type>& oscillators,
+    unsigned start_index = 0
+){
+    if constexpr(depth == 0)
+        throw std::runtime_error("Search tree for oscillators ran out!");
+    else {
+        oscillator_type t = oscillators[start_index];
+        if (oscillators.size()-1 == start_index)
+        {
+            switch(t)
+            {
+            case OSC_SINE:
+                return new fm_synth<Modulators..., OSC_SINE>(samplerate);
+            case OSC_SQUARE:
+                return new fm_synth<Modulators..., OSC_SQUARE>(samplerate);
+            case OSC_TRIANGLE:
+                return new fm_synth<Modulators...,OSC_TRIANGLE>(samplerate);
+            case OSC_SAW:
+                return new fm_synth<Modulators..., OSC_SAW>(samplerate);
+            default:
+                throw std::runtime_error(
+                    "Unknown oscillator type " + std::to_string(t)
+                );
+            }
+        }
+        else
+        {
+            switch(t)
+            {
+            case OSC_SINE:
+                return fm_search_tree<depth-1, Modulators..., OSC_SINE>(
+                    samplerate, oscillators, start_index+1
+                );
+            case OSC_SQUARE:
+                return fm_search_tree<depth-1, Modulators..., OSC_SQUARE>(
+                    samplerate, oscillators, start_index+1
+                );
+            case OSC_TRIANGLE:
+                return fm_search_tree<depth-1, Modulators..., OSC_TRIANGLE>(
+                    samplerate, oscillators, start_index+1
+                );
+            case OSC_SAW:
+                return fm_search_tree<depth-1, Modulators..., OSC_SAW>(
+                    samplerate, oscillators, start_index+1
+                );
+            default:
+                throw std::runtime_error(
+                    "Unknown oscillator type " + std::to_string(t)
+                );
+            }
+        }
+    }
+}
+
+instrument* create_fm_synth(
+    uint64_t samplerate,
+    const std::vector<oscillator_type>& oscillators
+){
+    if(oscillators.size() > 4)
+        throw std::runtime_error(
+            "Over 4 oscillators in FM synth not supported"
+        );
+    if(oscillators.size() == 0)
+        return nullptr;
+
+    // You can increase this from 4 to higher numbers at the expense of
+    // exploding compile time and binary size
+    return fm_search_tree<4>(samplerate, oscillators);
 }
