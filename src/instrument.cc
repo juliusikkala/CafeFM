@@ -31,7 +31,7 @@ instrument::instrument(uint64_t samplerate)
 {
     voices.resize(1, {false, false, 0, 0, 0.0, 0});
     adsr.set_volume(1.0f, 0.5f);
-    adsr.set_curve(0.1f, 0.2f, 0.1f, samplerate);
+    adsr.set_curve(0.07f, 0.2f, 0.05f, samplerate);
 }
 
 instrument::~instrument() {}
@@ -133,6 +133,11 @@ envelope instrument::get_envelope() const
 void instrument::set_volume(double volume)
 {
     this->volume = volume;
+}
+
+void instrument::set_max_safe_volume()
+{
+    this->volume = 1.0/voices.size();
 }
 
 double instrument::get_volume() const

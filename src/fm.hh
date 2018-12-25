@@ -4,6 +4,9 @@
 #include "instrument.hh"
 #include <cmath>
 #include <cstddef>
+#include <type_traits>
+#include <utility>
+#include <variant>
 
 enum oscillator_type
 {
@@ -13,70 +16,66 @@ enum oscillator_type
     OSC_SAW
 };
 
-template<oscillator_type Type>
-class oscillator
+class basic_oscillator
 {
 public:
-    oscillator()
-    : amp_num(1), amp_denom(1), period_num(1), period_denom(1), time_offset(0), phase_offset(0), t(0), x(0)
+    struct context
     {
-    }
+        context();
 
-    void set_amplitude(double amplitude, int64_t denom=65536)
-    {
-        amp_num = amplitude * denom;
-        amp_denom = denom;
-        amp_denom |= !amp_denom;
-    }
+        void period_changed();
 
-    void set_amplitude(int64_t num, int64_t denom)
-    {
-        amp_num = num;
-        amp_denom = denom;
-        amp_denom |= !amp_denom;
-    }
+        int64_t time_offset, phase_offset;
+        int64_t t, x;
+    };
 
-    void set_period_fract(uint64_t period_denom, uint64_t period_num)
-    {
-        this->period_num = period_num;
-        this->period_denom = period_denom;
-        this->period_denom |= !period_denom;
-        period_changed();
-    }
+    basic_oscillator();
+    virtual ~basic_oscillator();
 
-    void set_period(double period, uint64_t denom=65536)
-    {
-        period_num = denom;
-        period_denom = denom * period;
-        period_denom |= !period_denom;
-        period_changed();
-    }
+    void set_amplitude(double amplitude, int64_t denom=65536);
+    void set_amplitude(int64_t amp_num, int64_t amp_denom);
+    void set_period_fract(uint64_t period_num, uint64_t period_denom);
+    void set_period(double period, uint64_t denom=65536);
+    void set_frequency(double freq, uint64_t samplerate);
 
-    void set_frequency(double freq, uint64_t samplerate)
-    {
-        period_num = round(freq*4294967296.0/samplerate);
-        period_denom = 1;
-        period_changed();
-    }
-
-    void period_changed()
-    {
-        time_offset = -t;
-        // TODO: It's probably valid to &0xFFFFFFFF this, check if so. It would
-        // be nice to avoid overflows in prolonged play.
-        phase_offset = x;
-    }
-
-protected:
-    inline int64_t func(
+    virtual int64_t func(
+        context& ctx,
         int64_t t,
         uint64_t period_num,
         uint64_t period_denom,
         int64_t phase_shift = 0
-    ){
-        this->t = t;
-        this->x = period_num * (t + time_offset) / period_denom + phase_offset;
-        int64_t x = this->x + phase_shift;
+    ) const = 0;
+
+protected:
+    int64_t amp_num, amp_denom;
+    uint64_t period_num, period_denom;
+};
+
+template<oscillator_type Type>
+class oscillator: public basic_oscillator
+{
+public:
+    oscillator() {}
+
+    oscillator(const basic_oscillator& other)
+    : basic_oscillator(other) {}
+
+    oscillator& operator=(const basic_oscillator& other)
+    {
+        return basic_oscillator::operator=(other);
+    }
+
+    inline int64_t func(
+        context& ctx,
+        int64_t t,
+        uint64_t period_num,
+        uint64_t period_denom,
+        int64_t phase_shift = 0
+    ) const override {
+        ctx.t = t;
+        ctx.x = period_num * (t + ctx.time_offset)
+            / period_denom + ctx.phase_offset;
+        int64_t x = ctx.x + phase_shift;
 
         int64_t u;
         if constexpr(Type == OSC_SINE) u = i32sin(x);
@@ -85,17 +84,19 @@ protected:
         else if constexpr(Type == OSC_SAW) u = i32saw(x);
         return amp_num*u/amp_denom;
     }
-
-    int64_t amp_num, amp_denom;
-    uint64_t period_num, period_denom;
-    int64_t time_offset, phase_offset;
-    int64_t t, x;
 };
 
-template<oscillator_type Type, oscillator_type... Modulators>
-class static_oscillator_stack: public oscillator<Type>
+template<
+    oscillator_type Type,
+    oscillator_type... Modulators
+> class modulator_stack: public oscillator<Type>
 {
 public:
+    using context = std::pair<
+        basic_oscillator::context,
+        typename modulator_stack< Modulators...>::context
+    >;
+
     void set_amplitude(unsigned i, double amplitude, int64_t denom=65536)
     {
         if(i == 0) oscillator<Type>::set_amplitude(amplitude, denom);
@@ -110,15 +111,14 @@ public:
 
     void set_period_fract(
         unsigned i,
-        uint64_t period_denom,
-        uint64_t period_num
+        uint64_t period_num,
+        uint64_t period_denom
     ){
         if(i == 0)
         {
-            oscillator<Type>::set_period_fract(period_denom, period_num);
-            recursive_period_changed();
+            oscillator<Type>::set_period_fract(period_num, period_denom);
         }
-        else modulators.set_period_fract(i-1, period_denom, period_num);
+        else modulators.set_period_fract(i-1, period_num, period_denom);
     }
 
     void set_period(unsigned i, double period, uint64_t denom=65536)
@@ -126,7 +126,6 @@ public:
         if(i == 0)
         {
             oscillator<Type>::set_period(period, denom);
-            recursive_period_changed();
         }
         else modulators.set_period(i-1, period, denom);
     }
@@ -136,12 +135,33 @@ public:
         if(i == 0)
         {
             oscillator<Type>::set_frequency(freq, samplerate);
-            recursive_period_changed();
         }
         else modulators.set_frequency(i-1, freq, samplerate);
     }
 
+    void period_changed(context& ctx)
+    {
+        ctx.first.period_changed();
+        modulators.period_changed(ctx.second);
+    }
+
+    void import_oscillators(
+        const std::vector<basic_oscillator>& oscillators,
+        unsigned i = 0
+    ){
+        if(i >= oscillators.size()) return;
+        oscillator<Type>::operator=(oscillators[i]);
+        modulators.import_oscillators(oscillators, i+1);
+    }
+
+    void export_oscillators(std::vector<basic_oscillator>& oscillators)
+    {
+        oscillators.push_back(*this);
+        modulators.export_oscillators(oscillators);
+    }
+
     inline int64_t calc_sample(
+        context& ctx,
         int64_t x,
         uint64_t period_num,
         uint64_t period_denom
@@ -150,28 +170,24 @@ public:
         period_denom *= oscillator<Type>::period_denom;
         normalize_fract(period_num, period_denom);
         return oscillator<Type>::func(
+            ctx.first,
             x,
             period_num,
             period_denom,
-            modulators.calc_sample(x, period_num, period_denom)
+            modulators.calc_sample(ctx.second, x, period_num, period_denom)
         );
     }
 
-    using oscillator<Type>::period_changed;
-    void recursive_period_changed()
-    {
-        modulators.period_changed();
-        modulators.recursive_period_changed();
-    }
-
 protected:
-    static_oscillator_stack<Modulators...> modulators;
+    modulator_stack<Modulators...> modulators;
 };
 
 template<oscillator_type Type>
-class static_oscillator_stack<Type>: public oscillator<Type>
+class modulator_stack<Type>: public oscillator<Type>
 {
 public:
+    using context = basic_oscillator::context;
+
     void set_amplitude(unsigned i, double amplitude, int64_t denom=65536)
     {
         oscillator<Type>::set_amplitude(amplitude, denom);
@@ -184,10 +200,10 @@ public:
 
     void set_period_fract(
         unsigned i,
-        uint64_t period_denom,
-        uint64_t period_num
+        uint64_t period_num,
+        uint64_t period_denom
     ){
-        oscillator<Type>::set_period_fract(period_denom, period_num);
+        oscillator<Type>::set_period_fract(period_num, period_denom);
     }
 
     void set_period(unsigned i, double period, uint64_t denom=65536)
@@ -200,7 +216,26 @@ public:
         oscillator<Type>::set_frequency(freq, samplerate);
     }
 
+    void period_changed(context& ctx)
+    {
+        ctx.period_changed();
+    }
+
+    void import_oscillators(
+        const std::vector<basic_oscillator>& oscillators,
+        unsigned i = 0
+    ){
+        if(i >= oscillators.size()) return;
+        oscillator<Type>::operator=(oscillators[i]);
+    }
+
+    void export_oscillators(std::vector<basic_oscillator>& oscillators)
+    {
+        oscillators.push_back(*this);
+    }
+
     inline int64_t calc_sample(
+        context& ctx,
         int64_t x,
         uint64_t period_num,
         uint64_t period_denom
@@ -208,48 +243,121 @@ public:
         period_num *= oscillator<Type>::period_num;
         period_denom *= oscillator<Type>::period_denom;
         normalize_fract(period_num, period_denom);
-        return oscillator<Type>::func(x, period_num, period_denom);
+        return oscillator<Type>::func(ctx, x, period_num, period_denom);
     }
-
-    void recursive_period_changed() {}
 };
 
-template<oscillator_type... Modulators>
-class static_fm_synth: public instrument
+class constant_modulator
 {
 public:
-    static_fm_synth(uint64_t samplerate)
+    using context = std::monostate;
+    void set_amplitude(...) {}
+    void set_period_fract(...) {}
+    void set_period(...) {}
+    void set_frequency(...) {}
+    void period_changed(...) {}
+    void import_oscillators(...) {}
+    void export_oscillators(...) {}
+};
+
+template<
+    oscillator_type Type,
+    oscillator_type... Modulators
+> class carrier_stack: public oscillator<Type>
+{
+public:
+    using modulator_type = modulator_stack<Modulators...>;
+
+    using context = std::pair<
+        basic_oscillator::context,
+        typename modulator_type::context
+    >;
+
+    carrier_stack(modulator_type* modulators): modulators(modulators) {}
+
+    void period_changed(context& ctx)
+    {
+        ctx.first.period_changed();
+        modulators->period_changed(ctx.second);
+    }
+
+    inline int64_t calc_sample(context& ctx, int64_t x)
+    {
+        return oscillator<Type>::func(
+            ctx.first, x,
+            oscillator<Type>::period_num,
+            oscillator<Type>::period_denom,
+            modulators->calc_sample(
+                ctx.second, x,
+                oscillator<Type>::period_num,
+                oscillator<Type>::period_denom
+            )
+        );
+    }
+protected:
+    modulator_type* modulators;
+};
+
+template<oscillator_type Type>
+class carrier_stack<Type>: public oscillator<Type>
+{
+public:
+    using modulator_type = constant_modulator;
+    using context = basic_oscillator::context;
+
+    carrier_stack(modulator_type* modulators) {}
+
+    void period_changed(context& ctx)
+    {
+        ctx.period_changed();
+    }
+
+    inline int64_t calc_sample(context& ctx, int64_t x)
+    {
+        return oscillator<Type>::func(
+            ctx, x,
+            oscillator<Type>::period_num,
+            oscillator<Type>::period_denom,
+            0
+        );
+    }
+};
+
+template<oscillator_type Carrier, oscillator_type... Modulators>
+class fm_synth: public instrument
+{
+public:
+    fm_synth(uint64_t samplerate)
     : instrument(samplerate), t(0)
     {
-        stacks.resize(1);
+        carriers.resize(1, {&modulator});
+        contexts.resize(1);
     }
 
-    using stack = static_oscillator_stack<Modulators...>;
+    using carrier_type = carrier_stack<Carrier, Modulators...>;
+    using modulator_type = typename carrier_type::modulator_type;
 
-    void set_stack(const stack& s)
+    void set_modulator(const modulator_type& s)
     {
-        for(voice_id i = 0; i < stacks.size(); ++i)
-        {
-            stacks[i] = s;
-            stacks[i].set_frequency(0, get_frequency(i), get_samplerate());
-        }
+        modulator = s;
+        for(voice_id i = 0; i < carriers.size(); ++i)
+            carriers[i].period_changed(contexts[i]);
     }
 
-    const stack& get_stack() const {return stacks[0];}
+    const modulator_type& get_modulator() const {return modulator;}
 
     void synthesize(int32_t* samples, unsigned sample_count) override
     {
         for(unsigned i = 0; i < sample_count; ++i, ++t)
         {
-            samples[i] = 0;
-            for(voice_id j = 0; j < stacks.size(); ++j)
+            for(voice_id j = 0; j < carriers.size(); ++j)
             {
                 int64_t volume_num, volume_denom;
                 get_voice_volume(j, volume_num, volume_denom);
                 if(volume_num == 0) continue;
 
-                stacks[j].set_amplitude(0, volume_num, volume_denom);
-                samples[i] += stacks[j].calc_sample(t, 1, 1);
+                carriers[j].set_amplitude(volume_num, volume_denom);
+                samples[i] += carriers[j].calc_sample(contexts[j], t);
             }
             step_voices();
         }
@@ -258,18 +366,22 @@ public:
 protected:
     void refresh_voice(voice_id id)
     {
-        stacks[id].set_frequency(0, get_frequency(id), get_samplerate());
+        carriers[id].set_frequency(get_frequency(id), get_samplerate());
+        carriers[id].period_changed(contexts[id]);
     }
 
     void handle_polyphony(unsigned n) override
     {
         if(n == 0) n = 1;
-        stacks.resize(n, stacks[0]);
+        carriers.resize(n, carriers[0]);
+        contexts.resize(n);
     }
 
 private:
     int64_t t;
-    std::vector<stack> stacks;
+    modulator_type modulator;
+    std::vector<carrier_type> carriers;
+    std::vector<typename carrier_type::context> contexts;
 };
 
 #endif

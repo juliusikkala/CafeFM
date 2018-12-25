@@ -7,6 +7,7 @@ project(
 src = [
   'src/main.cc',
   'src/audio.cc',
+  'src/fm.cc',
   'src/instrument.cc',
 ]
 

@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <cstring>
 
 class audio_output
 {
@@ -48,7 +49,9 @@ private:
         void* data
     ){
         Synth* synth = static_cast<Synth*>(data);
-        synth->synthesize(static_cast<int32_t*>(output), framecount);
+        int32_t* o = static_cast<int32_t*>(output);
+        memset(o, 0, framecount * sizeof(*o));
+        synth->synthesize(o, framecount);
         return 0;
     }
 

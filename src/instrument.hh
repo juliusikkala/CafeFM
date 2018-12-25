@@ -54,6 +54,7 @@ public:
     envelope get_envelope() const;
 
     void set_volume(double volume);
+    void set_max_safe_volume();
     double get_volume() const;
 
     virtual void synthesize(int32_t* samples, unsigned sample_count) = 0;
