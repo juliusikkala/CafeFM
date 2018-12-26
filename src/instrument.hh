@@ -18,6 +18,11 @@ struct envelope
         uint64_t samplerate
     );
 
+    envelope convert(
+        uint64_t cur_samplerate,
+        uint64_t new_samplerate
+    ) const;
+
     int64_t peak_volume_num;
     int64_t sustain_volume_num; // Set to 0 for no sustain
     int64_t volume_denom;
@@ -58,6 +63,8 @@ public:
     void set_volume(double volume);
     void set_max_safe_volume();
     double get_volume() const;
+
+    void copy_state(const instrument& other);
 
     virtual void synthesize(int32_t* samples, unsigned sample_count) = 0;
 

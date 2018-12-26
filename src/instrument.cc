@@ -26,6 +26,18 @@ void envelope::set_curve(
     this->release_length = release_length * samplerate;
 }
 
+envelope envelope::convert(
+    uint64_t cur_samplerate,
+    uint64_t new_samplerate
+) const
+{
+    envelope c(*this);
+    c.attack_length = new_samplerate * attack_length / cur_samplerate;
+    c.decay_length = new_samplerate * decay_length / cur_samplerate;
+    c.release_length = new_samplerate * release_length / cur_samplerate;
+    return c;
+}
+
 instrument::instrument(uint64_t samplerate)
 : tuning_offset(0), volume(0.5), samplerate(samplerate)
 {
@@ -38,6 +50,7 @@ instrument::~instrument() {}
 
 void instrument::set_tuning(double offset)
 {
+    if(tuning_offset == offset) return;
     tuning_offset = offset;
     refresh_all_voices();
 }
@@ -94,6 +107,7 @@ void instrument::release_voice(voice_id id)
 
 void instrument::set_voice_tuning(voice_id id, double offset)
 {
+    if(voices[id].tuning == offset) return;
     voices[id].tuning = offset;
     refresh_voice(id);
 }
@@ -111,6 +125,7 @@ void instrument::reset_all_voice_tuning()
 
 void instrument::set_polyphony(unsigned n)
 {
+    if(voices.size() == n) return;
     voices.resize(n, {false, false, 0, 0, 0.0, 0});
     handle_polyphony(n);
 }
@@ -143,6 +158,23 @@ void instrument::set_max_safe_volume()
 double instrument::get_volume() const
 {
     return volume;
+}
+
+void instrument::copy_state(const instrument& other)
+{
+    voices = other.voices;
+    for(voice& v: voices)
+    {
+        v.press_timer = samplerate * v.press_timer / other.samplerate;
+        v.release_timer = samplerate * v.release_timer / other.samplerate;
+    }
+
+    adsr = other.adsr.convert(other.samplerate, samplerate);
+    tuning_offset = other.tuning_offset;
+    volume = other.volume;
+
+    handle_polyphony(voices.size());
+    refresh_all_voices();
 }
 
 double instrument::get_frequency(voice_id id) const

@@ -5,22 +5,28 @@ project(
 )
 
 src = [
-  'src/main.cc',
+  'external/nuklear.cc',
   'src/audio.cc',
+  'src/cafefm.cc',
   'src/fm.cc',
   'src/instrument.cc',
+  'src/main.cc',
 ]
 
 cc = meson.get_compiler('cpp')
 m_dep = cc.find_library('m', required : false)
 portaudio_dep = dependency('portaudio-2.0')
-incdir = include_directories('src')
+sdl2_dep = dependency('sdl2')
+glew_dep = dependency('glew')
+incdir = include_directories('src', 'external')
 
 executable(
   'cafefm',
   src,
   dependencies: [
     portaudio_dep,
+    sdl2_dep,
+    glew_dep,
     m_dep
   ],
   include_directories: [incdir],
