@@ -27,6 +27,8 @@ struct envelope
     uint64_t release_length;
 };
 
+class basic_oscillator;
+
 class instrument
 {
 public:

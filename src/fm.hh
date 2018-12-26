@@ -29,22 +29,14 @@ public:
         int64_t t, x;
     };
 
-    basic_oscillator();
-    virtual ~basic_oscillator();
+    basic_oscillator(double period = 1.0, double amplitude = 1.0);
+    ~basic_oscillator();
 
     void set_amplitude(double amplitude, int64_t denom=65536);
     void set_amplitude(int64_t amp_num, int64_t amp_denom);
     void set_period_fract(uint64_t period_num, uint64_t period_denom);
     void set_period(double period, uint64_t denom=65536);
     void set_frequency(double freq, uint64_t samplerate);
-
-    virtual int64_t func(
-        context& ctx,
-        int64_t t,
-        uint64_t period_num,
-        uint64_t period_denom,
-        int64_t phase_shift = 0
-    ) const = 0;
 
 protected:
     int64_t amp_num, amp_denom;
@@ -62,7 +54,8 @@ public:
 
     oscillator& operator=(const basic_oscillator& other)
     {
-        return basic_oscillator::operator=(other);
+        basic_oscillator::operator=(other);
+        return *this;
     }
 
     inline int64_t func(
@@ -71,7 +64,7 @@ public:
         uint64_t period_num,
         uint64_t period_denom,
         int64_t phase_shift = 0
-    ) const override {
+    ) const {
         ctx.t = t;
         ctx.x = period_num * (t + ctx.time_offset)
             / period_denom + ctx.phase_offset;
@@ -84,6 +77,34 @@ public:
         else if constexpr(Type == OSC_SAW) u = i32saw(x);
         return amp_num*u/amp_denom;
     }
+};
+
+class dynamic_oscillator: public basic_oscillator
+{
+public:
+    dynamic_oscillator(
+        oscillator_type type = OSC_SINE,
+        double period = 1.0,
+        double amplitude = 1.0
+    );
+
+    template<oscillator_type Type>
+    dynamic_oscillator(const oscillator<Type>& osc)
+    : basic_oscillator(osc), type(Type) {}
+
+    void set_type(oscillator_type type);
+    oscillator_type get_type() const;
+
+    int64_t func(
+        context& ctx,
+        int64_t t,
+        uint64_t period_num,
+        uint64_t period_denom,
+        int64_t phase_shift = 0
+    ) const;
+
+protected:
+    oscillator_type type;
 };
 
 template<
@@ -146,7 +167,7 @@ public:
     }
 
     void import_oscillators(
-        const std::vector<basic_oscillator>& oscillators,
+        const std::vector<dynamic_oscillator>& oscillators,
         unsigned i = 0
     ){
         if(i >= oscillators.size()) return;
@@ -154,7 +175,7 @@ public:
         modulators.import_oscillators(oscillators, i+1);
     }
 
-    void export_oscillators(std::vector<basic_oscillator>& oscillators)
+    void export_oscillators(std::vector<dynamic_oscillator>& oscillators) const
     {
         oscillators.push_back(*this);
         modulators.export_oscillators(oscillators);
@@ -165,7 +186,7 @@ public:
         int64_t x,
         uint64_t period_num,
         uint64_t period_denom
-    ){
+    ) const {
         period_num *= oscillator<Type>::period_num;
         period_denom *= oscillator<Type>::period_denom;
         normalize_fract(period_num, period_denom);
@@ -222,14 +243,14 @@ public:
     }
 
     void import_oscillators(
-        const std::vector<basic_oscillator>& oscillators,
+        const std::vector<dynamic_oscillator>& oscillators,
         unsigned i = 0
     ){
         if(i >= oscillators.size()) return;
         oscillator<Type>::operator=(oscillators[i]);
     }
 
-    void export_oscillators(std::vector<basic_oscillator>& oscillators)
+    void export_oscillators(std::vector<dynamic_oscillator>& oscillators) const
     {
         oscillators.push_back(*this);
     }
@@ -239,7 +260,7 @@ public:
         int64_t x,
         uint64_t period_num,
         uint64_t period_denom
-    ){
+    ) const {
         period_num *= oscillator<Type>::period_num;
         period_denom *= oscillator<Type>::period_denom;
         normalize_fract(period_num, period_denom);
@@ -257,7 +278,7 @@ public:
     void set_frequency(...) {}
     void period_changed(...) {}
     void import_oscillators(...) {}
-    void export_oscillators(...) {}
+    void export_oscillators(...) const {}
 };
 
 template<
@@ -323,12 +344,28 @@ public:
     }
 };
 
+class basic_fm_synth: public instrument
+{
+public:
+    using instrument::instrument;
+
+    virtual oscillator_type get_carrier_type() const = 0;
+
+    virtual void import_modulators(
+        const std::vector<dynamic_oscillator>& oscillators
+    ) = 0;
+
+    virtual void export_modulators(
+        std::vector<dynamic_oscillator>& oscillators
+    ) const = 0;
+};
+
 template<oscillator_type Carrier, oscillator_type... Modulators>
-class fm_synth: public instrument
+class fm_synth: public basic_fm_synth
 {
 public:
     fm_synth(uint64_t samplerate)
-    : instrument(samplerate), t(0)
+    : basic_fm_synth(samplerate), t(0)
     {
         carriers.resize(1, {&modulator});
         contexts.resize(1);
@@ -345,6 +382,25 @@ public:
     }
 
     const modulator_type& get_modulator() const {return modulator;}
+
+    oscillator_type get_carrier_type() const override
+    {
+        return Carrier;
+    }
+
+    void import_modulators(
+        const std::vector<dynamic_oscillator>& oscillators
+    ) override
+    {
+        modulator.import_oscillators(oscillators, 0);
+    }
+
+    void export_modulators(
+        std::vector<dynamic_oscillator>& oscillators
+    ) const override
+    {
+        modulator.export_oscillators(oscillators);
+    }
 
     void synthesize(int32_t* samples, unsigned sample_count) override
     {
@@ -384,10 +440,15 @@ private:
     std::vector<typename carrier_type::context> contexts;
 };
 
-instrument* create_fm_synth(
+basic_fm_synth* create_fm_synth(
     uint64_t samplerate,
-    const std::vector<oscillator_type>& oscillators,
-    instrument* copy_oscillators
+    const std::vector<oscillator_type>& oscillators
+);
+
+basic_fm_synth* create_fm_synth(
+    uint64_t samplerate,
+    oscillator_type carrier,
+    const std::vector<dynamic_oscillator>& modulators
 );
 
 #endif
