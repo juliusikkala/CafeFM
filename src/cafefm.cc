@@ -7,6 +7,7 @@
  */
 #define MAX_VERTEX_MEMORY 512 * 1024
 #define MAX_ELEMENT_MEMORY 128 * 1024
+#define OSCILLATOR_HEIGHT 90
 
 using namespace std::string_literals;
 
@@ -60,11 +61,12 @@ cafefm::cafefm()
 
 cafefm::~cafefm()
 {
+    unload();
+    if(output) output->stop();
+
     nk_sdl_shutdown();
     SDL_GL_DeleteContext(gl_ctx);
     SDL_DestroyWindow(win);
-
-    if(output) output->stop();
 }
 
 void cafefm::load()
@@ -73,9 +75,18 @@ void cafefm::load()
 
     struct nk_font_atlas* atlas;
     nk_sdl_font_stash_begin(&atlas);
-    struct nk_font *montserrat = nk_font_atlas_add_from_file(atlas, "data/fonts/Montserrat/Montserrat-Medium.ttf", 23, 0);
+    small_font = nk_font_atlas_add_from_file(atlas, "data/fonts/Montserrat/Montserrat-Medium.ttf", 13, 0);
+    huge_font = nk_font_atlas_add_from_file(atlas, "data/fonts/Montserrat/Montserrat-Medium.ttf", 23, 0);
     nk_sdl_font_stash_end();
-    nk_style_set_font(ctx, &montserrat->handle);
+
+    int id = nk_sdl_create_texture_from_file("data/images/close.png", 0, 0);
+    if(id == -1) throw std::runtime_error("Failed to load image");
+    close_img = nk_image_id(id);
+}
+
+void cafefm::unload()
+{
+    nk_sdl_destroy_texture(close_img.handle.id);
 }
 
 void cafefm::render()
@@ -112,21 +123,92 @@ bool cafefm::update(unsigned dt)
     return !quit;
 }
 
+unsigned cafefm::gui_carrier(oscillator_type& type)
+{
+    nk_layout_row_dynamic(ctx, OSCILLATOR_HEIGHT, 1);
+    nk_label(ctx, "Carrier", NK_TEXT_LEFT);
+
+    return CHANGE_NONE;
+}
+
+unsigned cafefm::gui_modulator(
+    dynamic_oscillator& osc,
+    unsigned index,
+    bool& erase
+){
+    static const char* name_table[] = {
+        "First modulator",
+        "Second modulator",
+        "Third modulator"
+    };
+    unsigned mask = CHANGE_NONE;
+
+    nk_layout_row_template_begin(ctx, OSCILLATOR_HEIGHT);
+    nk_layout_row_template_push_dynamic(ctx);
+    nk_layout_row_template_push_static(ctx, 48);
+    nk_layout_row_template_end(ctx);
+
+    nk_style_set_font(ctx, &small_font->handle);
+    nk_label(ctx, name_table[index], NK_TEXT_LEFT);
+    
+    if(nk_group_begin(ctx, name_table[index], NK_WINDOW_NO_SCROLLBAR))
+    {
+        nk_layout_row_static(ctx, 32, 32, 1);
+        nk_style_set_font(ctx, &huge_font->handle);
+        if(nk_button_image(ctx, close_img))
+        {
+            erase = true;
+            mask |= CHANGE_REQUIRE_RESET;
+        }
+        nk_group_end(ctx);
+    }
+
+    return mask;
+}
+
 void cafefm::gui()
 {
     int w, h;
     nk_input_end(ctx);
 
     SDL_GetWindowSize(win, &w, &h);
+    nk_style_set_font(ctx, &huge_font->handle);
     if(nk_begin(ctx, "Instrument", nk_rect(0, 0, w, h), NK_WINDOW_NO_SCROLLBAR))
     {
+        unsigned mask = CHANGE_NONE;
+        oscillator_type carrier = synth->get_carrier_type();
+
+        nk_style_set_font(ctx, &small_font->handle);
         /* Render FM synth options */
-        for(unsigned i = 0; i < 4; ++i)
+        mask |= gui_carrier(carrier);
+
+        std::vector<dynamic_oscillator> modulators;
+        synth->export_modulators(modulators);
+
+        for(unsigned i = 0; i < modulators.size(); ++i)
         {
-            nk_layout_row_dynamic(ctx, 90, 1);
-            if(nk_button_label(ctx, "+"))
-                printf("Naps naps %d\n", i);
+            bool erase = false;
+            mask |= gui_modulator(modulators[i], i, erase);
+            if(erase)
+            {
+                modulators.erase(modulators.begin() + i);
+                --i;
+            }
         }
+
+        nk_style_set_font(ctx, &huge_font->handle);
+        nk_layout_row_dynamic(ctx, OSCILLATOR_HEIGHT, 1);
+        if(modulators.size() <= 2 && nk_button_label(ctx, "+"))
+        {
+            modulators.push_back({OSC_SINE, 1.0, 0.5});
+            mask |= CHANGE_REQUIRE_RESET;
+        }
+
+        if(mask & CHANGE_REQUIRE_RESET)
+            reset_synth(44100, carrier, modulators);
+
+        if(mask & CHANGE_REQUIRE_IMPORT)
+            synth->import_modulators(modulators);
     }
     nk_end(ctx);
 

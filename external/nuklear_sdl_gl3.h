@@ -13,8 +13,9 @@
 #ifndef NK_SDL_GL3_H_
 #define NK_SDL_GL3_H_
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
+#include "SDL.h"
+#include "SDL_opengl.h"
+#include "SDL_image.h"
 
 NK_API struct nk_context*   nk_sdl_init(SDL_Window *win);
 NK_API void                 nk_sdl_font_stash_begin(struct nk_font_atlas **atlas);
@@ -24,6 +25,11 @@ NK_API void                 nk_sdl_render(enum nk_anti_aliasing , int max_vertex
 NK_API void                 nk_sdl_shutdown(void);
 NK_API void                 nk_sdl_device_destroy(void);
 NK_API void                 nk_sdl_device_create(void);
+
+NK_API int                  nk_sdl_create_texture(const void* image, int width, int height);
+NK_API int                  nk_sdl_create_texture_from_file(const char* path, int* width, int* height);
+NK_API int                  nk_sdl_create_texture_from_surface(SDL_Surface* surface);
+NK_API void                 nk_sdl_destroy_texture(int tex_index);
 
 #endif
 
@@ -152,6 +158,98 @@ nk_sdl_device_create(void)
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+}
+
+NK_API int
+nk_sdl_create_texture(const void* image, int width, int height)
+{
+    GLuint id;
+
+    glCreateTextures(GL_TEXTURE_2D, 1, &id);
+    glTextureParameteri(id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, (GLsizei)width, (GLsizei)height, 0,
+                GL_RGBA, GL_UNSIGNED_BYTE, image);
+
+    return id;
+}
+
+NK_API int
+nk_sdl_create_texture_from_file(const char* path, int* width, int* height)
+{
+    SDL_Surface* image = IMG_Load(path);
+    if(!image) return -1;
+
+    if(width) *width = image->w;
+    if(height) *height = image->h;
+
+    int id = nk_sdl_create_texture_from_surface(image);
+    SDL_FreeSurface(image);
+    return id;
+}
+
+NK_API int
+nk_sdl_create_texture_from_surface(SDL_Surface* surface)
+{
+    /* Convert the surface to RGB8 or RGBA8 */
+    GLint format;
+    GLuint id;
+    SDL_Surface* optimized = NULL;
+    SDL_PixelFormat* fmt = NULL;
+    SDL_LockSurface(surface);
+    if(surface->format->Amask == 0)
+    {
+        /* To RGB */
+        format = GL_RGB;
+        fmt = SDL_AllocFormat(SDL_PIXELFORMAT_RGB888);
+        /* For some reason allocformat shoves 4 here and ruins everything. */
+        fmt->BytesPerPixel = 3;
+        fmt->BitsPerPixel = 24;
+    }
+    else
+    {
+        /* To RGBA */
+        format = GL_RGBA;
+        /* For some reason ABGR is RGBA */
+        fmt = SDL_AllocFormat(SDL_PIXELFORMAT_ABGR8888);
+        fmt->BytesPerPixel = 4;
+        fmt->BitsPerPixel = 32;
+    }
+    SDL_UnlockSurface(surface);
+    optimized = SDL_ConvertSurface(surface, fmt, 0);
+    SDL_FreeFormat(fmt);
+
+    /* Create texture */
+    SDL_LockSurface(optimized);
+
+    glGenTextures(1, &id);
+    glBindTexture(GL_TEXTURE_2D, id);
+    glTextureParameteri(id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        format,
+        optimized->w,
+        optimized->h,
+        0,
+        format,
+        GL_UNSIGNED_BYTE,
+        optimized->pixels
+    );
+    SDL_UnlockSurface(optimized);
+    SDL_FreeSurface(optimized);
+    return id;
+}
+
+NK_API void
+nk_sdl_destroy_texture(int tex_index)
+{
+    glDeleteTextures(1, (GLuint*)&tex_index);
 }
 
 NK_INTERN void

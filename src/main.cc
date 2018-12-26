@@ -13,6 +13,10 @@ void init()
     if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMECONTROLLER))
         throw std::runtime_error(SDL_GetError());
 
+    int img_flags = IMG_INIT_PNG | IMG_INIT_JPG;
+    if(!(IMG_Init(img_flags) & img_flags))
+        throw std::runtime_error(IMG_GetError());
+
     PaError err = Pa_Initialize();
     if(err != paNoError)
         throw std::runtime_error(
@@ -24,6 +28,7 @@ void init()
 void deinit()
 {
     Pa_Terminate();
+    IMG_Quit();
     SDL_Quit();
 }
 
