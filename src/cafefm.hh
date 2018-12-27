@@ -32,6 +32,7 @@ private:
         unsigned index,
         bool& erase
     );
+    void gui_synth_editor();
 
     void gui();
 

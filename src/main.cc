@@ -51,7 +51,7 @@ int main()
             }
             // Play nice with other programs despite checking input really
             // quickly
-            else std::this_thread::yield();
+            else SDL_Delay(1);
 
             unsigned new_time = SDL_GetTicks();
             dt = new_time - last_time;

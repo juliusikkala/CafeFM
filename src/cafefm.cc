@@ -9,6 +9,8 @@
 #define MAX_ELEMENT_MEMORY 128 * 1024
 #define CARRIER_HEIGHT 120
 #define OSCILLATOR_HEIGHT 90
+#define WINDOW_WIDTH 800
+#define WINDOW_HEIGHT 600
 
 using namespace std::string_literals;
 
@@ -32,8 +34,8 @@ cafefm::cafefm()
         "CafeFM",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        800,
-        600,
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT,
         SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|SDL_WINDOW_ALLOW_HIGHDPI
     );
 
@@ -249,6 +251,7 @@ unsigned cafefm::gui_carrier(oscillator_type& type)
         synth->get_volume();
         envelope adsr = synth->get_envelope();
 
+        // Waveform type selection
         nk_style_set_font(ctx, &small_font->handle);
         if(nk_group_begin(ctx, "Carrier Waveform", NK_WINDOW_NO_SCROLLBAR))
         {
@@ -258,6 +261,7 @@ unsigned cafefm::gui_carrier(oscillator_type& type)
             nk_group_end(ctx);
         }
 
+        // ADSR controls
         if(nk_group_begin(ctx, "Carrier ADSR Control", NK_WINDOW_NO_SCROLLBAR))
         {
             nk_layout_row_template_begin(ctx, 22);
@@ -300,6 +304,7 @@ unsigned cafefm::gui_carrier(oscillator_type& type)
             nk_group_end(ctx);
         }
 
+        // ADSR plot
         if(nk_group_begin(ctx, "Carrier ADSR Plot", NK_WINDOW_NO_SCROLLBAR))
         {
             gui_draw_adsr(adsr);
@@ -338,6 +343,7 @@ unsigned cafefm::gui_modulator(
         nk_layout_row_template_push_static(ctx, 48);
         nk_layout_row_template_end(ctx);
 
+        // Waveform type selection
         nk_style_set_font(ctx, &small_font->handle);
         if(nk_group_begin(
             ctx,
@@ -353,6 +359,7 @@ unsigned cafefm::gui_modulator(
             nk_group_end(ctx);
         }
 
+        // Amplitude controls
         if(nk_group_begin(
             ctx,
             (name_table[index]+" Amplitude").c_str(),
@@ -378,6 +385,7 @@ unsigned cafefm::gui_modulator(
             nk_group_end(ctx);
         }
 
+        // Period controls
         if(nk_group_begin(
             ctx,
             (name_table[index]+" Period").c_str(),
@@ -409,6 +417,7 @@ unsigned cafefm::gui_modulator(
             nk_group_end(ctx);
         }
         
+        // Remove button
         if(nk_group_begin(
             ctx,
             (name_table[index]+" Remove").c_str(),
@@ -429,6 +438,99 @@ unsigned cafefm::gui_modulator(
     return mask;
 }
 
+void cafefm::gui_synth_editor()
+{
+    struct nk_rect s = nk_window_get_content_region(ctx);
+    unsigned mask = CHANGE_NONE;
+    oscillator_type carrier = synth->get_carrier_type();
+
+    nk_style_set_font(ctx, &small_font->handle);
+    // Render carrier & ADSR
+    mask |= gui_carrier(carrier);
+
+    std::vector<dynamic_oscillator> modulators;
+    synth->export_modulators(modulators);
+
+    // Render modulators
+    for(unsigned i = 0; i < modulators.size(); ++i)
+    {
+        bool erase = false;
+        mask |= gui_modulator(modulators[i], i, erase);
+        if(erase)
+        {
+            modulators.erase(modulators.begin() + i);
+            --i;
+        }
+    }
+
+    // + -button for modulators
+    nk_style_set_font(ctx, &huge_font->handle);
+    nk_layout_row_dynamic(ctx, OSCILLATOR_HEIGHT, 1);
+    if(modulators.size() <= 2 && nk_button_label(ctx, "+"))
+    {
+        modulators.push_back({OSC_SINE, 1.0, 0.5});
+        mask |= CHANGE_REQUIRE_RESET;
+    }
+
+    // Various options at the bottom of the screen
+    unsigned synth_control_height =
+        s.h-CARRIER_HEIGHT-3*OSCILLATOR_HEIGHT-20;
+    nk_style_set_font(ctx, &small_font->handle);
+    nk_layout_space_begin(ctx, NK_STATIC, synth_control_height, 1);
+    nk_layout_space_push(
+        ctx, nk_layout_space_rect_to_local(ctx, nk_rect(
+            s.x+4,s.y+s.h-synth_control_height,s.w-8,synth_control_height)));
+    if(nk_group_begin(
+        ctx, "Synth Control", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
+    )){
+        float master_volume = synth->get_volume();
+        int polyphony = synth->get_polyphony();
+        float max_safe_volume = 1.0/synth->get_polyphony();
+
+        nk_layout_row_template_begin(ctx, 30);
+        nk_layout_row_template_push_static(ctx, 130);
+        nk_layout_row_template_push_static(ctx, 400);
+        nk_layout_row_template_push_static(ctx, 30);
+        nk_layout_row_template_push_static(ctx, 130);
+        nk_layout_row_template_end(ctx);
+
+        nk_labelf(ctx, NK_TEXT_LEFT, "Master volume: %.2f", master_volume);
+        nk_slider_float(ctx, 0, &master_volume, 1.0f, 0.01f);
+        synth->set_volume(master_volume);
+
+        if(master_volume > max_safe_volume)
+        {
+            nk_image(ctx, warn_img);
+            nk_label(ctx, "Peaking is possible!", NK_TEXT_LEFT);
+        }
+
+        nk_layout_row_template_begin(ctx, 30);
+        nk_layout_row_template_push_static(ctx, 130);
+        nk_layout_row_template_push_static(ctx, 400);
+        nk_layout_row_template_end(ctx);
+
+        nk_labelf(ctx, NK_TEXT_LEFT, "Polyphony: %d", polyphony);
+        int new_polyphony = polyphony;
+        nk_slider_int(ctx, 1, &new_polyphony, 32, 1);
+        if(new_polyphony != polyphony)
+        {
+            output->stop();
+            synth->set_polyphony(new_polyphony);
+            output->start();
+        }
+
+        nk_group_end(ctx);
+    }
+    nk_layout_space_end(ctx);
+
+    // Do necessary updates
+    if(mask & CHANGE_REQUIRE_RESET)
+        reset_synth(44100, carrier, modulators);
+
+    if(mask & CHANGE_REQUIRE_IMPORT)
+        synth->import_modulators(modulators);
+}
+
 void cafefm::gui()
 {
     int w, h;
@@ -443,40 +545,7 @@ void cafefm::gui()
         nk_rect(0, 0, w, h),
         NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BACKGROUND
     )){
-        unsigned mask = CHANGE_NONE;
-        oscillator_type carrier = synth->get_carrier_type();
-
-        nk_style_set_font(ctx, &small_font->handle);
-        /* Render FM synth options */
-        mask |= gui_carrier(carrier);
-
-        std::vector<dynamic_oscillator> modulators;
-        synth->export_modulators(modulators);
-
-        for(unsigned i = 0; i < modulators.size(); ++i)
-        {
-            bool erase = false;
-            mask |= gui_modulator(modulators[i], i, erase);
-            if(erase)
-            {
-                modulators.erase(modulators.begin() + i);
-                --i;
-            }
-        }
-
-        nk_style_set_font(ctx, &huge_font->handle);
-        nk_layout_row_dynamic(ctx, OSCILLATOR_HEIGHT, 1);
-        if(modulators.size() <= 2 && nk_button_label(ctx, "+"))
-        {
-            modulators.push_back({OSC_SINE, 1.0, 0.5});
-            mask |= CHANGE_REQUIRE_RESET;
-        }
-
-        if(mask & CHANGE_REQUIRE_RESET)
-            reset_synth(44100, carrier, modulators);
-
-        if(mask & CHANGE_REQUIRE_IMPORT)
-            synth->import_modulators(modulators);
+        gui_synth_editor();
     }
     nk_end(ctx);
 
