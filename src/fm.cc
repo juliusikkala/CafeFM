@@ -66,6 +66,15 @@ double basic_oscillator::get_period() const
     return period_denom/(double)period_num;
 }
 
+void basic_oscillator::get_period(
+    uint64_t& period_num,
+    uint64_t& period_denom
+) const
+{
+    period_num = this->period_num;
+    period_denom = this->period_denom;
+}
+
 void basic_oscillator::set_frequency(double freq, uint64_t samplerate)
 {
     period_num = round(freq*4294967296.0/samplerate);

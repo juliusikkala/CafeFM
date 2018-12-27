@@ -138,6 +138,13 @@ unsigned instrument::get_polyphony() const
 void instrument::set_envelope(const envelope& adsr)
 {
     this->adsr = adsr;
+    uint64_t pt = adsr.attack_length + adsr.decay_length;
+    uint64_t rt = adsr.release_length;
+    for(voice& v: voices)
+    {
+        v.press_timer = std::min(v.press_timer, pt);
+        v.release_timer = std::min(v.release_timer, rt);
+    }
 }
 
 envelope instrument::get_envelope() const

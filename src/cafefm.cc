@@ -7,6 +7,7 @@
  */
 #define MAX_VERTEX_MEMORY 512 * 1024
 #define MAX_ELEMENT_MEMORY 128 * 1024
+#define CARRIER_HEIGHT 120
 #define OSCILLATOR_HEIGHT 90
 
 using namespace std::string_literals;
@@ -79,14 +80,20 @@ void cafefm::load()
     huge_font = nk_font_atlas_add_from_file(atlas, "data/fonts/Montserrat/Montserrat-Medium.ttf", 23, 0);
     nk_sdl_font_stash_end();
 
-    int id = nk_sdl_create_texture_from_file("data/images/close.png", 0, 0);
-    if(id == -1) throw std::runtime_error("Failed to load image");
-    close_img = nk_image_id(id);
+    int id = -1;
+#define load_texture(name, path) \
+    id = nk_sdl_create_texture_from_file(path, 0, 0); \
+    if(id == -1) throw std::runtime_error("Failed to load image " path); \
+    name = nk_image_id(id); \
+
+    load_texture(close_img, "data/images/close.png");
+    load_texture(warn_img, "data/images/warning.png");
 }
 
 void cafefm::unload()
 {
     nk_sdl_destroy_texture(close_img.handle.id);
+    nk_sdl_destroy_texture(warn_img.handle.id);
 }
 
 void cafefm::render()
@@ -131,6 +138,77 @@ bool cafefm::update(unsigned dt)
     return !quit;
 }
 
+void cafefm::gui_draw_adsr(const envelope& adsr)
+{
+    struct nk_command_buffer *canvas = nk_window_get_canvas(ctx);
+    struct nk_rect s = nk_window_get_content_region(ctx);
+    struct nk_rect t = s;
+    static constexpr int pad = 4;
+    t.x += pad;
+    t.y += pad;
+    t.w -= 2*pad;
+    t.h -= 2*pad;
+
+    nk_layout_space_begin(ctx, NK_STATIC, s.h, 1);
+    float total_length = adsr.attack_length + adsr.decay_length;
+
+    if(adsr.sustain_volume_num != 0)
+        total_length = (total_length + adsr.release_length)*2.0f;
+
+    float attack_x = t.x+(adsr.attack_length/total_length)*t.w;
+    float decay_x = attack_x+(adsr.decay_length/total_length)*t.w;
+    float sustain_x = decay_x+((
+            total_length - adsr.attack_length
+            - adsr.decay_length
+            - adsr.release_length
+        )/total_length)*t.w;
+
+    float sustain_y =
+        t.h-(adsr.sustain_volume_num/(double)adsr.peak_volume_num)*t.h;
+
+    const struct nk_color bg_color = nk_rgb(30, 30, 30);
+    const struct nk_color line_color = nk_rgb(175, 175, 175);
+    const struct nk_color border_color = nk_rgb(100, 100, 100);
+    // Border & background
+    nk_fill_rect(canvas, s, 4.0, bg_color);
+    nk_stroke_rect(canvas, s, 4.0, 4.0f, border_color);
+
+    // Attack
+    nk_stroke_line(
+        canvas, attack_x, s.y+s.h, attack_x, s.y, 2.0f, border_color
+    );
+    nk_stroke_line(canvas, t.x, t.y+t.h, attack_x, t.y, 2.0f, line_color);
+
+    // Decay
+    if(adsr.sustain_volume_num != 0)
+    {
+        nk_stroke_line(
+            canvas, decay_x, s.y+s.h, decay_x, s.y, 2.0f, border_color
+        );
+    }
+    nk_stroke_line(
+        canvas, attack_x, t.y, decay_x, t.y+sustain_y, 2.0f, line_color
+    );
+
+    if(adsr.sustain_volume_num != 0)
+    {
+        // Sustain
+        nk_stroke_line(
+            canvas, sustain_x, s.y+s.h, sustain_x, s.y, 2.0f, border_color
+        );
+        nk_stroke_line(
+            canvas, decay_x, t.y+sustain_y, sustain_x, t.y+sustain_y,
+            2.0f, line_color
+        );
+
+        // Release
+        nk_stroke_line(
+            canvas, sustain_x, t.y+sustain_y, t.x+t.w, t.y+t.h, 2.0f, line_color
+        );
+    }
+    nk_layout_space_end(ctx);
+}
+
 unsigned cafefm::gui_oscillator_type(oscillator_type& type)
 {
     static const char* oscillator_labels[] = {
@@ -156,16 +234,20 @@ unsigned cafefm::gui_carrier(oscillator_type& type)
 {
     unsigned mask = CHANGE_NONE;
 
-    nk_layout_row_dynamic(ctx, OSCILLATOR_HEIGHT, 1);
+    nk_layout_row_dynamic(ctx, CARRIER_HEIGHT, 1);
     if(nk_group_begin(
         ctx,
         "Carrier Group",
         NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
     )){
-        nk_layout_row_template_begin(ctx, OSCILLATOR_HEIGHT-10);
+        nk_layout_row_template_begin(ctx, CARRIER_HEIGHT-10);
         nk_layout_row_template_push_static(ctx, 200);
         nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_push_static(ctx, 250);
         nk_layout_row_template_end(ctx);
+
+        synth->get_volume();
+        envelope adsr = synth->get_envelope();
 
         nk_style_set_font(ctx, &small_font->handle);
         if(nk_group_begin(ctx, "Carrier Waveform", NK_WINDOW_NO_SCROLLBAR))
@@ -175,7 +257,56 @@ unsigned cafefm::gui_carrier(oscillator_type& type)
             mask |= gui_oscillator_type(type);
             nk_group_end(ctx);
         }
-        nk_label(ctx, "Carrier", NK_TEXT_LEFT);
+
+        if(nk_group_begin(ctx, "Carrier ADSR Control", NK_WINDOW_NO_SCROLLBAR))
+        {
+            nk_layout_row_template_begin(ctx, 22);
+            nk_layout_row_template_push_static(ctx, 110);
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_end(ctx);
+            nk_label(ctx, "Sustain volume:", NK_TEXT_LEFT);
+
+            int sustain_vol= adsr.sustain_volume_num;
+            nk_slider_int(ctx, 0, &sustain_vol, adsr.volume_denom, 1);
+            adsr.sustain_volume_num = sustain_vol;
+
+            static constexpr float expt = 4.0f;
+            unsigned samplerate = output->get_samplerate();
+
+            float attack = adsr.attack_length/(double)samplerate;
+            nk_labelf(ctx, NK_TEXT_LEFT, "Attack: %.2fs", attack);
+            attack = pow(attack, 1.0/expt);
+            nk_slider_float(
+                ctx, pow(0.001f, 1.0/expt), &attack, pow(4.0f, 1.0/expt), 0.01f
+            );
+            adsr.attack_length = pow(attack, expt)*samplerate;
+
+            float decay = adsr.decay_length/(double)samplerate;
+            nk_labelf(ctx, NK_TEXT_LEFT, "Decay: %.2fs", decay);
+            decay = pow(decay, 1.0/expt);
+            nk_slider_float(
+                ctx, pow(0.001f, 1.0/expt), &decay, pow(4.0f, 1.0/expt), 0.01f
+            );
+            adsr.decay_length = pow(decay, expt)*samplerate;
+
+            float release = adsr.release_length/(double)samplerate;
+            nk_labelf(ctx, NK_TEXT_LEFT, "Release: %.2fs", release);
+            release = pow(release, 1.0/expt);
+            nk_slider_float(
+                ctx, pow(0.001f, 1.0/expt), &release, pow(4.0f, 1.0/expt), 0.01f
+            );
+            adsr.release_length = pow(release, expt)*samplerate;
+
+            nk_group_end(ctx);
+        }
+
+        if(nk_group_begin(ctx, "Carrier ADSR Plot", NK_WINDOW_NO_SCROLLBAR))
+        {
+            gui_draw_adsr(adsr);
+            nk_group_end(ctx);
+        }
+        synth->set_envelope(adsr);
+
         nk_group_end(ctx);
     }
 
@@ -194,6 +325,7 @@ unsigned cafefm::gui_modulator(
     };
     unsigned mask = CHANGE_NONE;
 
+    nk_layout_row_dynamic(ctx, OSCILLATOR_HEIGHT, 1);
     if(nk_group_begin(
         ctx,
         (name_table[index]+" Group").c_str(),
@@ -258,13 +390,19 @@ unsigned cafefm::gui_modulator(
             nk_layout_row_template_push_dynamic(ctx);
             nk_layout_row_template_end(ctx);
 
-            float old_period = osc.get_period();
-            float period = old_period;
-            nk_labelf(ctx, NK_TEXT_LEFT, "%.2f", old_period);
-            nk_slider_float(ctx, 0, &period, 8.0f, 0.05f);
-            if(period != old_period)
+            uint64_t period_denom = 0, period_num = 0;
+            osc.get_period(period_num, period_denom);
+            int new_period_denom = period_denom;
+
+            nk_labelf(
+                ctx, NK_TEXT_LEFT, "%.2f", period_denom/(double)period_num
+            );
+            nk_slider_int(
+                ctx, 1, &new_period_denom, period_num*8, period_num/16
+            );
+            if((uint64_t)new_period_denom != period_denom)
             {
-                osc.set_period(period);
+                osc.set_period_fract(period_num, new_period_denom);
                 mask |= CHANGE_REQUIRE_IMPORT;
             }
 
@@ -360,7 +498,7 @@ void cafefm::reset_synth(
     else
     {
         new_synth->set_polyphony(16);
-        new_synth->set_volume(0.25);
+        new_synth->set_volume(0.5);
     }
     synth.swap(new_synth);
     output.reset(new audio_output(*synth));

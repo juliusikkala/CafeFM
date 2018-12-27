@@ -24,6 +24,7 @@ private:
     static constexpr unsigned CHANGE_REQUIRE_IMPORT = 1;
     static constexpr unsigned CHANGE_REQUIRE_RESET = 2;
 
+    void gui_draw_adsr(const envelope& adsr);
     unsigned gui_oscillator_type(oscillator_type& type);
     unsigned gui_carrier(oscillator_type& type);
     unsigned gui_modulator(
@@ -46,7 +47,7 @@ private:
 
     struct nk_font* small_font;
     struct nk_font* huge_font;
-    struct nk_image close_img;
+    struct nk_image close_img, warn_img;
 
     std::unique_ptr<basic_fm_synth> synth;
     std::unique_ptr<audio_output> output;
