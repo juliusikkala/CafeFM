@@ -47,8 +47,10 @@ private:
     SDL_GLContext gl_ctx;
 
     struct nk_font* small_font;
+    struct nk_font* medium_font;
     struct nk_font* huge_font;
     struct nk_image close_img, warn_img;
+    unsigned selected_tab;
 
     std::unique_ptr<basic_fm_synth> synth;
     std::unique_ptr<audio_output> output;

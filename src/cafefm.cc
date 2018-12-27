@@ -17,7 +17,6 @@ using namespace std::string_literals;
 cafefm::cafefm()
 : win(nullptr)
 {
-
     SDL_GL_SetAttribute(
         SDL_GL_CONTEXT_FLAGS,
         SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG
@@ -76,9 +75,12 @@ void cafefm::load()
 {
     reset_synth();
 
+    selected_tab = 0;
+
     struct nk_font_atlas* atlas;
     nk_sdl_font_stash_begin(&atlas);
     small_font = nk_font_atlas_add_from_file(atlas, "data/fonts/Montserrat/Montserrat-Medium.ttf", 16, 0);
+    medium_font = nk_font_atlas_add_from_file(atlas, "data/fonts/Montserrat/Montserrat-Medium.ttf", 19, 0);
     huge_font = nk_font_atlas_add_from_file(atlas, "data/fonts/Montserrat/Montserrat-Medium.ttf", 23, 0);
     nk_sdl_font_stash_end();
 
@@ -474,7 +476,7 @@ void cafefm::gui_synth_editor()
 
     // Various options at the bottom of the screen
     unsigned synth_control_height =
-        s.h-CARRIER_HEIGHT-3*OSCILLATOR_HEIGHT-20;
+        s.h-CARRIER_HEIGHT-3*OSCILLATOR_HEIGHT-50;
     nk_style_set_font(ctx, &small_font->handle);
     nk_layout_space_begin(ctx, NK_STATIC, synth_control_height, 1);
     nk_layout_space_push(
@@ -537,15 +539,58 @@ void cafefm::gui()
     nk_input_end(ctx);
 
     SDL_GetWindowSize(win, &w, &h);
-    nk_style_set_font(ctx, &huge_font->handle);
 
+    const char* tabs[] = {
+        "Synth",
+        "Instrument",
+        "Options"
+    };
+    unsigned tab_count = sizeof(tabs)/sizeof(*tabs);
+
+    nk_style_set_font(ctx, &medium_font->handle);
     if(nk_begin(
         ctx,
-        "Instrument",
+        "CafeFM",
         nk_rect(0, 0, w, h),
         NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BACKGROUND
     )){
-        gui_synth_editor();
+        nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0,0));
+        nk_style_push_float(ctx, &ctx->style.button.rounding, 0);
+        nk_layout_row_begin(ctx, NK_STATIC, 30, 3);
+        for(unsigned i = 0; i < tab_count; ++i)
+        {
+            const struct nk_user_font *f = &medium_font->handle;
+            float text_width = f->width(
+                f->userdata, f->height, tabs[i], strlen(tabs[i])
+            );
+            float widget_width = 10 + text_width + 3 * ctx->style.button.padding.x;
+            nk_layout_row_push(ctx, widget_width);
+            if(selected_tab == i)
+            {
+                struct nk_style_item button_color = ctx->style.button.normal;
+                ctx->style.button.normal = ctx->style.button.active;
+                selected_tab = nk_button_label(ctx, tabs[i]) ? i: selected_tab;
+                ctx->style.button.normal = button_color;
+            }
+            else
+            {
+                selected_tab = nk_button_label(ctx, tabs[i]) ? i: selected_tab;
+            }
+        }
+        nk_layout_row_end(ctx);
+        nk_style_pop_float(ctx);
+        nk_style_pop_vec2(ctx);
+
+        nk_style_set_font(ctx, &huge_font->handle);
+
+        switch(selected_tab)
+        {
+        case 0:
+            gui_synth_editor();
+            break;
+        default:
+            break;
+        }
     }
     nk_end(ctx);
 
