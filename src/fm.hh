@@ -34,8 +34,11 @@ public:
 
     void set_amplitude(double amplitude, int64_t denom=65536);
     void set_amplitude(int64_t amp_num, int64_t amp_denom);
+    double get_amplitude() const;
+    void get_amplitude(int64_t& amp_num, int64_t& amp_denom) const;
     void set_period_fract(uint64_t period_num, uint64_t period_denom);
     void set_period(double period, uint64_t denom=65536);
+    double get_period() const;
     void set_frequency(double freq, uint64_t samplerate);
 
 protected:

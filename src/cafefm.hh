@@ -24,8 +24,8 @@ private:
     static constexpr unsigned CHANGE_REQUIRE_IMPORT = 1;
     static constexpr unsigned CHANGE_REQUIRE_RESET = 2;
 
+    unsigned gui_oscillator_type(oscillator_type& type);
     unsigned gui_carrier(oscillator_type& type);
-
     unsigned gui_modulator(
         dynamic_oscillator& osc,
         unsigned index,

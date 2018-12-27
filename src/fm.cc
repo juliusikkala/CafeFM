@@ -34,6 +34,17 @@ void basic_oscillator::set_amplitude(int64_t num, int64_t denom)
     amp_denom |= !amp_denom;
 }
 
+double basic_oscillator::get_amplitude() const 
+{
+    return amp_num/(double)amp_denom;
+}
+
+void basic_oscillator::get_amplitude(int64_t& amp_num, int64_t& amp_denom) const
+{
+    amp_num = this->amp_num;
+    amp_denom = this->amp_denom;
+}
+
 void basic_oscillator::set_period_fract(
     uint64_t period_num,
     uint64_t period_denom
@@ -48,6 +59,11 @@ void basic_oscillator::set_period(double period, uint64_t denom)
     period_num = denom;
     period_denom = denom * period;
     period_denom |= !period_denom;
+}
+
+double basic_oscillator::get_period() const
+{
+    return period_denom/(double)period_num;
 }
 
 void basic_oscillator::set_frequency(double freq, uint64_t samplerate)

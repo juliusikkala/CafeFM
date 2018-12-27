@@ -31,8 +31,8 @@ cafefm::cafefm()
         "CafeFM",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        640,
-        480,
+        800,
+        600,
         SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|SDL_WINDOW_ALLOW_HIGHDPI
     );
 
@@ -75,7 +75,7 @@ void cafefm::load()
 
     struct nk_font_atlas* atlas;
     nk_sdl_font_stash_begin(&atlas);
-    small_font = nk_font_atlas_add_from_file(atlas, "data/fonts/Montserrat/Montserrat-Medium.ttf", 13, 0);
+    small_font = nk_font_atlas_add_from_file(atlas, "data/fonts/Montserrat/Montserrat-Medium.ttf", 16, 0);
     huge_font = nk_font_atlas_add_from_file(atlas, "data/fonts/Montserrat/Montserrat-Medium.ttf", 23, 0);
     nk_sdl_font_stash_end();
 
@@ -96,9 +96,9 @@ void cafefm::render()
     int w, h;
     SDL_GetWindowSize(win, &w, &h);
     glViewport(0, 0, w, h);
-    glClearColor(0.05,0.05,0.05,0);
+    glClearColor(0,0,0,0);
     glClear(GL_COLOR_BUFFER_BIT);
-    nk_sdl_render(NK_ANTI_ALIASING_OFF, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY);
+    nk_sdl_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY);
     SDL_GL_SwapWindow(win);
 }
 
@@ -115,6 +115,14 @@ bool cafefm::update(unsigned dt)
             handled = true;
             quit = true;
             break;
+        case SDL_KEYDOWN:
+            if(!e.key.repeat && e.key.keysym.sym == SDLK_SPACE)
+                synth->press_voice(0, 0);
+            break;
+        case SDL_KEYUP:
+            if(e.key.keysym.sym == SDLK_SPACE)
+                synth->release_voice(0);
+            break;
         default:
             break;
         }
@@ -123,12 +131,55 @@ bool cafefm::update(unsigned dt)
     return !quit;
 }
 
+unsigned cafefm::gui_oscillator_type(oscillator_type& type)
+{
+    static const char* oscillator_labels[] = {
+        "Sine",
+        "Square",
+        "Triangle",
+        "Saw"
+    };
+
+    oscillator_type old_type = type;
+    type = (oscillator_type)nk_combo(
+        ctx,
+        oscillator_labels,
+        sizeof(oscillator_labels)/sizeof(const char*),
+        old_type,
+        25,
+        nk_vec2(200, 200)
+    );
+    return old_type != type ? CHANGE_REQUIRE_RESET : CHANGE_NONE;
+}
+
 unsigned cafefm::gui_carrier(oscillator_type& type)
 {
-    nk_layout_row_dynamic(ctx, OSCILLATOR_HEIGHT, 1);
-    nk_label(ctx, "Carrier", NK_TEXT_LEFT);
+    unsigned mask = CHANGE_NONE;
 
-    return CHANGE_NONE;
+    nk_layout_row_dynamic(ctx, OSCILLATOR_HEIGHT, 1);
+    if(nk_group_begin(
+        ctx,
+        "Carrier Group",
+        NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
+    )){
+        nk_layout_row_template_begin(ctx, OSCILLATOR_HEIGHT-10);
+        nk_layout_row_template_push_static(ctx, 200);
+        nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_end(ctx);
+
+        nk_style_set_font(ctx, &small_font->handle);
+        if(nk_group_begin(ctx, "Carrier Waveform", NK_WINDOW_NO_SCROLLBAR))
+        {
+            nk_layout_row_dynamic(ctx, 30, 1);
+            nk_label(ctx, "Waveform:", NK_TEXT_LEFT);
+            mask |= gui_oscillator_type(type);
+            nk_group_end(ctx);
+        }
+        nk_label(ctx, "Carrier", NK_TEXT_LEFT);
+        nk_group_end(ctx);
+    }
+
+    return mask;
 }
 
 unsigned cafefm::gui_modulator(
@@ -136,29 +187,103 @@ unsigned cafefm::gui_modulator(
     unsigned index,
     bool& erase
 ){
-    static const char* name_table[] = {
+    static std::string name_table[] = {
         "First modulator",
         "Second modulator",
         "Third modulator"
     };
     unsigned mask = CHANGE_NONE;
 
-    nk_layout_row_template_begin(ctx, OSCILLATOR_HEIGHT);
-    nk_layout_row_template_push_dynamic(ctx);
-    nk_layout_row_template_push_static(ctx, 48);
-    nk_layout_row_template_end(ctx);
+    if(nk_group_begin(
+        ctx,
+        (name_table[index]+" Group").c_str(),
+        NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
+    )){
+        nk_layout_row_template_begin(ctx, OSCILLATOR_HEIGHT);
+        nk_layout_row_template_push_static(ctx, 200);
+        nk_layout_row_template_push_static(ctx, 200);
+        nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_push_static(ctx, 48);
+        nk_layout_row_template_end(ctx);
 
-    nk_style_set_font(ctx, &small_font->handle);
-    nk_label(ctx, name_table[index], NK_TEXT_LEFT);
-    
-    if(nk_group_begin(ctx, name_table[index], NK_WINDOW_NO_SCROLLBAR))
-    {
-        nk_layout_row_static(ctx, 32, 32, 1);
-        nk_style_set_font(ctx, &huge_font->handle);
-        if(nk_button_image(ctx, close_img))
-        {
-            erase = true;
-            mask |= CHANGE_REQUIRE_RESET;
+        nk_style_set_font(ctx, &small_font->handle);
+        if(nk_group_begin(
+            ctx,
+            (name_table[index]+" Waveform").c_str(),
+            NK_WINDOW_NO_SCROLLBAR
+        )){
+            nk_layout_row_dynamic(ctx, 30, 1);
+            nk_label(ctx, "Waveform:", NK_TEXT_LEFT);
+            oscillator_type type = osc.get_type();
+            mask |= gui_oscillator_type(type);
+            osc.set_type(type);
+
+            nk_group_end(ctx);
+        }
+
+        if(nk_group_begin(
+            ctx,
+            (name_table[index]+" Amplitude").c_str(),
+            NK_WINDOW_NO_SCROLLBAR
+        )){
+            nk_layout_row_dynamic(ctx, 30, 1);
+            nk_label(ctx, "Amplitude:", NK_TEXT_LEFT);
+            nk_layout_row_template_begin(ctx, 30);
+            nk_layout_row_template_push_static(ctx, 30);
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_end(ctx);
+
+            float old_amplitude = osc.get_amplitude();
+            float amplitude = old_amplitude;
+            nk_labelf(ctx, NK_TEXT_LEFT, "%.2f", old_amplitude);
+            nk_slider_float(ctx, 0, &amplitude, 2.0f, 0.05f);
+            if(amplitude != old_amplitude)
+            {
+                osc.set_amplitude(amplitude);
+                mask |= CHANGE_REQUIRE_IMPORT;
+            }
+
+            nk_group_end(ctx);
+        }
+
+        if(nk_group_begin(
+            ctx,
+            (name_table[index]+" Period").c_str(),
+            NK_WINDOW_NO_SCROLLBAR
+        )){
+            nk_layout_row_dynamic(ctx, 30, 1);
+            nk_label(ctx, "Period:", NK_TEXT_LEFT);
+            nk_layout_row_template_begin(ctx, 30);
+            nk_layout_row_template_push_static(ctx, 30);
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_end(ctx);
+
+            float old_period = osc.get_period();
+            float period = old_period;
+            nk_labelf(ctx, NK_TEXT_LEFT, "%.2f", old_period);
+            nk_slider_float(ctx, 0, &period, 8.0f, 0.05f);
+            if(period != old_period)
+            {
+                osc.set_period(period);
+                mask |= CHANGE_REQUIRE_IMPORT;
+            }
+
+            nk_group_end(ctx);
+        }
+        
+        if(nk_group_begin(
+            ctx,
+            (name_table[index]+" Remove").c_str(),
+            NK_WINDOW_NO_SCROLLBAR
+        )){
+            nk_layout_row_static(ctx, 32, 32, 1);
+            nk_style_set_font(ctx, &huge_font->handle);
+            if(nk_button_image(ctx, close_img))
+            {
+                erase = true;
+                mask |= CHANGE_REQUIRE_RESET;
+            }
+            nk_group_end(ctx);
         }
         nk_group_end(ctx);
     }
@@ -173,8 +298,13 @@ void cafefm::gui()
 
     SDL_GetWindowSize(win, &w, &h);
     nk_style_set_font(ctx, &huge_font->handle);
-    if(nk_begin(ctx, "Instrument", nk_rect(0, 0, w, h), NK_WINDOW_NO_SCROLLBAR))
-    {
+
+    if(nk_begin(
+        ctx,
+        "Instrument",
+        nk_rect(0, 0, w, h),
+        NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BACKGROUND
+    )){
         unsigned mask = CHANGE_NONE;
         oscillator_type carrier = synth->get_carrier_type();
 
