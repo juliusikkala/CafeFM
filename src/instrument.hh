@@ -40,7 +40,7 @@ public:
 
     using voice_id = unsigned;
 
-    void set_tuning(double offset = 0.0);
+    void set_tuning(double base_frequency = 440.0);
     double get_tuning() const;
 
     uint64_t get_samplerate() const;
@@ -48,9 +48,6 @@ public:
     voice_id press_voice(int semitone);
     void press_voice(voice_id id, int semitone);
     void release_voice(voice_id id);
-    void set_voice_tuning(voice_id id, double offset = 0.0);
-    double get_voice_tuning(voice_id id);
-    void reset_all_voice_tuning();
 
     void set_polyphony(unsigned n = 16);
     unsigned get_polyphony() const;
@@ -73,7 +70,6 @@ protected:
         bool pressed;
         uint64_t press_timer;
         uint64_t release_timer;
-        double tuning;
         int semitone;
     };
 
@@ -89,7 +85,7 @@ protected:
 private:
     std::vector<voice> voices;
     envelope adsr;
-    double tuning_offset;
+    double base_frequency;
     double volume;
     uint64_t samplerate;
 };

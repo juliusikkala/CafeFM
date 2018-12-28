@@ -2,6 +2,7 @@
 #define CAFEFM_HH
 #include <GL/glew.h>
 #include "fm.hh"
+#include "action.hh"
 #include "controller/controller.hh"
 #include "audio.hh"
 #include "nuklear.hh"
@@ -40,6 +41,7 @@ private:
         bool& erase
     );
     void gui_synth_editor();
+    void gui_instrument_editor();
 
     void gui();
 
@@ -68,6 +70,10 @@ private:
 
     std::unique_ptr<basic_fm_synth> synth;
     std::unique_ptr<audio_output> output;
+
+    std::vector<dynamic_oscillator> modulators;
+    float master_volume;
+    action_context action_ctx;
 };
 
 #endif

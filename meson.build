@@ -6,6 +6,7 @@ project(
 
 src = [
   'external/nuklear.cc',
+  'src/action.cc',
   'src/audio.cc',
   'src/cafefm.cc',
   'src/controller/controller.cc',

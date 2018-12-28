@@ -32,6 +32,16 @@ public:
     basic_oscillator(double period = 1.0, double amplitude = 1.0);
     ~basic_oscillator();
 
+    bool operator!=(const basic_oscillator& o) const
+    {
+        return (
+            o.amp_num != amp_num ||
+            o.amp_denom != amp_denom ||
+            o.period_num != period_num ||
+            o.period_denom != period_denom
+        );
+    }
+
     void set_amplitude(double amplitude, int64_t denom=65536);
     void set_amplitude(int64_t amp_num, int64_t amp_denom);
     double get_amplitude() const;
@@ -170,13 +180,19 @@ public:
         modulators.period_changed(ctx.second);
     }
 
-    void import_oscillators(
+    bool import_oscillators(
         const std::vector<dynamic_oscillator>& oscillators,
         unsigned i = 0
     ){
-        if(i >= oscillators.size()) return;
-        oscillator<Type>::operator=(oscillators[i]);
-        modulators.import_oscillators(oscillators, i+1);
+        if(i >= oscillators.size()) return false;
+
+        bool mask = false;
+        if((basic_oscillator)oscillators[i] != (basic_oscillator)*this)
+        {
+            oscillator<Type>::operator=(oscillators[i]);
+            mask = true;
+        }
+        return modulators.import_oscillators(oscillators, i+1) || mask;
     }
 
     void export_oscillators(std::vector<dynamic_oscillator>& oscillators) const
@@ -246,12 +262,17 @@ public:
         ctx.period_changed();
     }
 
-    void import_oscillators(
+    bool import_oscillators(
         const std::vector<dynamic_oscillator>& oscillators,
         unsigned i = 0
     ){
-        if(i >= oscillators.size()) return;
-        oscillator<Type>::operator=(oscillators[i]);
+        if(i >= oscillators.size()) return false;
+        if((basic_oscillator)oscillators[i] != (basic_oscillator)*this)
+        {
+            oscillator<Type>::operator=(oscillators[i]);
+            return true;
+        }
+        return false;
     }
 
     void export_oscillators(std::vector<dynamic_oscillator>& oscillators) const
@@ -281,7 +302,7 @@ public:
     void set_period(...) {}
     void set_frequency(...) {}
     void period_changed(...) {}
-    void import_oscillators(...) {}
+    bool import_oscillators(...) { return false; }
     void export_oscillators(...) const {}
 };
 
@@ -396,9 +417,11 @@ public:
         const std::vector<dynamic_oscillator>& oscillators
     ) override
     {
-        modulator.import_oscillators(oscillators, 0);
-        for(voice_id i = 0; i < carriers.size(); ++i)
-            carriers[i].period_changed(contexts[i]);
+        if(modulator.import_oscillators(oscillators, 0))
+        {
+            for(voice_id i = 0; i < carriers.size(); ++i)
+                carriers[i].period_changed(contexts[i]);
+        }
     }
 
     void export_modulators(

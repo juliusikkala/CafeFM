@@ -17,7 +17,7 @@ using namespace std::string_literals;
 
 cafefm::cafefm()
 :   win(nullptr), selected_controller(nullptr), keyboard_grabbed(false),
-    mouse_grabbed(false)
+    mouse_grabbed(false), master_volume(0.5)
 {
     SDL_GL_SetAttribute(
         SDL_GL_CONTEXT_FLAGS,
@@ -76,8 +76,9 @@ cafefm::~cafefm()
 void cafefm::load()
 {
     reset_synth();
+    action_ctx.apply(*synth, master_volume, modulators);
 
-    selected_tab = 0;
+    selected_tab = 1;
 
     struct nk_font_atlas* atlas;
     nk_sdl_font_stash_begin(&atlas);
@@ -190,6 +191,8 @@ bool cafefm::update(unsigned dt)
 
         if(!handled) nk_sdl_handle_event(&e);
     }
+
+    action_ctx.apply(*synth, master_volume, modulators);
     return !quit;
 }
 
@@ -538,9 +541,6 @@ void cafefm::gui_synth_editor()
     // Render carrier & ADSR
     mask |= gui_carrier(carrier);
 
-    std::vector<dynamic_oscillator> modulators;
-    synth->export_modulators(modulators);
-
     // Render modulators
     for(unsigned i = 0; i < modulators.size(); ++i)
     {
@@ -573,7 +573,6 @@ void cafefm::gui_synth_editor()
     if(nk_group_begin(
         ctx, "Synth Control", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
     )){
-        float master_volume = synth->get_volume();
         int polyphony = synth->get_polyphony();
         float max_safe_volume = 1.0/synth->get_polyphony();
 
@@ -586,7 +585,6 @@ void cafefm::gui_synth_editor()
 
         nk_labelf(ctx, NK_TEXT_LEFT, "Master volume: %.2f", master_volume);
         nk_slider_float(ctx, 0, &master_volume, 1.0f, 0.01f);
-        synth->set_volume(master_volume);
 
         if(master_volume > max_safe_volume)
         {
@@ -609,8 +607,16 @@ void cafefm::gui_synth_editor()
             output->start();
         }
 
-        nk_layout_row_static(ctx, 60, 150, 1);
-        gui_keyboard_grab();
+
+        if(selected_controller)
+        {
+            std::string type = selected_controller->get_type_name();
+            if(type == "Keyboard")
+            {
+                nk_layout_row_static(ctx, 60, 150, 1);
+                gui_keyboard_grab();
+            }
+        }
 
         nk_group_end(ctx);
     }
@@ -618,10 +624,58 @@ void cafefm::gui_synth_editor()
 
     // Do necessary updates
     if(mask & CHANGE_REQUIRE_RESET)
+    {
         reset_synth(44100, carrier, modulators);
+        action_ctx.apply(*synth, master_volume, modulators);
+    }
+}
 
-    if(mask & CHANGE_REQUIRE_IMPORT)
-        synth->import_modulators(modulators);
+void cafefm::gui_instrument_editor()
+{
+    nk_style_set_font(ctx, &small_font->handle);
+    nk_layout_row_dynamic(ctx, 70, 1);
+
+    if(nk_group_begin(
+            ctx, "Controller Group", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
+    )){
+        nk_layout_row_template_begin(ctx, 30);
+        nk_layout_row_template_push_static(ctx, 80);
+        nk_layout_row_template_push_static(ctx, 200);
+        nk_layout_row_template_end(ctx);
+
+        nk_label(ctx, "Controller:", NK_TEXT_LEFT);
+
+        std::vector<std::string> label_strings;
+        std::vector<const char*> label_cstrings;
+        unsigned selected_index = 0;
+        for(unsigned i = 0; i < available_controllers.size(); ++i)
+        {
+            auto& c = available_controllers[i];
+            if(c.get() == selected_controller) selected_index = i;
+
+            std::string name = c->get_device_name();
+            label_strings.push_back(name);
+            label_cstrings.push_back(name.c_str());
+        }
+
+        selected_index = nk_combo(
+            ctx, label_cstrings.data(), label_cstrings.size(),
+            selected_index, 25, nk_vec2(200, 200)
+        );
+        selected_controller = available_controllers[selected_index].get();
+
+        nk_layout_row_template_begin(ctx, 30);
+        nk_layout_row_template_push_static(ctx, 80);
+        nk_layout_row_template_push_static(ctx, 200);
+        nk_layout_row_template_end(ctx);
+
+        nk_label(ctx, "Preset:", NK_TEXT_LEFT);
+
+        /* TODO: Preset drop-down, name nk_edit_string, save, remove, remove popup */
+
+        nk_group_end(ctx);
+    }
+
 }
 
 void cafefm::gui()
@@ -678,6 +732,9 @@ void cafefm::gui()
         {
         case 0:
             gui_synth_editor();
+            break;
+        case 1:
+            gui_instrument_editor();
             break;
         default:
             break;

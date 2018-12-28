@@ -39,25 +39,25 @@ envelope envelope::convert(
 }
 
 instrument::instrument(uint64_t samplerate)
-: tuning_offset(0), volume(0.5), samplerate(samplerate)
+: base_frequency(440), volume(0.5), samplerate(samplerate)
 {
-    voices.resize(1, {false, false, 0, 0, 0.0, 0});
+    voices.resize(1, {false, false, 0, 0, 0});
     adsr.set_volume(1.0f, 0.5f);
     adsr.set_curve(0.07f, 0.2f, 0.05f, samplerate);
 }
 
 instrument::~instrument() {}
 
-void instrument::set_tuning(double offset)
+void instrument::set_tuning(double base_frequency)
 {
-    if(tuning_offset == offset) return;
-    tuning_offset = offset;
+    if(this->base_frequency == base_frequency) return;
+    this->base_frequency = base_frequency;
     refresh_all_voices();
 }
 
 double instrument::get_tuning() const
 {
-    return tuning_offset;
+    return base_frequency;
 }
 
 uint64_t instrument::get_samplerate() const
@@ -105,28 +105,10 @@ void instrument::release_voice(voice_id id)
     voices[id].pressed = false;
 }
 
-void instrument::set_voice_tuning(voice_id id, double offset)
-{
-    if(voices[id].tuning == offset) return;
-    voices[id].tuning = offset;
-    refresh_voice(id);
-}
-
-double instrument::get_voice_tuning(voice_id id)
-{
-    return voices[id].tuning;
-}
-
-void instrument::reset_all_voice_tuning()
-{
-    for(voice& v: voices) v.tuning = 0.0;
-    refresh_all_voices();
-}
-
 void instrument::set_polyphony(unsigned n)
 {
     if(voices.size() == n) return;
-    voices.resize(n, {false, false, 0, 0, 0.0, 0});
+    voices.resize(n, {false, false, 0, 0, 0});
     handle_polyphony(n);
 }
 
@@ -177,7 +159,7 @@ void instrument::copy_state(const instrument& other)
     }
 
     adsr = other.adsr.convert(other.samplerate, samplerate);
-    tuning_offset = other.tuning_offset;
+    base_frequency = other.base_frequency;
     volume = other.volume;
 
     handle_polyphony(voices.size());
@@ -186,7 +168,7 @@ void instrument::copy_state(const instrument& other)
 
 double instrument::get_frequency(voice_id id) const
 {
-    return (440.0 + voices[id].tuning + tuning_offset) * pow(2.0, voices[id].semitone/12.0);
+    return base_frequency * pow(2.0, voices[id].semitone/12.0);
 }
 
 void instrument::get_voice_volume(voice_id id, int64_t& num, int64_t& denom)
