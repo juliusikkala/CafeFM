@@ -1,4 +1,5 @@
 #include "cafefm.hh"
+#include "controller/keyboard.hh"
 #include <stdexcept>
 #include <string>
 
@@ -15,7 +16,8 @@
 using namespace std::string_literals;
 
 cafefm::cafefm()
-: win(nullptr)
+:   win(nullptr), selected_controller(nullptr), keyboard_grabbed(false),
+    mouse_grabbed(false)
 {
     SDL_GL_SetAttribute(
         SDL_GL_CONTEXT_FLAGS,
@@ -92,10 +94,15 @@ void cafefm::load()
 
     load_texture(close_img, "data/images/close.png");
     load_texture(warn_img, "data/images/warning.png");
+
+    available_controllers.emplace_back(new keyboard());
+    selected_controller = available_controllers[0].get();
 }
 
 void cafefm::unload()
 {
+    available_controllers.clear();
+
     nk_sdl_destroy_texture(close_img.handle.id);
     nk_sdl_destroy_texture(warn_img.handle.id);
 }
@@ -116,10 +123,28 @@ void cafefm::render()
 bool cafefm::update(unsigned dt)
 {
     bool quit = false;
+
+    auto cb = [this](
+        controller* c, int axis_1d_index, int axis_2d_index, int button_index
+    ){
+        handle_controller(c, axis_1d_index, axis_2d_index, button_index);
+    };
+
+    for(unsigned i = 0; i < available_controllers.size(); ++i)
+    {
+        auto& c = available_controllers[i];
+        auto fn = c.get() == selected_controller ?
+            cb : controller::change_callback();
+        if(!c->poll(fn)) detach_controller(i);
+    }
+
     SDL_Event e;
     while(SDL_PollEvent(&e))
     {
         bool handled = false;
+        bool is_keyboard_event = false;
+        bool is_mouse_event = false;
+
         switch(e.type)
         {
         case SDL_QUIT:
@@ -127,19 +152,82 @@ bool cafefm::update(unsigned dt)
             quit = true;
             break;
         case SDL_KEYDOWN:
+            is_keyboard_event = true;
             if(!e.key.repeat && e.key.keysym.sym == SDLK_SPACE)
                 synth->press_voice(0, 0);
             break;
         case SDL_KEYUP:
+            is_keyboard_event = true;
             if(e.key.keysym.sym == SDLK_SPACE)
                 synth->release_voice(0);
+            break;
+        case SDL_TEXTINPUT:
+        case SDL_TEXTEDITING:
+            is_keyboard_event = true;
+            break;
+        case SDL_MOUSEMOTION:
+        case SDL_MOUSEBUTTONDOWN:
+        case SDL_MOUSEBUTTONUP:
+        case SDL_MOUSEWHEEL:
+            is_mouse_event = true;
             break;
         default:
             break;
         }
+        
+        if(
+            (is_keyboard_event && keyboard_grabbed) ||
+            (is_mouse_event && mouse_grabbed)
+        ) handled = true;
+
+        for(unsigned i = 0; i < available_controllers.size(); ++i)
+        {
+            auto& c = available_controllers[i];
+            auto fn = c.get() == selected_controller ?
+                cb : controller::change_callback();
+            if(!c->handle_event(e, fn)) detach_controller(i);
+        }
+
         if(!handled) nk_sdl_handle_event(&e);
     }
     return !quit;
+}
+
+void cafefm::handle_controller(
+    controller* c, int axis_1d_index, int axis_2d_index, int button_index
+){
+    std::string type = c->get_type_name();
+    if(
+        c != selected_controller ||
+        (type == "Keyboard" && !keyboard_grabbed) ||
+        (type == "Mouse" && !mouse_grabbed)
+    ) return;
+    printf("%s\n", c->get_button_name(button_index).c_str());
+}
+
+void cafefm::detach_controller(unsigned index)
+{
+    controller* c = available_controllers[index].get();
+    if(selected_controller == c) selected_controller = nullptr;
+    available_controllers.erase(available_controllers.begin() + index);
+}
+
+void cafefm::gui_keyboard_grab()
+{
+    nk_style_set_font(ctx, &medium_font->handle);
+    if(keyboard_grabbed)
+    {
+        struct nk_style_item button_color = ctx->style.button.normal;
+        ctx->style.button.normal = ctx->style.button.active;
+        if(nk_button_label(ctx, "Detach keyboard"))
+            keyboard_grabbed = false;
+        ctx->style.button.normal = button_color;
+    }
+    else
+    {
+        if(nk_button_label(ctx, "Grab keyboard"))
+            keyboard_grabbed = true;
+    }
 }
 
 void cafefm::gui_draw_adsr(const envelope& adsr)
@@ -520,6 +608,9 @@ void cafefm::gui_synth_editor()
             synth->set_polyphony(new_polyphony);
             output->start();
         }
+
+        nk_layout_row_static(ctx, 60, 150, 1);
+        gui_keyboard_grab();
 
         nk_group_end(ctx);
     }

@@ -397,6 +397,8 @@ public:
     ) override
     {
         modulator.import_oscillators(oscillators, 0);
+        for(voice_id i = 0; i < carriers.size(); ++i)
+            carriers[i].period_changed(contexts[i]);
     }
 
     void export_modulators(

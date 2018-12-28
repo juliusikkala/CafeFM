@@ -8,6 +8,8 @@ src = [
   'external/nuklear.cc',
   'src/audio.cc',
   'src/cafefm.cc',
+  'src/controller/controller.cc',
+  'src/controller/keyboard.cc',
   'src/fm.cc',
   'src/instrument.cc',
   'src/main.cc',
