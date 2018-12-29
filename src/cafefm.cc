@@ -1,5 +1,6 @@
 #include "cafefm.hh"
 #include "controller/keyboard.hh"
+#include "io.hh"
 #include <stdexcept>
 #include <string>
 
@@ -98,6 +99,45 @@ void cafefm::load()
 
     available_controllers.emplace_back(new keyboard());
     selected_controller = available_controllers[0].get();
+    binds.reset(new bindings());
+
+    // Quick piano binds
+    SDL_Scancode keys[] = {
+        SDL_SCANCODE_Z,
+        SDL_SCANCODE_S,
+        SDL_SCANCODE_X,
+        SDL_SCANCODE_D,
+        SDL_SCANCODE_C,
+        SDL_SCANCODE_V,
+        SDL_SCANCODE_G,
+        SDL_SCANCODE_B,
+        SDL_SCANCODE_H,
+        SDL_SCANCODE_N,
+        SDL_SCANCODE_J,
+        SDL_SCANCODE_M,
+        SDL_SCANCODE_COMMA,
+        SDL_SCANCODE_L,
+        SDL_SCANCODE_PERIOD,
+        SDL_SCANCODE_SEMICOLON,
+        SDL_SCANCODE_SLASH,
+    };
+
+    for(unsigned i = 0; i < sizeof(keys)/sizeof(*keys); ++i)
+    {
+        bind& b = binds->create_new_bind();
+        b.control = bind::BUTTON_PRESS;
+        b.button.index = keys[i];
+        b.button.active_pressed = true;
+        b.action = bind::KEY;
+        b.key_semitone = 3+i;
+    }
+
+    binds->set_name("PC Keyboard, 2 layer piano");
+    binds->set_target_device(selected_controller);
+    binds->set_write_lock(true);
+
+    write_bindings(*binds);
+    binds.reset(new bindings(load_all_bindings()[0]));
 }
 
 void cafefm::unload()
@@ -153,15 +193,7 @@ bool cafefm::update(unsigned dt)
             quit = true;
             break;
         case SDL_KEYDOWN:
-            is_keyboard_event = true;
-            if(!e.key.repeat && e.key.keysym.sym == SDLK_SPACE)
-                synth->press_voice(0, 0);
-            break;
         case SDL_KEYUP:
-            is_keyboard_event = true;
-            if(e.key.keysym.sym == SDLK_SPACE)
-                synth->release_voice(0);
-            break;
         case SDL_TEXTINPUT:
         case SDL_TEXTEDITING:
             is_keyboard_event = true;
@@ -205,7 +237,17 @@ void cafefm::handle_controller(
         (type == "Keyboard" && !keyboard_grabbed) ||
         (type == "Mouse" && !mouse_grabbed)
     ) return;
-    printf("%s\n", c->get_button_name(button_index).c_str());
+
+    if(binds)
+    {
+        binds->act(
+            control_ctx,
+            c,
+            axis_1d_index,
+            axis_2d_index,
+            button_index
+        );
+    }
 }
 
 void cafefm::detach_controller(unsigned index)

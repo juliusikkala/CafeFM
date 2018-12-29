@@ -1,0 +1,195 @@
+{
+  "binds": [
+    {
+      "action": {
+        "semitone": 3,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 29,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 4,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 22,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 5,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 27,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 6,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 7,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 7,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 6,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 8,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 25,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 9,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 10,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 10,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 5,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 11,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 11,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 12,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 17,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 13,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 13,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 14,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 16,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 15,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 54,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 16,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 15,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 17,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 55,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 18,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 51,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 19,
+        "type": "KEY"
+      },
+      "control": {
+        "active_pressed": true,
+        "index": 56,
+        "type": "BUTTON_PRESS"
+      }
+    }
+  ],
+  "controller_type": "Keyboard",
+  "device_name": "Keyboard",
+  "locked": true,
+  "name": "PC Keyboard, 2 layer piano"
+}

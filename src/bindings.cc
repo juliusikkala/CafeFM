@@ -1,16 +1,180 @@
 #include "bindings.hh"
 #include "controller/controller.hh"
 #include <stdexcept>
+#include <cstring>
 
 namespace
 {
     double lerp(double a, double b, double t) { return (1 - t) * a + t * b; }
+    int find_string_arg(
+        const char* str,
+        const char* const* strings,
+        unsigned string_count
+    ){
+        for(unsigned i = 0; i < string_count; ++i)
+            if(strcmp(str, strings[i]) == 0) return i;
+        return -1;
+    }
 }
+
+static const char* const control_strings[] = {
+    "UNBOUND",
+    "BUTTON_PRESS",
+    "BUTTON_TOGGLE",
+    "AXIS_1D_CONTINUOUS",
+    "AXIS_1D_THRESHOLD",
+    "AXIS_1D_THRESHOLD_TOGGLE"
+};
+
+static const char* const action_strings[] = {
+    "KEY",
+    "FREQUENCY_EXPT",
+    "VOLUME_MUL",
+    "PERIOD_EXPT",
+    "AMPLITUDE_MUL"
+};
 
 bind::bind()
 : control(UNBOUND), id(0), action(KEY), key_semitone(0) { }
 
+json bind::serialize() const
+{
+    json j;
+
+    j["control"]["type"] = control_strings[(unsigned)control];
+    switch(control)
+    {
+    case BUTTON_PRESS:
+    case BUTTON_TOGGLE:
+        j["control"]["index"] = button.index;
+        j["control"]["active_pressed"] = button.active_pressed;
+        break;
+    case AXIS_1D_CONTINUOUS:
+    case AXIS_1D_THRESHOLD:
+    case AXIS_1D_THRESHOLD_TOGGLE:
+        j["control"]["index"] = axis_1d.index;
+        j["control"]["invert"] = axis_1d.invert;
+        j["control"]["threshold"] = axis_1d.threshold;
+        break;
+    default:
+        break;
+    }
+
+    j["action"]["type"] = action_strings[(unsigned)action];
+
+    switch(action)
+    {
+    case KEY:
+        j["action"]["semitone"] = key_semitone;
+        break;
+    case FREQUENCY_EXPT:
+        j["action"]["frequency"]["max_expt"] = frequency.max_expt;
+        break;
+    case VOLUME_MUL:
+        j["action"]["volume"]["min_mul"] = volume.min_mul;
+        j["action"]["volume"]["max_mul"] = volume.max_mul;
+        break;
+    case PERIOD_EXPT:
+        j["action"]["period"]["modulator_index"] = period.modulator_index;
+        j["action"]["period"]["max_expt"] = period.max_expt;
+        break;
+    case AMPLITUDE_MUL:
+        j["action"]["amplitude"]["modulator_index"] = amplitude.modulator_index;
+        j["action"]["amplitude"]["min_mul"] = amplitude.min_mul;
+        j["action"]["amplitude"]["max_mul"] = amplitude.max_mul;
+        break;
+    }
+
+    return j;
+}
+
+bool bind::deserialize(const json& j)
+{
+    try
+    {
+        std::string control_str = j.at("control").at("type").get<std::string>();
+        int control_i = find_string_arg(
+            control_str.c_str(),
+            control_strings,
+            sizeof(control_strings)/sizeof(*control_strings)
+        );
+        if(control_i < 0) return false;
+        control = (enum control)control_i;
+
+        switch(control)
+        {
+        case BUTTON_PRESS:
+        case BUTTON_TOGGLE:
+            j.at("control").at("index").get_to(button.index);
+            j.at("control").at("active_pressed").get_to(button.active_pressed);
+            break;
+        case AXIS_1D_CONTINUOUS:
+        case AXIS_1D_THRESHOLD:
+        case AXIS_1D_THRESHOLD_TOGGLE:
+            j.at("control").at("index").get_to(axis_1d.index);
+            j.at("control").at("invert").get_to(axis_1d.invert);
+            j.at("control").at("threshold").get_to(axis_1d.threshold);
+            break;
+        default:
+            break;
+        }
+
+        std::string action_str = j.at("action").at("type").get<std::string>();
+        int action_i = find_string_arg(
+            action_str.c_str(),
+            action_strings,
+            sizeof(action_strings)/sizeof(*action_strings)
+        );
+        if(action_i < 0) return false;
+        action = (enum action)action_i;
+
+        switch(action)
+        {
+        case KEY:
+            j.at("action").at("semitone").get_to(key_semitone);
+            break;
+        case FREQUENCY_EXPT:
+            j.at("action").at("frequency")
+                .at("max_expt").get_to(frequency.max_expt);
+            break;
+        case VOLUME_MUL:
+            j.at("action").at("volume").at("min_mul").get_to(volume.min_mul);
+            j.at("action").at("volume").at("max_mul").get_to(volume.max_mul);
+            break;
+        case PERIOD_EXPT:
+            j.at("action").at("period")
+                .at("modulator_index").get_to(period.modulator_index);
+            j.at("action").at("period").at("max_expt").get_to(period.max_expt);
+            break;
+        case AMPLITUDE_MUL:
+            j.at("action").at("amplitude")
+                .at("modulator_index").get_to(amplitude.modulator_index);
+            j.at("action").at("amplitude")
+                .at("min_mul").get_to(amplitude.min_mul);
+            j.at("action").at("amplitude")
+                .at("max_mul").get_to(amplitude.max_mul);
+            break;
+        }
+    }
+    catch(...)
+    {
+        return false;
+    }
+
+    return true;
+}
+
 bindings::bindings() { clear(); }
+
+void bindings::set_write_lock(bool lock)
+{
+    write_lock = lock;
+}
+
+bool bindings::is_write_locked() const
+{
+    return write_lock;
+}
 
 void bindings::set_name(const std::string& name) { this->name = name; }
 std::string bindings::get_name() const { return name; }
@@ -80,9 +244,9 @@ unsigned bindings::rate_compatibility(controller* c) const
 void bindings::act(
     control_context& ctx,
     controller* c,
-    int button_index,
     int axis_1d_index,
-    int axis_2d_index
+    int axis_2d_index,
+    int button_index
 ){
     for(const bind& b: binds)
     {
@@ -253,15 +417,43 @@ size_t bindings::bind_count() const
     return binds.size();
 }
 
-void bindings::save(json& j)
+json bindings::serialize() const
 {
-    // TODO: Implement
+    json j;
+    j["name"] = name;
+    j["locked"] = write_lock;
+    j["controller_type"] = device_type;
+    j["device_name"] = device_name;
+    j["binds"] = json::array();
+    for(const auto& b: binds) j["binds"].push_back(b.serialize());
+    return j;
 }
 
-void bindings::load(const json& j)
+bool bindings::deserialize(const json& j)
 {
     clear();
-    // TODO: Implement
+
+    try
+    {
+        j.at("name").get_to(name);
+        j.at("locked").get_to(write_lock);
+        j.at("controller_type").get_to(device_type);
+        j.at("device_name").get_to(device_name);
+
+        for(auto& b: j.at("binds"))
+        {
+            bind new_bind;
+            new_bind.id = id_counter++;
+            if(!new_bind.deserialize(b)) return false;
+            binds.push_back(new_bind);
+        }
+    }
+    catch(...)
+    {
+        return false;
+    }
+
+    return true;
 }
 
 void bindings::clear()
@@ -270,5 +462,6 @@ void bindings::clear()
     device_type = "None";
     device_name = "Unnamed",
     id_counter = 0;
+    write_lock = false;
     binds.clear();
 }

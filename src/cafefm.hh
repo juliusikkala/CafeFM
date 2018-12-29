@@ -3,6 +3,7 @@
 #include <GL/glew.h>
 #include "fm.hh"
 #include "control_context.hh"
+#include "bindings.hh"
 #include "controller/controller.hh"
 #include "audio.hh"
 #include "nuklear.hh"
@@ -74,6 +75,7 @@ private:
     std::vector<dynamic_oscillator> modulators;
     float master_volume;
     control_context control_ctx;
+    std::unique_ptr<bindings> binds;
 };
 
 #endif

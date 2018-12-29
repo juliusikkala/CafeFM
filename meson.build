@@ -14,6 +14,7 @@ src = [
   'src/controller/keyboard.cc',
   'src/fm.cc',
   'src/instrument.cc',
+  'src/io.cc',
   'src/main.cc',
 ]
 
@@ -23,6 +24,7 @@ portaudio_dep = dependency('portaudio-2.0')
 sdl2_dep = dependency('sdl2')
 sdl2_image_dep = dependency('SDL2_image')
 glew_dep = dependency('glew')
+boost_dep = dependency('boost', modules : ['filesystem', 'system'])
 incdir = include_directories('src', 'external')
 
 executable(
@@ -33,6 +35,7 @@ executable(
     sdl2_dep,
     sdl2_image_dep,
     glew_dep,
+    boost_dep,
     m_dep
   ],
   include_directories: [incdir],

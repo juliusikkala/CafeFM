@@ -1,17 +1,18 @@
 #ifndef CAFEFM_BINDINGS_HH
 #define CAFEFM_BINDINGS_HH
 #include "control_context.hh"
-#include "json.hpp"
+#include "io.hh"
 #include <vector>
 #include <string>
-
-using json = nlohmann::json;
 
 struct bind
 {
     bind();
 
-    enum
+    json serialize() const;
+    bool deserialize(const json& j);
+
+    enum control
     {
         UNBOUND = 0,
         BUTTON_PRESS,
@@ -43,7 +44,7 @@ struct bind
         } axis_1d;
     };
 
-    enum
+    enum action
     {
         KEY, // Discrete control only
         FREQUENCY_EXPT,
@@ -93,6 +94,11 @@ class bindings
 public:
     bindings();
 
+    // Note that these don't actually block anything; that must be done in the
+    // GUI.
+    void set_write_lock(bool lock);
+    bool is_write_locked() const;
+
     void set_name(const std::string& name);
     std::string get_name() const;
 
@@ -116,9 +122,9 @@ public:
     void act(
         control_context& ctx,
         controller* c,
-        int button_index,
         int axis_1d_index,
-        int axis_2d_index
+        int axis_2d_index,
+        int button_index
     );
 
     bind& create_new_bind();
@@ -127,11 +133,12 @@ public:
     void erase_bind(unsigned i);
     size_t bind_count() const;
 
-    void save(json& j);
-    void load(const json& j);
+    json serialize() const;
+    bool deserialize(const json& j);
     void clear();
 
 private:
+    bool write_lock;
     std::string name;
     std::string device_type, device_name;
     std::vector<bind> binds;
