@@ -76,7 +76,7 @@ cafefm::~cafefm()
 void cafefm::load()
 {
     reset_synth();
-    action_ctx.apply(*synth, master_volume, modulators);
+    control_ctx.apply(*synth, master_volume, modulators);
 
     selected_tab = 1;
 
@@ -192,7 +192,7 @@ bool cafefm::update(unsigned dt)
         if(!handled) nk_sdl_handle_event(&e);
     }
 
-    action_ctx.apply(*synth, master_volume, modulators);
+    control_ctx.apply(*synth, master_volume, modulators);
     return !quit;
 }
 
@@ -626,7 +626,7 @@ void cafefm::gui_synth_editor()
     if(mask & CHANGE_REQUIRE_RESET)
     {
         reset_synth(44100, carrier, modulators);
-        action_ctx.apply(*synth, master_volume, modulators);
+        control_ctx.apply(*synth, master_volume, modulators);
     }
 }
 

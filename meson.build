@@ -6,9 +6,10 @@ project(
 
 src = [
   'external/nuklear.cc',
-  'src/action.cc',
   'src/audio.cc',
+  'src/bindings.cc',
   'src/cafefm.cc',
+  'src/control_context.cc',
   'src/controller/controller.cc',
   'src/controller/keyboard.cc',
   'src/fm.cc',

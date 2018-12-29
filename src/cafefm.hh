@@ -2,7 +2,7 @@
 #define CAFEFM_HH
 #include <GL/glew.h>
 #include "fm.hh"
-#include "action.hh"
+#include "control_context.hh"
 #include "controller/controller.hh"
 #include "audio.hh"
 #include "nuklear.hh"
@@ -73,7 +73,7 @@ private:
 
     std::vector<dynamic_oscillator> modulators;
     float master_volume;
-    action_context action_ctx;
+    control_context control_ctx;
 };
 
 #endif
