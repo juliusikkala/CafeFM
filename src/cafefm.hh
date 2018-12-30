@@ -66,6 +66,7 @@ private:
     struct nk_image close_img, yellow_warn_img, gray_warn_img, red_warn_img,
         lock_img;
     unsigned selected_tab;
+    unsigned selected_preset;
 
     std::vector<std::unique_ptr<controller>> available_controllers;
     controller* selected_controller;
@@ -82,7 +83,7 @@ private:
     control_state control;
 
     std::vector<bindings> all_bindings;
-    bindings selected_binds;
+    bindings binds;
 };
 
 #endif

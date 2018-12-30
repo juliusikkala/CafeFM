@@ -3,6 +3,7 @@
 #include "io.hh"
 #include <stdexcept>
 #include <string>
+#include <cstring>
 
 /* Significant parts related to GUI rendering copied from here (public domain):
  * https://github.com/vurtun/nuklear/blob/2891c6afbc5781b700cbad6f6d771f1f214f6b56/demo/sdl_opengl3/main.c
@@ -13,6 +14,7 @@
 #define OSCILLATOR_HEIGHT 90
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
+#define MAX_BINDING_NAME_LENGTH 128
 
 using namespace std::string_literals;
 
@@ -127,10 +129,11 @@ void cafefm::load()
 
     available_controllers.emplace_back(new keyboard());
     selected_controller = available_controllers[0].get();
+    selected_preset = 0;
 
     all_bindings = load_all_bindings();
     auto comp = filter_compatible_bindings();
-    if(comp.size() > 1) selected_binds = comp[0].first;
+    if(comp.size() > 1) binds = comp[0].first;
 }
 
 void cafefm::unload()
@@ -234,13 +237,7 @@ void cafefm::handle_controller(
         (type == "Mouse" && !mouse_grabbed)
     ) return;
 
-    selected_binds.act(
-        control,
-        c,
-        axis_1d_index,
-        axis_2d_index,
-        button_index
-    );
+    binds.act(control, c, axis_1d_index, axis_2d_index, button_index);
 }
 
 void cafefm::detach_controller(unsigned index)
@@ -668,7 +665,7 @@ void cafefm::gui_synth_editor()
 void cafefm::gui_instrument_editor()
 {
     nk_style_set_font(ctx, &small_font->handle);
-    nk_layout_row_dynamic(ctx, 80, 1);
+    nk_layout_row_dynamic(ctx, 110, 1);
 
     if(nk_group_begin(
             ctx, "Controller Group", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
@@ -708,11 +705,12 @@ void cafefm::gui_instrument_editor()
 
         nk_label(ctx, "Preset:", NK_TEXT_LEFT);
 
+        auto compatible = filter_compatible_bindings();
         if(nk_combo_begin_label(
-            ctx, selected_binds.get_name().c_str(), nk_vec2(400,200)
+            ctx, compatible[selected_preset].first.get_name().c_str(),
+            nk_vec2(400,200)
         )){
-            auto compatible = filter_compatible_bindings();
-            int selected_preset = -1;
+            int new_selected_preset = -1;
             nk_layout_row_dynamic(ctx, 25, 1);
             for(unsigned i = 0; i < compatible.size(); ++i)
             {
@@ -720,41 +718,36 @@ void cafefm::gui_instrument_editor()
                 if(pair.second == 0)
                 {
                     if(nk_combo_item_label(
-                        ctx,
-                        pair.first.get_name().c_str(),
-                        NK_TEXT_ALIGN_LEFT
-                    )) selected_preset = i;
+                        ctx, pair.first.get_name().c_str(), NK_TEXT_ALIGN_LEFT
+                    )) new_selected_preset = i;
                 }
                 else if(pair.second == 1)
                 {
                     if(nk_combo_item_image_label(
-                        ctx,
-                        gray_warn_img,
-                        pair.first.get_name().c_str(),
+                        ctx, gray_warn_img, pair.first.get_name().c_str(),
                         NK_TEXT_ALIGN_LEFT
-                    )) selected_preset = i;
+                    )) new_selected_preset = i;
                 }
                 else if(pair.second == 2)
                 {
                     if(nk_combo_item_image_label(
-                        ctx,
-                        yellow_warn_img,
-                        pair.first.get_name().c_str(),
+                        ctx, yellow_warn_img, pair.first.get_name().c_str(),
                         NK_TEXT_ALIGN_LEFT
-                    )) selected_preset = i;
+                    )) new_selected_preset = i;
                 }
             }
 
-            if(selected_preset != -1)
+            if(new_selected_preset != -1)
             {
                 synth->release_all_voices();
                 control.reset();
-                selected_binds = compatible[selected_preset].first;
+                selected_preset = new_selected_preset;
+                binds = compatible[selected_preset].first;
             }
             nk_combo_end(ctx);
         }
 
-        switch(selected_binds.rate_compatibility(selected_controller))
+        switch(binds.rate_compatibility(selected_controller))
         {
         case 1:
             nk_image(ctx, gray_warn_img);
@@ -771,6 +764,22 @@ void cafefm::gui_instrument_editor()
         default:
             break;
         }
+
+        nk_layout_row_template_begin(ctx, 30);
+        nk_layout_row_template_push_static(ctx, 600);
+        nk_layout_row_template_end(ctx);
+
+        std::string current_name_str = binds.get_name();
+        char current_name[MAX_BINDING_NAME_LENGTH+1] = {0};
+        int current_name_len = current_name_str.size();
+        strncpy(
+            current_name, current_name_str.c_str(), MAX_BINDING_NAME_LENGTH
+        );
+        nk_edit_string(
+            ctx, NK_EDIT_SIMPLE, current_name, &current_name_len,
+            MAX_BINDING_NAME_LENGTH, nk_filter_default
+        );
+        binds.set_name(std::string(current_name, current_name_len));
 
         nk_group_end(ctx);
     }
