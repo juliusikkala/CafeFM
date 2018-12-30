@@ -1,9 +1,12 @@
 #ifndef CAFEFM_BINDINGS_HH
 #define CAFEFM_BINDINGS_HH
-#include "control_context.hh"
+#include "control_state.hh"
 #include "io.hh"
 #include <vector>
 #include <string>
+
+class controller;
+class control_state;
 
 struct bind
 {
@@ -18,13 +21,14 @@ struct bind
         BUTTON_PRESS,
         BUTTON_TOGGLE,
         AXIS_1D_CONTINUOUS,
+        AXIS_1D_RELATIVE,
         AXIS_1D_THRESHOLD,
         AXIS_1D_THRESHOLD_TOGGLE
     } control;
 
     // Do not modify this manually, it's set by bindings::create_new_bind and
     // used for internal bookkeeping.
-    control_context::action_id id;
+    control_state::action_id id;
 
     union
     {
@@ -32,15 +36,16 @@ struct bind
         struct
         {
             int index;
-            bool active_pressed;
+            unsigned active_state;
         } button;
 
-        // AXIS_1D_CONTINUOUS, AXIS_1D_THRESHOLD, AXIS_1D_THRESHOLD_TOGGLE
+        // AXIS_1D_CONTINUOUS, AXIS_1D_RELATIVE,
+        // AXIS_1D_THRESHOLD, AXIS_1D_THRESHOLD_TOGGLE
         struct
         {
             int index;
             bool invert;
-            float threshold; // unused for continuous
+            float threshold; // unused for continuous, multiplier for relative
         } axis_1d;
     };
 
@@ -84,10 +89,24 @@ struct bind
             double min_mul, max_mul;
         } amplitude;
     };
-};
 
-class controller;
-class control_context;
+    bool triggered(
+        int axis_1d_index,
+        int axis_2d_index,
+        int button_index
+    ) const;
+
+    double input_value(const controller* c) const;
+
+    double get_value(const control_state& ctx, const controller* c) const;
+    // Returns false if should be skipped
+    bool update_value(
+        control_state& ctx,
+        const controller* c,
+        double& value
+    ) const;
+    double normalize(const controller* c, double value) const;
+};
 
 class bindings
 {
@@ -120,7 +139,7 @@ public:
 
     // Applies controller inputs to control context according to the bindings.
     void act(
-        control_context& ctx,
+        control_state& state,
         controller* c,
         int axis_1d_index,
         int axis_2d_index,
@@ -130,7 +149,7 @@ public:
     bind& create_new_bind();
     bind& get_bind(unsigned i);
     const bind& get_bind(unsigned i) const;
-    void erase_bind(unsigned i);
+    void erase_bind(unsigned i, control_state& state);
     size_t bind_count() const;
 
     json serialize() const;
@@ -142,7 +161,7 @@ private:
     std::string name;
     std::string device_type, device_name;
     std::vector<bind> binds;
-    control_context::action_id id_counter;
+    control_state::action_id id_counter;
 };
 
 #endif

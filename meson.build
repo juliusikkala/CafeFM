@@ -9,7 +9,7 @@ src = [
   'src/audio.cc',
   'src/bindings.cc',
   'src/cafefm.cc',
-  'src/control_context.cc',
+  'src/control_state.cc',
   'src/controller/controller.cc',
   'src/controller/keyboard.cc',
   'src/fm.cc',

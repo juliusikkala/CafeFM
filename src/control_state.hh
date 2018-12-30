@@ -5,15 +5,18 @@
 #include <map>
 
 class bind;
-class control_context
+class control_state
 {
 public:
     using action_id = uint32_t;
 
-    control_context();
+    control_state();
 
-    // This works properly only for discrete controls
-    bool is_active(const bind& b) const;
+    // These are used to implement toggling and relative modes.
+    // This class has no use for them on its own.
+    void set_action_state(action_id id, double state);
+    double get_action_state(action_id id) const;
+
     void erase_action(action_id id);
 
     void press_key(action_id id, int semitone);
@@ -64,6 +67,8 @@ private:
     // TODO: These should be vectors for performance reasons. They are rarely
     // indexed but often iterated.
     std::map<instrument::voice_id, action_id> pressed_keys;
+
+    std::map<action_id, double> action_state;
 
     std::map<action_id, double> freq_expt;
     std::map<action_id, double> volume_mul;

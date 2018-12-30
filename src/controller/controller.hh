@@ -24,7 +24,6 @@ struct axis<1>
 using axis_1d = axis<1>;
 using axis_2d = axis<2>;
 
-
 class controller
 {
 public:
@@ -51,7 +50,7 @@ public:
 
     virtual unsigned get_button_count() const;
     virtual std::string get_button_name(unsigned i) const;
-    virtual bool get_button_state(unsigned i) const;
+    virtual unsigned get_button_state(unsigned i) const;
 
 private:
 };

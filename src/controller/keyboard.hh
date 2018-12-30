@@ -13,7 +13,7 @@ public:
 
     unsigned get_button_count() const override;
     std::string get_button_name(unsigned i) const override;
-    bool get_button_state(unsigned i) const override;
+    unsigned get_button_state(unsigned i) const override;
 };
 
 #endif

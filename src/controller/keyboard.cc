@@ -32,7 +32,7 @@ std::string keyboard::get_button_name(unsigned i) const
     return SDL_GetScancodeName((SDL_Scancode)i);
 }
 
-bool keyboard::get_button_state(unsigned i) const
+unsigned keyboard::get_button_state(unsigned i) const
 {
     const uint8_t* state = SDL_GetKeyboardState(NULL);
     return state[i];

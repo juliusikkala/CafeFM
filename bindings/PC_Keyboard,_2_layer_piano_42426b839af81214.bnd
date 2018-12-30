@@ -6,7 +6,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 29,
         "type": "BUTTON_PRESS"
       }
@@ -17,7 +17,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 22,
         "type": "BUTTON_PRESS"
       }
@@ -28,7 +28,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 27,
         "type": "BUTTON_PRESS"
       }
@@ -39,7 +39,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 7,
         "type": "BUTTON_PRESS"
       }
@@ -50,7 +50,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 6,
         "type": "BUTTON_PRESS"
       }
@@ -61,7 +61,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 25,
         "type": "BUTTON_PRESS"
       }
@@ -72,7 +72,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 10,
         "type": "BUTTON_PRESS"
       }
@@ -83,7 +83,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 5,
         "type": "BUTTON_PRESS"
       }
@@ -94,7 +94,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 11,
         "type": "BUTTON_PRESS"
       }
@@ -105,7 +105,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 17,
         "type": "BUTTON_PRESS"
       }
@@ -116,7 +116,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 13,
         "type": "BUTTON_PRESS"
       }
@@ -127,7 +127,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 16,
         "type": "BUTTON_PRESS"
       }
@@ -138,7 +138,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 54,
         "type": "BUTTON_PRESS"
       }
@@ -149,7 +149,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 15,
         "type": "BUTTON_PRESS"
       }
@@ -160,7 +160,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 55,
         "type": "BUTTON_PRESS"
       }
@@ -171,7 +171,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 51,
         "type": "BUTTON_PRESS"
       }
@@ -182,7 +182,7 @@
         "type": "KEY"
       },
       "control": {
-        "active_pressed": true,
+        "active_state": 1,
         "index": 56,
         "type": "BUTTON_PRESS"
       }

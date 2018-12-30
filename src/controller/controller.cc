@@ -28,4 +28,4 @@ axis_2d controller::get_axis_2d_state(unsigned i) const { outofbounds(i); }
 
 unsigned controller::get_button_count() const { return 0; }
 std::string controller::get_button_name(unsigned i) const { outofbounds(i); }
-bool controller::get_button_state(unsigned i) const { outofbounds(i); }
+unsigned controller::get_button_state(unsigned i) const { outofbounds(i); }
