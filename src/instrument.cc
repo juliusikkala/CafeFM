@@ -105,6 +105,11 @@ void instrument::release_voice(voice_id id)
     voices[id].pressed = false;
 }
 
+void instrument::release_all_voices()
+{
+    for(auto& v: voices) v.pressed = false;
+}
+
 void instrument::set_polyphony(unsigned n)
 {
     if(voices.size() == n) return;

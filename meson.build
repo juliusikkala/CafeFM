@@ -27,6 +27,13 @@ glew_dep = dependency('glew')
 boost_dep = dependency('boost', modules : ['filesystem', 'system'])
 incdir = include_directories('src', 'external')
 
+# Of course, Macs count as Unices even though they behave differently here.
+regular_unices = ['linux', 'cygwin', 'dragonfly', 'freebsd', 'gnu', 'netbsd'] 
+if regular_unices.contains(target_machine.system())
+  data_path = join_paths([get_option('prefix'), get_option('datadir'), 'cafefm'])
+  add_project_arguments('-DDATA_DIRECTORY="'+data_path+'"', language: 'cpp')
+endif
+
 executable(
   'cafefm',
   src,

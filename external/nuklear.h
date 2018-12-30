@@ -19831,7 +19831,7 @@ nk_draw_button_text_image(struct nk_command_buffer *out,
     else text.text = style->text_normal;
 
     text.padding = nk_vec2(0,0);
-    nk_widget_text(out, *label, str, len, &text, NK_TEXT_CENTERED, font);
+    nk_widget_text(out, *label, str, len, &text, NK_TEXT_LEFT, font);
     nk_draw_image(out, *image, img, nk_white);
 }
 NK_LIB int

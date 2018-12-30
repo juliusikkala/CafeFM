@@ -388,9 +388,9 @@ unsigned bindings::rate_compatibility(controller* c) const
     {
         if(name_match && index_match) return 0;
         else if(index_match) return 1;
-        else return 3;
+        else return 2;
     }
-    else if(index_match) return 2;
+    else if(index_match) return 3;
     else return 4;
 }
 

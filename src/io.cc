@@ -1,10 +1,12 @@
 #include "io.hh"
 #include "bindings.hh"
+#include "SDL.h"
 #include <cstdio>
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
 #include <regex>
+#include <set>
 #include <unordered_set>
 #include <boost/algorithm/string.hpp>
 
@@ -49,11 +51,55 @@ void write_text_file(const std::string& path, const std::string& content)
     fclose(f);
 }
 
-fs::path get_bindings_path()
+fs::path get_writable_bindings_path()
 {
-    // TODO: Create this in user's config folder. SDL has a function for getting
-    // the needed path.
-    return fs::path{"bindings"};
+    static bool has_bindings_path = false;
+    static fs::path path;
+    if(!has_bindings_path)
+    {
+        char* bindings_path = SDL_GetPrefPath("jji.fi", "CafeFM");
+        path = bindings_path;
+        SDL_free(bindings_path);
+
+        path /= "bindings";
+        path = path.make_preferred();
+        has_bindings_path = true;
+
+        if(!fs::exists(path))
+        {
+            // The writable bindings path doesn't exist, so create it.
+            fs::create_directory(path);
+        }
+    }
+
+    return path;
+}
+
+std::set<fs::path> get_readonly_bindings_paths()
+{
+    static bool has_bindings_path = false;
+    static fs::path base_path;
+    if(!has_bindings_path)
+    {
+        char* bindings_path = SDL_GetBasePath();
+        base_path = bindings_path;
+        SDL_free(bindings_path);
+
+        base_path /= "bindings";
+        base_path = base_path.make_preferred();
+        has_bindings_path = true;
+    }
+
+    std::set<fs::path> paths;
+    paths.insert(base_path);
+    // This is mostly for testing, but useful if you don't want to install
+    // CafeFM.
+    paths.insert("bindings");
+#ifdef DATA_DIRECTORY
+    paths.insert(fs::path{DATA_DIRECTORY}/"bindings");
+#endif
+
+    return paths;
 }
 
 std::string string_hash(const std::string& str)
@@ -109,22 +155,33 @@ void write_bindings(const bindings& b)
         make_filename_safe(name) + "_" + string_hash(name) + ".bnd"
     );
 
-    write_json_file(get_bindings_path()/filename, bindings_json);
+    write_json_file(get_writable_bindings_path()/filename, bindings_json);
 }
 
 std::vector<bindings> load_all_bindings()
 {
     std::vector<bindings> binds;
-    for(fs::directory_entry& x: fs::directory_iterator(get_bindings_path()))
+
+    std::set<fs::path> ro_paths = get_readonly_bindings_paths();
+    std::set<fs::path> paths = ro_paths;
+    paths.insert(get_writable_bindings_path());
+
+    for(const fs::path& p: paths)
     {
-        try
+        if(!fs::exists(p) || !fs::is_directory(p)) continue;
+        for(fs::directory_entry& x: fs::directory_iterator(p))
         {
-            bindings new_bindings;
-            new_bindings.deserialize(read_json_file(x.path()));
-            binds.push_back(new_bindings);
+            try
+            {
+                bindings new_bindings;
+                new_bindings.deserialize(read_json_file(x.path()));
+                if(ro_paths.count(p)) new_bindings.set_write_lock(true);
+                binds.push_back(new_bindings);
+            }
+            // Quietly swallow failed files.
+            catch(...) {}
         }
-        // Quietly swallow failed files.
-        catch(...) {}
     }
+
     return binds;
 }

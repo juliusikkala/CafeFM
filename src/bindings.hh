@@ -131,8 +131,8 @@ public:
 
     // 0 - Bindings were made for this controller
     // 1 - Bindings are for this device type and indices are within range
-    // 2 - Indices are within range.
-    // 3 - Bindings are for this device type but some indices are out of range
+    // 2 - Bindings are for this device type but some indices are out of range
+    // 3 - Indices are within range.
     // 4 - Bindings are not for this device type and some indices are out of
     //     range.
     unsigned rate_compatibility(controller* c) const;

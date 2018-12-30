@@ -48,6 +48,7 @@ public:
     voice_id press_voice(int semitone);
     void press_voice(voice_id id, int semitone);
     void release_voice(voice_id id);
+    void release_all_voices();
 
     void set_polyphony(unsigned n = 16);
     unsigned get_polyphony() const;

@@ -52,6 +52,10 @@ private:
         const std::vector<dynamic_oscillator>& modulators = {}
     );
 
+    std::vector<
+        std::pair<bindings, unsigned /* compatibility */>
+    > filter_compatible_bindings();
+
     nk_context* ctx;
     SDL_Window* win;
     SDL_GLContext gl_ctx;
@@ -59,7 +63,8 @@ private:
     struct nk_font* small_font;
     struct nk_font* medium_font;
     struct nk_font* huge_font;
-    struct nk_image close_img, warn_img;
+    struct nk_image close_img, yellow_warn_img, gray_warn_img, red_warn_img,
+        lock_img;
     unsigned selected_tab;
 
     std::vector<std::unique_ptr<controller>> available_controllers;
@@ -75,7 +80,9 @@ private:
     std::vector<dynamic_oscillator> modulators;
     float master_volume;
     control_state control;
-    std::unique_ptr<bindings> binds;
+
+    std::vector<bindings> all_bindings;
+    bindings selected_binds;
 };
 
 #endif

@@ -81,63 +81,56 @@ void cafefm::load()
 
     selected_tab = 1;
 
+    fs::path font_dir("data/fonts");
+    fs::path img_dir("data/images");
+#ifdef DATA_DIRECTORY
+    fs::path data_dir(DATA_DIRECTORY);
+#ifdef NDEBUG
+    if(fs::is_directory(data_dir/"data"))
+#else
+    if(!fs::is_directory(font_dir) || !fs::is_directory(img_dir))
+#endif
+    {
+        font_dir = DATA_DIRECTORY/font_dir;
+        img_dir = DATA_DIRECTORY/img_dir;
+    }
+#endif
+
     struct nk_font_atlas* atlas;
     nk_sdl_font_stash_begin(&atlas);
-    small_font = nk_font_atlas_add_from_file(atlas, "data/fonts/Montserrat/Montserrat-Medium.ttf", 16, 0);
-    medium_font = nk_font_atlas_add_from_file(atlas, "data/fonts/Montserrat/Montserrat-Medium.ttf", 19, 0);
-    huge_font = nk_font_atlas_add_from_file(atlas, "data/fonts/Montserrat/Montserrat-Medium.ttf", 23, 0);
+    std::string montserrat_medium =
+        (font_dir/"Montserrat/Montserrat-Medium.ttf").string();
+    small_font = nk_font_atlas_add_from_file(
+        atlas, montserrat_medium.c_str(), 16, 0
+    );
+    medium_font = nk_font_atlas_add_from_file(
+        atlas, montserrat_medium.c_str(), 19, 0
+    );
+    huge_font = nk_font_atlas_add_from_file(
+        atlas, montserrat_medium.c_str(), 23, 0
+    );
     nk_sdl_font_stash_end();
 
     int id = -1;
+    std::string img_path;
 #define load_texture(name, path) \
-    id = nk_sdl_create_texture_from_file(path, 0, 0); \
-    if(id == -1) throw std::runtime_error("Failed to load image " path); \
+    img_path = (img_dir/path).string(); \
+    id = nk_sdl_create_texture_from_file(img_path.c_str(), 0, 0); \
+    if(id == -1) throw std::runtime_error("Failed to load image " + img_path); \
     name = nk_image_id(id); \
 
-    load_texture(close_img, "data/images/close.png");
-    load_texture(warn_img, "data/images/warning.png");
+    load_texture(close_img, "close.png");
+    load_texture(yellow_warn_img, "yellow_warning.png");
+    load_texture(gray_warn_img, "gray_warning.png");
+    load_texture(red_warn_img, "red_warning.png");
+    load_texture(lock_img, "lock.png");
 
     available_controllers.emplace_back(new keyboard());
     selected_controller = available_controllers[0].get();
-    binds.reset(new bindings());
 
-    // Quick piano binds
-    SDL_Scancode keys[] = {
-        SDL_SCANCODE_Z,
-        SDL_SCANCODE_S,
-        SDL_SCANCODE_X,
-        SDL_SCANCODE_D,
-        SDL_SCANCODE_C,
-        SDL_SCANCODE_V,
-        SDL_SCANCODE_G,
-        SDL_SCANCODE_B,
-        SDL_SCANCODE_H,
-        SDL_SCANCODE_N,
-        SDL_SCANCODE_J,
-        SDL_SCANCODE_M,
-        SDL_SCANCODE_COMMA,
-        SDL_SCANCODE_L,
-        SDL_SCANCODE_PERIOD,
-        SDL_SCANCODE_SEMICOLON,
-        SDL_SCANCODE_SLASH,
-    };
-
-    for(unsigned i = 0; i < sizeof(keys)/sizeof(*keys); ++i)
-    {
-        bind& b = binds->create_new_bind();
-        b.control = bind::BUTTON_PRESS;
-        b.button.index = keys[i];
-        b.button.active_state = 1;
-        b.action = bind::KEY;
-        b.key_semitone = 3+i;
-    }
-
-    binds->set_name("PC Keyboard, 2 layer piano");
-    binds->set_target_device(selected_controller);
-    binds->set_write_lock(true);
-
-    write_bindings(*binds);
-    binds.reset(new bindings(load_all_bindings()[0]));
+    all_bindings = load_all_bindings();
+    auto comp = filter_compatible_bindings();
+    if(comp.size() > 1) selected_binds = comp[0].first;
 }
 
 void cafefm::unload()
@@ -145,7 +138,10 @@ void cafefm::unload()
     available_controllers.clear();
 
     nk_sdl_destroy_texture(close_img.handle.id);
-    nk_sdl_destroy_texture(warn_img.handle.id);
+    nk_sdl_destroy_texture(yellow_warn_img.handle.id);
+    nk_sdl_destroy_texture(red_warn_img.handle.id);
+    nk_sdl_destroy_texture(gray_warn_img.handle.id);
+    nk_sdl_destroy_texture(lock_img.handle.id);
 }
 
 void cafefm::render()
@@ -238,16 +234,13 @@ void cafefm::handle_controller(
         (type == "Mouse" && !mouse_grabbed)
     ) return;
 
-    if(binds)
-    {
-        binds->act(
-            control,
-            c,
-            axis_1d_index,
-            axis_2d_index,
-            button_index
-        );
-    }
+    selected_binds.act(
+        control,
+        c,
+        axis_1d_index,
+        axis_2d_index,
+        button_index
+    );
 }
 
 void cafefm::detach_controller(unsigned index)
@@ -630,7 +623,7 @@ void cafefm::gui_synth_editor()
 
         if(master_volume > max_safe_volume)
         {
-            nk_image(ctx, warn_img);
+            nk_image(ctx, gray_warn_img);
             nk_label(ctx, "Peaking is possible!", NK_TEXT_LEFT);
         }
 
@@ -675,14 +668,14 @@ void cafefm::gui_synth_editor()
 void cafefm::gui_instrument_editor()
 {
     nk_style_set_font(ctx, &small_font->handle);
-    nk_layout_row_dynamic(ctx, 70, 1);
+    nk_layout_row_dynamic(ctx, 80, 1);
 
     if(nk_group_begin(
             ctx, "Controller Group", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
     )){
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 80);
-        nk_layout_row_template_push_static(ctx, 200);
+        nk_layout_row_template_push_static(ctx, 400);
         nk_layout_row_template_end(ctx);
 
         nk_label(ctx, "Controller:", NK_TEXT_LEFT);
@@ -702,18 +695,82 @@ void cafefm::gui_instrument_editor()
 
         selected_index = nk_combo(
             ctx, label_cstrings.data(), label_cstrings.size(),
-            selected_index, 25, nk_vec2(200, 200)
+            selected_index, 25, nk_vec2(400, 200)
         );
         selected_controller = available_controllers[selected_index].get();
 
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 80);
-        nk_layout_row_template_push_static(ctx, 200);
+        nk_layout_row_template_push_static(ctx, 400);
+        nk_layout_row_template_push_static(ctx, 30);
+        nk_layout_row_template_push_static(ctx, 230);
         nk_layout_row_template_end(ctx);
 
         nk_label(ctx, "Preset:", NK_TEXT_LEFT);
 
-        /* TODO: Preset drop-down, name nk_edit_string, save, remove, remove popup */
+        if(nk_combo_begin_label(
+            ctx, selected_binds.get_name().c_str(), nk_vec2(400,200)
+        )){
+            auto compatible = filter_compatible_bindings();
+            int selected_preset = -1;
+            nk_layout_row_dynamic(ctx, 25, 1);
+            for(unsigned i = 0; i < compatible.size(); ++i)
+            {
+                const auto& pair = compatible[i];
+                if(pair.second == 0)
+                {
+                    if(nk_combo_item_label(
+                        ctx,
+                        pair.first.get_name().c_str(),
+                        NK_TEXT_ALIGN_LEFT
+                    )) selected_preset = i;
+                }
+                else if(pair.second == 1)
+                {
+                    if(nk_combo_item_image_label(
+                        ctx,
+                        gray_warn_img,
+                        pair.first.get_name().c_str(),
+                        NK_TEXT_ALIGN_LEFT
+                    )) selected_preset = i;
+                }
+                else if(pair.second == 2)
+                {
+                    if(nk_combo_item_image_label(
+                        ctx,
+                        yellow_warn_img,
+                        pair.first.get_name().c_str(),
+                        NK_TEXT_ALIGN_LEFT
+                    )) selected_preset = i;
+                }
+            }
+
+            if(selected_preset != -1)
+            {
+                synth->release_all_voices();
+                control.reset();
+                selected_binds = compatible[selected_preset].first;
+            }
+            nk_combo_end(ctx);
+        }
+
+        switch(selected_binds.rate_compatibility(selected_controller))
+        {
+        case 1:
+            nk_image(ctx, gray_warn_img);
+            nk_label(
+                ctx, "This preset is for a different device", NK_TEXT_LEFT
+            );
+            break;
+        case 2:
+            nk_image(ctx, yellow_warn_img);
+            nk_label(
+                ctx, "This preset may be incompatible", NK_TEXT_LEFT
+            );
+            break;
+        default:
+            break;
+        }
 
         nk_group_end(ctx);
     }
@@ -807,4 +864,24 @@ void cafefm::reset_synth(
     synth.swap(new_synth);
     output.reset(new audio_output(*synth));
     output->start();
+}
+
+std::vector<std::pair<bindings, unsigned>> cafefm::filter_compatible_bindings()
+{
+    if(!selected_controller) return {};
+    using pair = std::pair<bindings, unsigned>;
+    std::vector<pair> compatible;
+    for(const bindings& b: all_bindings)
+    {
+        unsigned comp = b.rate_compatibility(selected_controller);
+        if(comp <= 2) compatible.emplace_back(b, comp);
+    }
+
+    auto compare = [](const pair& a, const pair& b){
+        if(a.second == b.second) return a.first.get_name() < b.first.get_name();
+        else return a.second < b.second;
+    };
+
+    std::sort(compatible.begin(), compatible.end(), compare);
+    return compatible;
 }
