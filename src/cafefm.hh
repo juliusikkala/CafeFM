@@ -57,6 +57,7 @@ private:
     nk_color gui_bind_background_color(bind& b);
     int gui_key_bind(bind& b, unsigned index);
     int gui_freq_bind(bind& b, unsigned index);
+    int gui_volume_bind(bind& b, unsigned index);
     void gui_instrument_editor();
 
     void gui();

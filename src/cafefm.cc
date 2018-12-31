@@ -952,6 +952,60 @@ int cafefm::gui_freq_bind(bind& b, unsigned index)
     return ret;
 }
 
+int cafefm::gui_volume_bind(bind& b, unsigned index)
+{
+    std::string title = "Volume Bind " + std::to_string(index);
+
+    nk_color bg = gui_bind_background_color(b);
+
+    struct nk_style *s = &ctx->style;
+    nk_style_push_style_item(ctx, &s->window.fixed_background, nk_style_item_color(bg));
+
+    int ret = 0;
+    struct nk_rect empty_space;
+    if(nk_group_begin(
+        ctx, title.c_str(), NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
+    )){
+        nk_layout_row_template_begin(ctx, 25);
+        nk_layout_row_template_push_static(ctx, 105);
+        nk_layout_row_template_push_static(ctx, 105);
+        nk_layout_row_template_push_dynamic(ctx);
+        gui_bind_control_template(b);
+        nk_layout_row_template_end(ctx);
+
+        // Stupid hacks to fix nuklear's rounding and decimals.
+        constexpr double eps = 0.001;
+        constexpr double step = 0.01;
+        double new_min = nk_propertyd(
+            ctx, "Min:", eps, b.volume.min_mul+eps, 2.0+eps, 0.05, step
+        )-eps; new_min = round(new_min/step)*step;
+        if(new_min != b.volume.min_mul)
+        {
+            printf("%f\n", new_min);
+            b.volume.min_mul = new_min;
+            if(new_min > b.volume.max_mul)
+                b.volume.max_mul = new_min;
+        }
+        double new_max = nk_propertyd(
+            ctx, "Max:", eps, b.volume.max_mul+eps, 2.0+eps, 0.05, step
+        )-eps; new_max = round(new_max/step)*step;
+        if(new_max != b.volume.max_mul)
+        {
+            b.volume.max_mul = new_max;
+            if(new_max < b.volume.min_mul)
+                b.volume.min_mul = new_max;
+        }
+
+        nk_widget(&empty_space, ctx);
+
+        ret = gui_bind_control(b, true);
+        nk_group_end(ctx);
+    }
+
+    nk_style_pop_style_item(ctx);
+    return ret;
+}
+
 void cafefm::gui_instrument_editor()
 {
     nk_style_set_font(ctx, &small_font->handle);
@@ -1174,18 +1228,8 @@ void cafefm::gui_instrument_editor()
 
         section("Keys", bind::KEY, gui_key_bind)
         section("Pitch", bind::FREQUENCY_EXPT, gui_freq_bind)
+        section("Volume", bind::VOLUME_MUL, gui_volume_bind)
 
-        if(nk_tree_push(ctx, NK_TREE_TAB, "Volume", NK_MINIMIZED))
-        {
-            nk_layout_row_dynamic(ctx, 35, 1);
-
-            nk_style_set_font(ctx, &huge_font->handle);
-            if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
-                printf("Should add a volume control, I guess.\n");
-            nk_style_set_font(ctx, &small_font->handle);
-
-            nk_tree_pop(ctx);
-        }
         if(nk_tree_push(ctx, NK_TREE_TAB, "Modulator period", NK_MINIMIZED))
         {
             nk_layout_row_dynamic(ctx, 35, 1);
