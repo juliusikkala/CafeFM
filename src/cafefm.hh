@@ -32,6 +32,7 @@ private:
         controller* c, int axis_1d_index, int axis_2d_index, int button_index
     );
     void detach_controller(unsigned index);
+    void set_controller_grab(bool grab);
 
     void gui_keyboard_grab();
     void gui_controller_manager();
@@ -45,10 +46,16 @@ private:
     );
     void gui_synth_editor();
 
+    void gui_bind_button(bind& b, bool discrete_only = false);
     void gui_bind_control_template(bind& b);
-    void gui_bind_control(bind& b, bool discrete_only = false);
+    // Return values:
+    // 1 - move up
+    // 0 - keep
+    // -1 - move down
+    // -2 - remove
+    int gui_bind_control(bind& b, bool discrete_only = false);
     nk_color gui_bind_background_color(bind& b);
-    void gui_key_bind(bind& b, unsigned index);
+    int gui_key_bind(bind& b, unsigned index);
     void gui_instrument_editor();
 
     void gui();
@@ -80,6 +87,8 @@ private:
     unsigned selected_tab;
     int selected_preset;
     bool delete_popup_open;
+    // Used for assigning binds
+    int latest_input_button, latest_input_axis_1d, latest_input_axis_2d;
 
     std::vector<std::unique_ptr<controller>> available_controllers;
     controller* selected_controller;

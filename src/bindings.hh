@@ -10,10 +10,16 @@ class control_state;
 
 struct bind
 {
-    bind();
-
     json serialize() const;
     bool deserialize(const json& j);
+
+    // Do not modify this manually, it's set by bindings::create_new_bind and
+    // used for internal bookkeeping.
+    control_state::action_id id;
+
+    // Used for implementing bind assignment. This is not saved to the bindings
+    // file.
+    bool wait_assign;
 
     enum control
     {
@@ -25,10 +31,6 @@ struct bind
         AXIS_1D_THRESHOLD,
         AXIS_1D_THRESHOLD_TOGGLE
     } control;
-
-    // Do not modify this manually, it's set by bindings::create_new_bind and
-    // used for internal bookkeeping.
-    control_state::action_id id;
 
     union
     {
@@ -90,6 +92,8 @@ struct bind
         } amplitude;
     };
 
+    bind(enum action a = KEY);
+
     bool triggered(
         int axis_1d_index,
         int axis_2d_index,
@@ -149,10 +153,20 @@ public:
         int button_index
     );
 
-    bind& create_new_bind();
+    bind& create_new_bind(enum bind::action action = bind::KEY);
     bind& get_bind(unsigned i);
     const bind& get_bind(unsigned i) const;
     const std::vector<bind>& get_binds() const;
+    // 1 - move up
+    // 0 - keep
+    // -1 - move down
+    // -2 - remove
+    void move_bind(
+        unsigned i,
+        int movement,
+        control_state& state,
+        bool same_action = true
+    );
     void erase_bind(unsigned i, control_state& state);
     size_t bind_count() const;
 

@@ -3,6 +3,7 @@
 #include "helpers.hh"
 #include <stdexcept>
 #include <cstring>
+#include <algorithm>
 
 static const char* const control_strings[] = {
     "UNBOUND",
@@ -22,8 +23,32 @@ static const char* const action_strings[] = {
     "AMPLITUDE_MUL"
 };
 
-bind::bind()
-: control(UNBOUND), id(0), action(KEY), key_semitone(0) { }
+bind::bind(enum action a)
+: id(0), wait_assign(false), control(UNBOUND), action(a)
+{
+    switch(action)
+    {
+    case KEY:
+        key_semitone = 0;
+        break;
+    case FREQUENCY_EXPT:
+        frequency.max_expt = 12;
+        break;
+    case VOLUME_MUL:
+        volume.min_mul = 0.1;
+        volume.max_mul = 1.0;
+        break;
+    case PERIOD_EXPT:
+        period.modulator_index = 0;
+        period.max_expt = 12;
+        break;
+    case AMPLITUDE_MUL:
+        amplitude.modulator_index = 0;
+        amplitude.min_mul = 0.1;
+        amplitude.max_mul = 1.0;
+        break;
+    }
+}
 
 json bind::serialize() const
 {
@@ -441,9 +466,9 @@ void bindings::act(
     }
 }
 
-bind& bindings::create_new_bind()
+bind& bindings::create_new_bind(enum bind::action action)
 {
-    bind new_bind;
+    bind new_bind(action);
     new_bind.id = id_counter++;
     binds.push_back(new_bind);
     return binds.back();
@@ -452,6 +477,61 @@ bind& bindings::create_new_bind()
 bind& bindings::get_bind(unsigned i) { return binds[i]; }
 const bind& bindings::get_bind(unsigned i) const { return binds[i]; }
 const std::vector<bind>& bindings::get_binds() const { return binds; }
+
+void bindings::move_bind(
+    unsigned i,
+    int movement,
+    control_state& state,
+    bool same_action
+){
+    if(i >= binds.size()) return;
+
+    bind& b = binds[i];
+
+    if(movement == -2) erase_bind(i, state);
+    else if(movement == 1)
+    {
+        unsigned new_index = i;
+        if(!same_action)
+        {
+            if(new_index > 0) new_index--;
+        }
+        else
+        {
+            // Find first action above with same action.
+            while(new_index > 0)
+            {
+                new_index--;
+                if(binds[new_index].action == b.action) break;
+            }
+        }
+        auto start = binds.rbegin() + binds.size() - i - 1;
+        auto end = binds.rbegin() + binds.size() - new_index;
+        std::rotate(start, start+1, end);
+    }
+    else if(movement == -1)
+    {
+        unsigned new_index = i;
+
+        if(!same_action)
+        {
+            if(new_index < binds.size()-1) new_index++;
+        }
+        else
+        {
+            // Find first action above with same action.
+            while(new_index < binds.size()-1)
+            {
+                new_index++;
+                if(binds[new_index].action == b.action) break;
+            }
+        }
+
+        auto start = binds.begin() + i;
+        auto end = binds.begin() + new_index + 1;
+        std::rotate(start, start+1, end);
+    }
+}
 
 void bindings::erase_bind(unsigned i, control_state& state)
 {
@@ -473,7 +553,10 @@ json bindings::serialize() const
     j["controller_type"] = device_type;
     j["device_name"] = device_name;
     j["binds"] = json::array();
-    for(const auto& b: binds) j["binds"].push_back(b.serialize());
+    for(const auto& b: binds)
+    {
+        if(b.control != bind::UNBOUND) j["binds"].push_back(b.serialize());
+    }
     return j;
 }
 

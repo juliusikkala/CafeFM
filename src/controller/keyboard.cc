@@ -29,7 +29,7 @@ unsigned keyboard::get_button_count() const
 
 std::string keyboard::get_button_name(unsigned i) const
 {
-    return SDL_GetScancodeName((SDL_Scancode)i);
+    return SDL_GetKeyName(SDL_GetKeyFromScancode((SDL_Scancode)i));
 }
 
 unsigned keyboard::get_button_state(unsigned i) const

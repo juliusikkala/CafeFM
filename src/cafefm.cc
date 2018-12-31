@@ -282,6 +282,10 @@ void cafefm::handle_controller(
         (type == "Mouse" && !mouse_grabbed)
     ) return;
 
+    latest_input_button = button_index;
+    latest_input_axis_1d = axis_1d_index;
+    latest_input_axis_2d = axis_2d_index;
+
     binds.act(control, c, axis_1d_index, axis_2d_index, button_index);
 }
 
@@ -290,6 +294,15 @@ void cafefm::detach_controller(unsigned index)
     controller* c = available_controllers[index].get();
     if(selected_controller == c) selected_controller = nullptr;
     available_controllers.erase(available_controllers.begin() + index);
+}
+
+void cafefm::set_controller_grab(bool grab)
+{
+    if(selected_controller)
+    {
+        std::string type = selected_controller->get_type_name();
+        if(type == "Keyboard") keyboard_grabbed = grab;
+    }
 }
 
 void cafefm::gui_keyboard_grab()
@@ -663,10 +676,10 @@ void cafefm::gui_synth_editor()
         float max_safe_volume = 1.0/synth->get_polyphony();
 
         nk_layout_row_template_begin(ctx, 30);
-        nk_layout_row_template_push_static(ctx, 130);
+        nk_layout_row_template_push_static(ctx, 140);
         nk_layout_row_template_push_static(ctx, 400);
         nk_layout_row_template_push_static(ctx, 30);
-        nk_layout_row_template_push_static(ctx, 130);
+        nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
 
         nk_labelf(ctx, NK_TEXT_LEFT, "Master volume: %.2f", master_volume);
@@ -679,7 +692,7 @@ void cafefm::gui_synth_editor()
         }
 
         nk_layout_row_template_begin(ctx, 30);
-        nk_layout_row_template_push_static(ctx, 130);
+        nk_layout_row_template_push_static(ctx, 140);
         nk_layout_row_template_push_static(ctx, 400);
         nk_layout_row_template_end(ctx);
 
@@ -709,12 +722,103 @@ void cafefm::gui_synth_editor()
     }
 }
 
-void cafefm::gui_bind_control_template(bind& b)
+void cafefm::gui_bind_button(bind& b, bool discrete_only)
 {
+    if(!selected_controller) return;
+
+    std::string label = "Unknown";
+    switch(b.control)
+    {
+    case bind::UNBOUND:
+        label = "Assign";
+        break;
+    case bind::BUTTON_PRESS:
+    case bind::BUTTON_TOGGLE:
+        if(
+            b.button.index >= 0 &&
+            b.button.index < (int)selected_controller->get_button_count()
+        ) label = selected_controller->get_button_name(b.button.index);
+        break;
+    case bind::AXIS_1D_CONTINUOUS:
+    case bind::AXIS_1D_RELATIVE:
+    case bind::AXIS_1D_THRESHOLD:
+    case bind::AXIS_1D_THRESHOLD_TOGGLE:
+        if(
+            b.axis_1d.index >= 0 &&
+            b.axis_1d.index < (int)selected_controller->get_axis_1d_count()
+        ) label = selected_controller->get_axis_1d_name(b.axis_1d.index);
+        break;
+    }
+
+    if(!b.wait_assign && nk_button_label(ctx, label.c_str()))
+    {
+        b.wait_assign = true;
+        latest_input_button = -1;
+        latest_input_axis_1d = -1;
+        latest_input_axis_2d = -1;
+        set_controller_grab(true);
+    }
+    else if(b.wait_assign)
+    {
+        if(latest_input_button >= 0)
+        {
+            b.control = bind::BUTTON_PRESS;
+            b.button.index = latest_input_button;
+            b.button.active_state = 1;
+            b.wait_assign = false;
+        }
+        if(latest_input_axis_1d >= 0)
+        {
+            b.control = discrete_only ?
+                bind::AXIS_1D_THRESHOLD : bind::AXIS_1D_CONTINUOUS;
+            b.axis_1d.index = latest_input_axis_1d;
+            b.axis_1d.invert = false;
+            b.axis_1d.threshold = 0.5;
+            b.wait_assign = false;
+        }
+        else
+        {
+            struct nk_style_item button_color = ctx->style.button.normal;
+            ctx->style.button.normal = ctx->style.button.active;
+
+            if(nk_button_label(ctx, "Waiting"))
+                b.wait_assign = false;
+
+            ctx->style.button.normal = button_color;
+        }
+    }
 }
 
-void cafefm::gui_bind_control(bind& b, bool discrete_only)
+void cafefm::gui_bind_control_template(bind& b)
 {
+    nk_layout_row_template_push_static(ctx, 80);
+    switch(b.control)
+    {
+    case bind::UNBOUND:
+        break;
+    case bind::BUTTON_PRESS:
+    case bind::BUTTON_TOGGLE:
+        break;
+    case bind::AXIS_1D_CONTINUOUS:
+    case bind::AXIS_1D_RELATIVE:
+    case bind::AXIS_1D_THRESHOLD:
+    case bind::AXIS_1D_THRESHOLD_TOGGLE:
+        break;
+    }
+    nk_layout_row_template_push_static(ctx, 25);
+    nk_layout_row_template_push_static(ctx, 25);
+    nk_layout_row_template_push_static(ctx, 25);
+}
+
+int cafefm::gui_bind_control(bind& b, bool discrete_only)
+{
+    gui_bind_button(b, discrete_only);
+
+    int ret = 0;
+    if(nk_button_symbol(ctx, NK_SYMBOL_TRIANGLE_UP)) ret = 1;
+    if(nk_button_symbol(ctx, NK_SYMBOL_TRIANGLE_DOWN)) ret = -1;
+    if(nk_button_symbol(ctx, NK_SYMBOL_X)) ret = -2;
+    return ret;
 }
 
 nk_color cafefm::gui_bind_background_color(bind& b)
@@ -731,11 +835,11 @@ nk_color cafefm::gui_bind_background_color(bind& b)
     return bg;
 }
 
-void cafefm::gui_key_bind(bind& b, unsigned index)
+int cafefm::gui_key_bind(bind& b, unsigned index)
 {
-    static constexpr int min_semitone = -10;
+    static constexpr int min_semitone = -45;
     static const std::vector<std::string> note_list =
-        generate_note_list(min_semitone, min_semitone + 24);
+        generate_note_list(min_semitone, min_semitone + 96);
 
     std::string title = "Key Bind " + std::to_string(index);
 
@@ -744,6 +848,7 @@ void cafefm::gui_key_bind(bind& b, unsigned index)
     struct nk_style *s = &ctx->style;
     nk_style_push_style_item(ctx, &s->window.fixed_background, nk_style_item_color(bg));
 
+    int ret = 0;
     struct nk_rect empty_space;
     if(nk_group_begin(
         ctx, title.c_str(), NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
@@ -755,22 +860,36 @@ void cafefm::gui_key_bind(bind& b, unsigned index)
         nk_layout_row_template_end(ctx);
 
         std::string note_name = generate_semitone_name(b.key_semitone);
+
+        bool was_open = ctx->current->popup.win;
         if(nk_combo_begin_label(ctx, note_name.c_str(), nk_vec2(80, 200)))
         {
             nk_layout_row_dynamic(ctx, 30, 1);
+            unsigned match_i = 0;
             for(unsigned i = 0; i < note_list.size(); ++i)
             {
+                if(note_list[i] == note_name) match_i = i;
                 if(nk_combo_item_label(ctx, note_list[i].c_str(), NK_TEXT_LEFT))
                     b.key_semitone = min_semitone + i;
             }
+
+            if(!was_open)
+            {
+                struct nk_window *win = ctx->current;
+                win->scrollbar.y = 34*match_i;
+            }
+
             nk_combo_end(ctx);
         }
         
         nk_widget(&empty_space, ctx);
+
+        ret = gui_bind_control(b, true);
         nk_group_end(ctx);
     }
 
     nk_style_pop_style_item(ctx);
+    return ret;
 }
 
 void cafefm::gui_instrument_editor()
@@ -967,24 +1086,34 @@ void cafefm::gui_instrument_editor()
     // Actual bindings section
     if(nk_group_begin(ctx, "Bindings Group", NK_WINDOW_BORDER))
     {
-        if(nk_tree_push(ctx, NK_TREE_TAB, "Keys", NK_MINIMIZED))
-        {
-            nk_layout_row_dynamic(ctx, 35, 1);
-
-            for(unsigned i = 0; i < binds.bind_count(); ++i)
-            {
-                auto& b = binds.get_bind(i);
-                if(b.action != bind::KEY) continue;
-                gui_key_bind(b, i);
-            }
-
-            nk_style_set_font(ctx, &huge_font->handle);
-            if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
-                printf("Should add a key, I guess.\n");
-            nk_style_set_font(ctx, &small_font->handle);
-
-            nk_tree_pop(ctx);
+#define section(title, action, func) \
+        if(nk_tree_push(ctx, NK_TREE_TAB, title, NK_MINIMIZED)) \
+        { \
+            nk_layout_row_dynamic(ctx, 35, 1); \
+            int changed_index = -1; \
+            int movement = 0; \
+            for(unsigned i = 0; i < binds.bind_count(); ++i) \
+            { \
+                auto& b = binds.get_bind(i); \
+                if(b.action != action) continue; \
+                int ret = func (b, i); \
+                if(ret != 0) \
+                { \
+                    changed_index = i; \
+                    movement = ret; \
+                } \
+            } \
+            if(movement) \
+                binds.move_bind(changed_index, movement, control, true); \
+            nk_style_set_font(ctx, &huge_font->handle); \
+            if(nk_button_symbol(ctx, NK_SYMBOL_PLUS)) \
+                binds.create_new_bind(action); \
+            nk_style_set_font(ctx, &small_font->handle); \
+            nk_tree_pop(ctx); \
         }
+
+        section("Keys", bind::KEY, gui_key_bind)
+
         if(nk_tree_push(ctx, NK_TREE_TAB, "Pitch", NK_MINIMIZED))
         {
             nk_layout_row_dynamic(ctx, 35, 1);
