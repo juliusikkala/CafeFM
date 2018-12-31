@@ -1,5 +1,6 @@
 #include "cafefm.hh"
 #include "controller/keyboard.hh"
+#include "controller/gamecontroller.hh"
 #include "io.hh"
 #include "helpers.hh"
 #include <stdexcept>
@@ -181,11 +182,12 @@ void cafefm::load()
 
 void cafefm::unload()
 {
+    selected_controller = nullptr;
+
     available_controllers.clear();
     all_bindings.clear();
     compatible_bindings.clear();
 
-    selected_controller = nullptr;
     delete_popup_open = false;
 
     nk_sdl_destroy_texture(close_img.handle.id);
@@ -251,6 +253,11 @@ bool cafefm::update(unsigned dt)
         case SDL_MOUSEWHEEL:
             is_mouse_event = true;
             break;
+        case SDL_CONTROLLERDEVICEADDED:
+            available_controllers.emplace_back(
+                new gamecontroller(e.cdevice.which)
+            );
+            break;
         default:
             break;
         }
@@ -286,7 +293,12 @@ void cafefm::handle_controller(
     ) return;
 
     latest_input_button = button_index;
-    latest_input_axis_1d = axis_1d_index;
+    // Make sure small inputs don't cause bind assignment
+    if(
+        axis_1d_index >= 0 &&
+        fabs(c->get_axis_1d_state(axis_1d_index).value) > 0.5
+    ) latest_input_axis_1d = axis_1d_index;
+
     latest_input_axis_2d = axis_2d_index;
 
     binds.act(control, c, axis_1d_index, axis_2d_index, button_index);
@@ -295,8 +307,13 @@ void cafefm::handle_controller(
 void cafefm::detach_controller(unsigned index)
 {
     controller* c = available_controllers[index].get();
-    if(selected_controller == c) selected_controller = nullptr;
     available_controllers.erase(available_controllers.begin() + index);
+    if(selected_controller == c)
+    {
+        selected_controller = nullptr;
+        if(available_controllers.size() > 0)
+            select_controller(available_controllers[0].get());
+    }
 }
 
 void cafefm::set_controller_grab(bool grab)
@@ -1096,7 +1113,6 @@ void cafefm::gui_instrument_editor()
         nk_label(ctx, "Controller:", NK_TEXT_LEFT);
 
         std::vector<std::string> label_strings;
-        std::vector<const char*> label_cstrings;
         unsigned selected_index = 0;
         for(unsigned i = 0; i < available_controllers.size(); ++i)
         {
@@ -1105,15 +1121,18 @@ void cafefm::gui_instrument_editor()
 
             std::string name = c->get_device_name();
             label_strings.push_back(name);
-            label_cstrings.push_back(name.c_str());
         }
+
+        std::vector<const char*> label_cstrings;
+        for(std::string& str: label_strings)
+            label_cstrings.push_back(str.c_str());
 
         unsigned new_selected_index = nk_combo(
             ctx, label_cstrings.data(), label_cstrings.size(),
             selected_index, 25, nk_vec2(400, 200)
         );
         if(new_selected_index != selected_index)
-            select_controller(available_controllers[selected_index].get());
+            select_controller(available_controllers[new_selected_index].get());
 
         // Show manager (Grab Keyboard, etc.)
         gui_controller_manager();
@@ -1376,6 +1395,9 @@ void cafefm::gui()
 
 void cafefm::select_controller(controller* c)
 {
+    if(selected_controller)
+        set_controller_grab(false);
+
     selected_controller = c;
 
     synth->release_all_voices();
@@ -1386,15 +1408,27 @@ void cafefm::select_controller(controller* c)
         selected_preset = 0;
         binds = compatible_bindings[0];
     }
-    else selected_preset = -1;
+    else
+    {
+        selected_preset = -1;
+        create_new_bindings();
+    }
 }
 
 void cafefm::select_compatible_bindings(unsigned index)
 {
     synth->release_all_voices();
     control.reset();
-    selected_preset = index;
-    binds = compatible_bindings[index];
+    if(compatible_bindings.size() == 0)
+        create_new_bindings();
+    else
+    {
+        selected_preset = std::min(
+            index,
+            (unsigned)compatible_bindings.size()-1
+        );
+        binds = compatible_bindings[index];
+    }
 }
 
 void cafefm::save_current_bindings()
