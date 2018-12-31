@@ -58,6 +58,8 @@ private:
     int gui_key_bind(bind& b, unsigned index);
     int gui_freq_bind(bind& b, unsigned index);
     int gui_volume_bind(bind& b, unsigned index);
+    int gui_period_bind(bind& b, unsigned index);
+    int gui_amplitude_bind(bind& b, unsigned index);
     void gui_instrument_editor();
 
     void gui();

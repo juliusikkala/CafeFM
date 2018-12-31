@@ -35,8 +35,7 @@ bind::bind(enum action a)
         frequency.max_expt = 12;
         break;
     case VOLUME_MUL:
-        volume.min_mul = 0.1;
-        volume.max_mul = 1.0;
+        volume.max_mul = 0.5;
         break;
     case PERIOD_EXPT:
         period.modulator_index = 0;
@@ -44,8 +43,7 @@ bind::bind(enum action a)
         break;
     case AMPLITUDE_MUL:
         amplitude.modulator_index = 0;
-        amplitude.min_mul = 0.1;
-        amplitude.max_mul = 1.0;
+        amplitude.max_mul = 0.5;
         break;
     }
 }
@@ -85,7 +83,6 @@ json bind::serialize() const
         j["action"]["frequency"]["max_expt"] = frequency.max_expt;
         break;
     case VOLUME_MUL:
-        j["action"]["volume"]["min_mul"] = volume.min_mul;
         j["action"]["volume"]["max_mul"] = volume.max_mul;
         break;
     case PERIOD_EXPT:
@@ -94,7 +91,6 @@ json bind::serialize() const
         break;
     case AMPLITUDE_MUL:
         j["action"]["amplitude"]["modulator_index"] = amplitude.modulator_index;
-        j["action"]["amplitude"]["min_mul"] = amplitude.min_mul;
         j["action"]["amplitude"]["max_mul"] = amplitude.max_mul;
         break;
     }
@@ -153,7 +149,6 @@ bool bind::deserialize(const json& j)
                 .at("max_expt").get_to(frequency.max_expt);
             break;
         case VOLUME_MUL:
-            j.at("action").at("volume").at("min_mul").get_to(volume.min_mul);
             j.at("action").at("volume").at("max_mul").get_to(volume.max_mul);
             break;
         case PERIOD_EXPT:
@@ -164,8 +159,6 @@ bool bind::deserialize(const json& j)
         case AMPLITUDE_MUL:
             j.at("action").at("amplitude")
                 .at("modulator_index").get_to(amplitude.modulator_index);
-            j.at("action").at("amplitude")
-                .at("min_mul").get_to(amplitude.min_mul);
             j.at("action").at("amplitude")
                 .at("max_mul").get_to(amplitude.max_mul);
             break;
@@ -443,7 +436,7 @@ void bindings::act(
         case bind::VOLUME_MUL:
             value = b.normalize(c, value);
             state.set_volume_mul(
-                b.id, lerp(b.volume.min_mul, b.volume.max_mul, value)
+                b.id, lerp(1.0, b.volume.max_mul, value)
             );
             break;
         case bind::PERIOD_EXPT:
@@ -458,7 +451,7 @@ void bindings::act(
             state.set_amplitude_mul(
                 b.amplitude.modulator_index,
                 b.id,
-                lerp(b.amplitude.min_mul, b.amplitude.max_mul, value)
+                lerp(1.0, b.amplitude.max_mul, value)
             );
             break;
         }

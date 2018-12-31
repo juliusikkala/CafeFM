@@ -71,10 +71,10 @@ struct bind
             double max_expt;
         } frequency;
 
-        // VOLUME_MUL (discrete jumps from min to max, must be positive)
+        // VOLUME_MUL (discrete jumps to max, must be positive)
         struct
         {
-            double min_mul, max_mul;
+            double max_mul;
         } volume;
 
         // PERIOD_EXPT (discrete jumps to max, can be negative)
@@ -84,11 +84,11 @@ struct bind
             double max_expt;
         } period;
 
-        // AMPLITUDE_MUL (discrete jumps from min to max, must be positive)
+        // AMPLITUDE_MUL (discrete jumps to max, must be positive)
         struct
         {
             unsigned modulator_index;
-            double min_mul, max_mul;
+            double max_mul;
         } amplitude;
     };
 
