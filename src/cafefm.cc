@@ -111,6 +111,7 @@ void cafefm::load()
     control.apply(*synth, master_volume, modulators);
 
     selected_tab = 1;
+    selected_preset = -1;
 
     // Determine data directories
     fs::path font_dir("data/fonts");
@@ -917,6 +918,40 @@ int cafefm::gui_key_bind(bind& b, unsigned index)
     return ret;
 }
 
+int cafefm::gui_freq_bind(bind& b, unsigned index)
+{
+    std::string title = "Freq Bind " + std::to_string(index);
+
+    nk_color bg = gui_bind_background_color(b);
+
+    struct nk_style *s = &ctx->style;
+    nk_style_push_style_item(ctx, &s->window.fixed_background, nk_style_item_color(bg));
+
+    int ret = 0;
+    struct nk_rect empty_space;
+    if(nk_group_begin(
+        ctx, title.c_str(), NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
+    )){
+        nk_layout_row_template_begin(ctx, 25);
+        nk_layout_row_template_push_static(ctx, 140);
+        nk_layout_row_template_push_dynamic(ctx);
+        gui_bind_control_template(b);
+        nk_layout_row_template_end(ctx);
+
+        nk_property_double(
+            ctx, "Offset:", -72.0f, &b.frequency.max_expt, 72.0f, 0.5f, 0.5f
+        );
+
+        nk_widget(&empty_space, ctx);
+
+        ret = gui_bind_control(b, true);
+        nk_group_end(ctx);
+    }
+
+    nk_style_pop_style_item(ctx);
+    return ret;
+}
+
 void cafefm::gui_instrument_editor()
 {
     nk_style_set_font(ctx, &small_font->handle);
@@ -1111,7 +1146,7 @@ void cafefm::gui_instrument_editor()
     // Actual bindings section
     if(nk_group_begin(ctx, "Bindings Group", NK_WINDOW_BORDER))
     {
-#define section(title, action, func) \
+#define section(title, act, func) \
         if(nk_tree_push(ctx, NK_TREE_TAB, title, NK_MINIMIZED)) \
         { \
             nk_layout_row_dynamic(ctx, 35, 1); \
@@ -1120,7 +1155,7 @@ void cafefm::gui_instrument_editor()
             for(unsigned i = 0; i < binds.bind_count(); ++i) \
             { \
                 auto& b = binds.get_bind(i); \
-                if(b.action != action) continue; \
+                if(b.action != act) continue; \
                 int ret = func (b, i); \
                 if(ret != 0) \
                 { \
@@ -1132,24 +1167,14 @@ void cafefm::gui_instrument_editor()
                 binds.move_bind(changed_index, movement, control, true); \
             nk_style_set_font(ctx, &huge_font->handle); \
             if(nk_button_symbol(ctx, NK_SYMBOL_PLUS)) \
-                binds.create_new_bind(action); \
+                binds.create_new_bind(act); \
             nk_style_set_font(ctx, &small_font->handle); \
             nk_tree_pop(ctx); \
         }
 
         section("Keys", bind::KEY, gui_key_bind)
+        section("Pitch", bind::FREQUENCY_EXPT, gui_freq_bind)
 
-        if(nk_tree_push(ctx, NK_TREE_TAB, "Pitch", NK_MINIMIZED))
-        {
-            nk_layout_row_dynamic(ctx, 35, 1);
-
-            nk_style_set_font(ctx, &huge_font->handle);
-            if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
-                printf("Should add a pitch control, I guess.\n");
-            nk_style_set_font(ctx, &small_font->handle);
-
-            nk_tree_pop(ctx);
-        }
         if(nk_tree_push(ctx, NK_TREE_TAB, "Volume", NK_MINIMIZED))
         {
             nk_layout_row_dynamic(ctx, 35, 1);
