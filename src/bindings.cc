@@ -251,17 +251,16 @@ double bind::get_value(const control_state& state, const controller* c) const
 
     if(control == AXIS_1D_THRESHOLD_TOGGLE || control == BUTTON_TOGGLE)
     {
-        bool d = v > 0.5;
+        int prev_state = state.get_action_state(id);
         // Mealy state machine. States:
         // 0 - disabled, input inactive
         // 1 - enabled, input active
         // 2 - enabled, input inactive
         // 3 - disabled, input active
-        int prev_state = state.get_action_state(id);
-        if(prev_state == 0 && d) v = 1.0;
-        else if(prev_state == 1 && !d) v = 1.0;
-        else if(prev_state == 2 && d) v = 0.0;
-        else if(prev_state == 3 && !d) v = 0.0;
+        if(prev_state == 0) v = 0.0;
+        else if(prev_state == 1) v = 1.0;
+        else if(prev_state == 2) v = 1.0;
+        else if(prev_state == 3) v = 0.0;
     }
 
     return v;

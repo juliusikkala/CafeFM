@@ -791,20 +791,23 @@ void cafefm::gui_bind_button(bind& b, bool discrete_only)
 
 void cafefm::gui_bind_control_template(bind& b)
 {
-    nk_layout_row_template_push_static(ctx, 80);
     switch(b.control)
     {
     case bind::UNBOUND:
         break;
     case bind::BUTTON_PRESS:
     case bind::BUTTON_TOGGLE:
+        nk_layout_row_template_push_static(ctx, 80);
         break;
     case bind::AXIS_1D_CONTINUOUS:
     case bind::AXIS_1D_RELATIVE:
+        break;
     case bind::AXIS_1D_THRESHOLD:
     case bind::AXIS_1D_THRESHOLD_TOGGLE:
+        nk_layout_row_template_push_static(ctx, 80);
         break;
     }
+    nk_layout_row_template_push_static(ctx, 80);
     nk_layout_row_template_push_static(ctx, 25);
     nk_layout_row_template_push_static(ctx, 25);
     nk_layout_row_template_push_static(ctx, 25);
@@ -812,6 +815,28 @@ void cafefm::gui_bind_control_template(bind& b)
 
 int cafefm::gui_bind_control(bind& b, bool discrete_only)
 {
+    switch(b.control)
+    {
+    case bind::BUTTON_PRESS:
+        if(nk_check_label(ctx, "Toggle", 1) == 0)
+            b.control = bind::BUTTON_TOGGLE;
+        break;
+    case bind::BUTTON_TOGGLE:
+        if(nk_check_label(ctx, "Toggle", 0) == 1)
+            b.control = bind::BUTTON_PRESS;
+        break;
+    case bind::AXIS_1D_THRESHOLD:
+        if(nk_check_label(ctx, "Toggle", 1) == 0)
+            b.control = bind::AXIS_1D_THRESHOLD_TOGGLE;
+        break;
+    case bind::AXIS_1D_THRESHOLD_TOGGLE:
+        if(nk_check_label(ctx, "Toggle", 0) == 1)
+            b.control = bind::AXIS_1D_THRESHOLD;
+        break;
+    default:
+        break;
+    }
+
     gui_bind_button(b, discrete_only);
 
     int ret = 0;
