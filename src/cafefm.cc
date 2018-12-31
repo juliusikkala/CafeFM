@@ -1,6 +1,7 @@
 #include "cafefm.hh"
 #include "controller/keyboard.hh"
 #include "io.hh"
+#include "helpers.hh"
 #include <stdexcept>
 #include <string>
 #include <cstring>
@@ -12,6 +13,7 @@
 #define MAX_ELEMENT_MEMORY 128 * 1024
 #define CARRIER_HEIGHT 120
 #define OSCILLATOR_HEIGHT 90
+#define INSTRUMENT_HEADER_HEIGHT 110
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 #define MAX_BINDING_NAME_LENGTH 128
@@ -110,6 +112,7 @@ void cafefm::load()
 
     selected_tab = 1;
 
+    // Determine data directories
     fs::path font_dir("data/fonts");
     fs::path img_dir("data/images");
 #ifdef DATA_DIRECTORY
@@ -125,21 +128,35 @@ void cafefm::load()
     }
 #endif
 
+    // Load fonts
+    static const nk_rune nk_font_glyph_ranges[] = {
+        0x0020, 0x024F,
+        0x0370, 0x03FF,
+        0x2200, 0x22FF,
+        0x2C60, 0x2C7F,
+        0x2600, 0x26FF,
+        0x3000, 0x303F,
+        0x3040, 0x309F,
+        0x30A0, 0x30FF,
+        0x4E00, 0x9FFF,
+        0xFF00, 0xFFEF,
+        0
+    };
+    struct nk_font_config config = nk_font_config(16);
+    config.range = nk_font_glyph_ranges;
+
     struct nk_font_atlas* atlas;
     nk_sdl_font_stash_begin(&atlas);
-    std::string montserrat_medium =
-        (font_dir/"Montserrat/Montserrat-Medium.ttf").string();
+    std::string font_file =
+        (font_dir/"DejaVuSans/DejaVuSans.ttf").string();
     small_font = nk_font_atlas_add_from_file(
-        atlas, montserrat_medium.c_str(), 16, 0
+        atlas, font_file.c_str(), 16, &config
     );
-    medium_font = nk_font_atlas_add_from_file(
-        atlas, montserrat_medium.c_str(), 19, 0
-    );
-    huge_font = nk_font_atlas_add_from_file(
-        atlas, montserrat_medium.c_str(), 23, 0
-    );
+    medium_font = nk_font_atlas_add_from_file(atlas, font_file.c_str(), 19, 0);
+    huge_font = nk_font_atlas_add_from_file(atlas, font_file.c_str(), 23, 0);
     nk_sdl_font_stash_end();
 
+    // Load textures
     int id = -1;
     std::string img_path;
 #define load_texture(name, path) \
@@ -154,6 +171,7 @@ void cafefm::load()
     load_texture(red_warn_img, "red_warning.png");
     load_texture(lock_img, "lock.png");
 
+    // Setup controllers
     available_controllers.emplace_back(new keyboard());
     select_controller(available_controllers[0].get());
 }
@@ -289,6 +307,15 @@ void cafefm::gui_keyboard_grab()
     {
         if(nk_button_label(ctx, "Grab keyboard"))
             keyboard_grabbed = true;
+    }
+}
+
+void cafefm::gui_controller_manager()
+{
+    if(selected_controller)
+    {
+        std::string type = selected_controller->get_type_name();
+        if(type == "Keyboard") gui_keyboard_grab();
     }
 }
 
@@ -612,10 +639,10 @@ void cafefm::gui_synth_editor()
         }
     }
 
-    // + -button for modulators
+    // + button for modulators
     nk_style_set_font(ctx, &huge_font->handle);
     nk_layout_row_dynamic(ctx, OSCILLATOR_HEIGHT, 1);
-    if(modulators.size() <= 2 && nk_button_label(ctx, "+"))
+    if(modulators.size() <= 2 && nk_button_symbol(ctx, NK_SYMBOL_PLUS))
     {
         modulators.push_back({OSC_SINE, 1.0, 0.5});
         mask |= CHANGE_REQUIRE_RESET;
@@ -667,15 +694,8 @@ void cafefm::gui_synth_editor()
         }
 
 
-        if(selected_controller)
-        {
-            std::string type = selected_controller->get_type_name();
-            if(type == "Keyboard")
-            {
-                nk_layout_row_static(ctx, 60, 150, 1);
-                gui_keyboard_grab();
-            }
-        }
+        nk_layout_row_static(ctx, 60, 150, 1);
+        gui_controller_manager();
 
         nk_group_end(ctx);
     }
@@ -689,19 +709,86 @@ void cafefm::gui_synth_editor()
     }
 }
 
+void cafefm::gui_bind_control_template(bind& b)
+{
+}
+
+void cafefm::gui_bind_control(bind& b, bool discrete_only)
+{
+}
+
+nk_color cafefm::gui_bind_background_color(bind& b)
+{
+    nk_color bg = ctx->style.window.background;
+    if(!selected_controller) return bg;
+
+    nk_color active = nk_rgb(30,30,30);
+    double value = fabs(b.get_value(control, selected_controller));
+    value = std::min(1.0, value);
+    bg.r = round(lerp(bg.r, active.r, value));
+    bg.g = round(lerp(bg.g, active.g, value));
+    bg.b = round(lerp(bg.b, active.b, value));
+    return bg;
+}
+
+void cafefm::gui_key_bind(bind& b, unsigned index)
+{
+    static constexpr int min_semitone = -10;
+    static const std::vector<std::string> note_list =
+        generate_note_list(min_semitone, min_semitone + 24);
+
+    std::string title = "Key Bind " + std::to_string(index);
+
+    nk_color bg = gui_bind_background_color(b);
+
+    struct nk_style *s = &ctx->style;
+    nk_style_push_style_item(ctx, &s->window.fixed_background, nk_style_item_color(bg));
+
+    struct nk_rect empty_space;
+    if(nk_group_begin(
+        ctx, title.c_str(), NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
+    )){
+        nk_layout_row_template_begin(ctx, 25);
+        nk_layout_row_template_push_static(ctx, 80);
+        nk_layout_row_template_push_dynamic(ctx);
+        gui_bind_control_template(b);
+        nk_layout_row_template_end(ctx);
+
+        std::string note_name = generate_semitone_name(b.key_semitone);
+        if(nk_combo_begin_label(ctx, note_name.c_str(), nk_vec2(80, 200)))
+        {
+            nk_layout_row_dynamic(ctx, 30, 1);
+            for(unsigned i = 0; i < note_list.size(); ++i)
+            {
+                if(nk_combo_item_label(ctx, note_list[i].c_str(), NK_TEXT_LEFT))
+                    b.key_semitone = min_semitone + i;
+            }
+            nk_combo_end(ctx);
+        }
+        
+        nk_widget(&empty_space, ctx);
+        nk_group_end(ctx);
+    }
+
+    nk_style_pop_style_item(ctx);
+}
+
 void cafefm::gui_instrument_editor()
 {
     nk_style_set_font(ctx, &small_font->handle);
-    nk_layout_row_dynamic(ctx, 110, 1);
+    nk_layout_row_dynamic(ctx, INSTRUMENT_HEADER_HEIGHT, 1);
 
+    // Controller & bindings selection.
     if(nk_group_begin(
-            ctx, "Controller Group", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
+        ctx, "Controller Group", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
     )){
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 80);
         nk_layout_row_template_push_static(ctx, 400);
+        nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
 
+        // Controller picker
         nk_label(ctx, "Controller:", NK_TEXT_LEFT);
 
         std::vector<std::string> label_strings;
@@ -724,6 +811,10 @@ void cafefm::gui_instrument_editor()
         if(new_selected_index != selected_index)
             select_controller(available_controllers[selected_index].get());
 
+        // Show manager (Grab Keyboard, etc.)
+        gui_controller_manager();
+        nk_style_set_font(ctx, &small_font->handle);
+
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 80);
         nk_layout_row_template_push_static(ctx, 400);
@@ -731,6 +822,7 @@ void cafefm::gui_instrument_editor()
         nk_layout_row_template_push_static(ctx, 230);
         nk_layout_row_template_end(ctx);
 
+        // Preset picker
         nk_label(ctx, "Preset:", NK_TEXT_LEFT);
 
         std::string combo_label = "(None)";
@@ -772,6 +864,7 @@ void cafefm::gui_instrument_editor()
             nk_combo_end(ctx);
         }
 
+        // Warn user for suboptimal bindings
         switch(binds.rate_compatibility(selected_controller))
         {
         case 1:
@@ -797,6 +890,7 @@ void cafefm::gui_instrument_editor()
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
 
+        // Name editor
         std::string current_name_str = binds.get_name();
         char current_name[MAX_BINDING_NAME_LENGTH+1] = {0};
         int current_name_len = current_name_str.size();
@@ -809,6 +903,7 @@ void cafefm::gui_instrument_editor()
         );
         binds.set_name(std::string(current_name, current_name_len));
 
+        // Save, New and Delete buttons
         auto name_match = all_bindings.find(binds.get_name());
         bool can_save = false;
         bool can_delete = false;
@@ -829,6 +924,7 @@ void cafefm::gui_instrument_editor()
         if(button_label_active(ctx, "Delete", can_delete))
             delete_popup_open = true;
 
+        // Handle delete popup
         if(delete_popup_open)
         {
             struct nk_rect s = {0, 100, 300, 136};
@@ -862,6 +958,79 @@ void cafefm::gui_instrument_editor()
         nk_group_end(ctx);
     }
 
+    nk_layout_row_dynamic(
+        ctx,
+        WINDOW_HEIGHT-INSTRUMENT_HEADER_HEIGHT-43,
+        1
+    );
+
+    // Actual bindings section
+    if(nk_group_begin(ctx, "Bindings Group", NK_WINDOW_BORDER))
+    {
+        if(nk_tree_push(ctx, NK_TREE_TAB, "Keys", NK_MINIMIZED))
+        {
+            nk_layout_row_dynamic(ctx, 35, 1);
+
+            for(unsigned i = 0; i < binds.bind_count(); ++i)
+            {
+                auto& b = binds.get_bind(i);
+                if(b.action != bind::KEY) continue;
+                gui_key_bind(b, i);
+            }
+
+            nk_style_set_font(ctx, &huge_font->handle);
+            if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
+                printf("Should add a key, I guess.\n");
+            nk_style_set_font(ctx, &small_font->handle);
+
+            nk_tree_pop(ctx);
+        }
+        if(nk_tree_push(ctx, NK_TREE_TAB, "Pitch", NK_MINIMIZED))
+        {
+            nk_layout_row_dynamic(ctx, 35, 1);
+
+            nk_style_set_font(ctx, &huge_font->handle);
+            if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
+                printf("Should add a pitch control, I guess.\n");
+            nk_style_set_font(ctx, &small_font->handle);
+
+            nk_tree_pop(ctx);
+        }
+        if(nk_tree_push(ctx, NK_TREE_TAB, "Volume", NK_MINIMIZED))
+        {
+            nk_layout_row_dynamic(ctx, 35, 1);
+
+            nk_style_set_font(ctx, &huge_font->handle);
+            if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
+                printf("Should add a volume control, I guess.\n");
+            nk_style_set_font(ctx, &small_font->handle);
+
+            nk_tree_pop(ctx);
+        }
+        if(nk_tree_push(ctx, NK_TREE_TAB, "Modulator period", NK_MINIMIZED))
+        {
+            nk_layout_row_dynamic(ctx, 35, 1);
+
+            nk_style_set_font(ctx, &huge_font->handle);
+            if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
+                printf("Should add a period control, I guess.\n");
+            nk_style_set_font(ctx, &small_font->handle);
+
+            nk_tree_pop(ctx);
+        }
+        if(nk_tree_push(ctx, NK_TREE_TAB, "Modulator amplitude", NK_MINIMIZED))
+        {
+            nk_layout_row_dynamic(ctx, 35, 1);
+
+            nk_style_set_font(ctx, &huge_font->handle);
+            if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
+                printf("Should add an amplitude control, I guess.\n");
+            nk_style_set_font(ctx, &small_font->handle);
+
+            nk_tree_pop(ctx);
+        }
+        nk_group_end(ctx);
+    }
 }
 
 void cafefm::gui()

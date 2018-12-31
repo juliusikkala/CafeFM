@@ -152,6 +152,7 @@ public:
     bind& create_new_bind();
     bind& get_bind(unsigned i);
     const bind& get_bind(unsigned i) const;
+    const std::vector<bind>& get_binds() const;
     void erase_bind(unsigned i, control_state& state);
     size_t bind_count() const;
 

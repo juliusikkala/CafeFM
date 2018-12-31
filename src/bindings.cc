@@ -1,21 +1,8 @@
 #include "bindings.hh"
 #include "controller/controller.hh"
+#include "helpers.hh"
 #include <stdexcept>
 #include <cstring>
-
-namespace
-{
-    double lerp(double a, double b, double t) { return (1 - t) * a + t * b; }
-    int find_string_arg(
-        const char* str,
-        const char* const* strings,
-        unsigned string_count
-    ){
-        for(unsigned i = 0; i < string_count; ++i)
-            if(strcmp(str, strings[i]) == 0) return i;
-        return -1;
-    }
-}
 
 static const char* const control_strings[] = {
     "UNBOUND",
@@ -464,6 +451,7 @@ bind& bindings::create_new_bind()
 
 bind& bindings::get_bind(unsigned i) { return binds[i]; }
 const bind& bindings::get_bind(unsigned i) const { return binds[i]; }
+const std::vector<bind>& bindings::get_binds() const { return binds; }
 
 void bindings::erase_bind(unsigned i, control_state& state)
 {

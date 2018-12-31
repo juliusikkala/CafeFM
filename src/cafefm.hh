@@ -34,6 +34,7 @@ private:
     void detach_controller(unsigned index);
 
     void gui_keyboard_grab();
+    void gui_controller_manager();
     void gui_draw_adsr(const envelope& adsr);
     unsigned gui_oscillator_type(oscillator_type& type);
     unsigned gui_carrier(oscillator_type& type);
@@ -43,6 +44,11 @@ private:
         bool& erase
     );
     void gui_synth_editor();
+
+    void gui_bind_control_template(bind& b);
+    void gui_bind_control(bind& b, bool discrete_only = false);
+    nk_color gui_bind_background_color(bind& b);
+    void gui_key_bind(bind& b, unsigned index);
     void gui_instrument_editor();
 
     void gui();

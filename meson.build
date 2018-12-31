@@ -13,6 +13,7 @@ src = [
   'src/controller/controller.cc',
   'src/controller/keyboard.cc',
   'src/fm.cc',
+  'src/helpers.cc',
   'src/instrument.cc',
   'src/io.cc',
   'src/main.cc',
