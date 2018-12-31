@@ -121,6 +121,9 @@ public:
     void set_name(const std::string& name);
     std::string get_name() const;
 
+    void set_path(const fs::path& path);
+    fs::path get_path() const;
+
     void set_target_device(controller* c);
 
     void set_target_device_type(const std::string& type);
@@ -159,6 +162,7 @@ public:
 private:
     bool write_lock;
     std::string name;
+    fs::path path;
     std::string device_type, device_name;
     std::vector<bind> binds;
     control_state::action_id id_counter;

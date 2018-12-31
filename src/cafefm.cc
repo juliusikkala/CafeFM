@@ -18,9 +18,36 @@
 
 using namespace std::string_literals;
 
+namespace
+{
+    int button_label_active(
+        struct nk_context* ctx,
+        const char *title,
+        bool active
+    ){
+        if(active) return nk_button_label(ctx, title);
+        else
+        {
+            struct nk_style_button button;
+            button = ctx->style.button;
+            ctx->style.button.normal = nk_style_item_color(nk_rgb(40,40,40));
+            ctx->style.button.hover = nk_style_item_color(nk_rgb(40,40,40));
+            ctx->style.button.active = nk_style_item_color(nk_rgb(40,40,40));
+            ctx->style.button.border_color = nk_rgb(60,60,60);
+            ctx->style.button.text_background = nk_rgb(60,60,60);
+            ctx->style.button.text_normal = nk_rgb(60,60,60);
+            ctx->style.button.text_hover = nk_rgb(60,60,60);
+            ctx->style.button.text_active = nk_rgb(60,60,60);
+            nk_button_label(ctx, title);
+            ctx->style.button = button;
+            return 0;
+        }
+    }
+};
+
 cafefm::cafefm()
-:   win(nullptr), selected_controller(nullptr), keyboard_grabbed(false),
-    mouse_grabbed(false), master_volume(0.5)
+:   win(nullptr), delete_popup_open(false), selected_controller(nullptr),
+    keyboard_grabbed(false), mouse_grabbed(false), master_volume(0.5)
 {
     SDL_GL_SetAttribute(
         SDL_GL_CONTEXT_FLAGS,
@@ -128,17 +155,17 @@ void cafefm::load()
     load_texture(lock_img, "lock.png");
 
     available_controllers.emplace_back(new keyboard());
-    selected_controller = available_controllers[0].get();
-    selected_preset = 0;
-
-    all_bindings = load_all_bindings();
-    auto comp = filter_compatible_bindings();
-    if(comp.size() > 1) binds = comp[0].first;
+    select_controller(available_controllers[0].get());
 }
 
 void cafefm::unload()
 {
     available_controllers.clear();
+    all_bindings.clear();
+    compatible_bindings.clear();
+
+    selected_controller = nullptr;
+    delete_popup_open = false;
 
     nk_sdl_destroy_texture(close_img.handle.id);
     nk_sdl_destroy_texture(yellow_warn_img.handle.id);
@@ -601,7 +628,7 @@ void cafefm::gui_synth_editor()
     nk_layout_space_begin(ctx, NK_STATIC, synth_control_height, 1);
     nk_layout_space_push(
         ctx, nk_layout_space_rect_to_local(ctx, nk_rect(
-            s.x+4,s.y+s.h-synth_control_height,s.w-8,synth_control_height)));
+            s.x+4,s.y+s.h-synth_control_height,s.w-8,synth_control_height-5)));
     if(nk_group_begin(
         ctx, "Synth Control", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
     )){
@@ -690,11 +717,12 @@ void cafefm::gui_instrument_editor()
             label_cstrings.push_back(name.c_str());
         }
 
-        selected_index = nk_combo(
+        unsigned new_selected_index = nk_combo(
             ctx, label_cstrings.data(), label_cstrings.size(),
             selected_index, 25, nk_vec2(400, 200)
         );
-        selected_controller = available_controllers[selected_index].get();
+        if(new_selected_index != selected_index)
+            select_controller(available_controllers[selected_index].get());
 
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 80);
@@ -705,45 +733,42 @@ void cafefm::gui_instrument_editor()
 
         nk_label(ctx, "Preset:", NK_TEXT_LEFT);
 
-        auto compatible = filter_compatible_bindings();
-        if(nk_combo_begin_label(
-            ctx, compatible[selected_preset].first.get_name().c_str(),
-            nk_vec2(400,200)
-        )){
+        std::string combo_label = "(None)";
+        if(selected_preset >= 0)
+            combo_label = compatible_bindings[selected_preset].get_name();
+
+        if(nk_combo_begin_label(ctx, combo_label.c_str(), nk_vec2(400,200)))
+        {
             int new_selected_preset = -1;
             nk_layout_row_dynamic(ctx, 25, 1);
-            for(unsigned i = 0; i < compatible.size(); ++i)
+            for(unsigned i = 0; i < compatible_bindings.size(); ++i)
             {
-                const auto& pair = compatible[i];
-                if(pair.second == 0)
+                const auto& b = compatible_bindings[i];
+                unsigned comp = b.rate_compatibility(selected_controller);
+                if(comp == 0)
                 {
                     if(nk_combo_item_label(
-                        ctx, pair.first.get_name().c_str(), NK_TEXT_ALIGN_LEFT
+                        ctx, b.get_name().c_str(), NK_TEXT_ALIGN_LEFT
                     )) new_selected_preset = i;
                 }
-                else if(pair.second == 1)
+                else if(comp == 1)
                 {
                     if(nk_combo_item_image_label(
-                        ctx, gray_warn_img, pair.first.get_name().c_str(),
+                        ctx, gray_warn_img, b.get_name().c_str(),
                         NK_TEXT_ALIGN_LEFT
                     )) new_selected_preset = i;
                 }
-                else if(pair.second == 2)
+                else if(comp == 2)
                 {
                     if(nk_combo_item_image_label(
-                        ctx, yellow_warn_img, pair.first.get_name().c_str(),
+                        ctx, yellow_warn_img, b.get_name().c_str(),
                         NK_TEXT_ALIGN_LEFT
                     )) new_selected_preset = i;
                 }
             }
 
             if(new_selected_preset != -1)
-            {
-                synth->release_all_voices();
-                control.reset();
-                selected_preset = new_selected_preset;
-                binds = compatible[selected_preset].first;
-            }
+                select_compatible_bindings(new_selected_preset);
             nk_combo_end(ctx);
         }
 
@@ -766,7 +791,10 @@ void cafefm::gui_instrument_editor()
         }
 
         nk_layout_row_template_begin(ctx, 30);
-        nk_layout_row_template_push_static(ctx, 600);
+        nk_layout_row_template_push_static(ctx, 484);
+        nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
 
         std::string current_name_str = binds.get_name();
@@ -780,6 +808,56 @@ void cafefm::gui_instrument_editor()
             MAX_BINDING_NAME_LENGTH, nk_filter_default
         );
         binds.set_name(std::string(current_name, current_name_len));
+
+        auto name_match = all_bindings.find(binds.get_name());
+        bool can_save = false;
+        bool can_delete = false;
+        if(name_match == all_bindings.end()) can_save = true;
+        else
+        {
+            bool locked = name_match->second.is_write_locked();
+            can_save = !locked;
+            can_delete = !locked;
+        }
+
+        if(button_label_active(ctx, "Save", can_save))
+            save_current_bindings();
+
+        if(nk_button_label(ctx, "New"))
+            create_new_bindings();
+
+        if(button_label_active(ctx, "Delete", can_delete))
+            delete_popup_open = true;
+
+        if(delete_popup_open)
+        {
+            struct nk_rect s = {0, 100, 300, 136};
+            s.x = WINDOW_WIDTH/2-s.w/2;
+            if(nk_popup_begin(
+                ctx, NK_POPUP_STATIC, "Delete?",
+                NK_WINDOW_BORDER|NK_WINDOW_TITLE, s
+            )){
+                std::string warning_text =
+                    "Are you sure you want to delete preset \"";
+                warning_text += binds.get_name() + "\"?";
+                nk_layout_row_dynamic(ctx, 50, 1);
+                nk_label_wrap(ctx, warning_text.c_str());
+                nk_layout_row_dynamic(ctx, 30, 2);
+                if (nk_button_label(ctx, "Delete"))
+                {
+                    delete_popup_open = false;
+                    delete_bindings(binds.get_name());
+                    nk_popup_close(ctx);
+                }
+                if (nk_button_label(ctx, "Cancel"))
+                {
+                    delete_popup_open = false;
+                    nk_popup_close(ctx);
+                }
+                nk_popup_end(ctx);
+            }
+            else delete_popup_open = false;
+        }
 
         nk_group_end(ctx);
     }
@@ -853,6 +931,115 @@ void cafefm::gui()
     nk_input_begin(ctx);
 }
 
+void cafefm::select_controller(controller* c)
+{
+    selected_controller = c;
+
+    synth->release_all_voices();
+    control.reset();
+    update_compatible_bindings();
+    if(compatible_bindings.size() >= 1)
+    {
+        selected_preset = 0;
+        binds = compatible_bindings[0];
+    }
+    else selected_preset = -1;
+}
+
+void cafefm::select_compatible_bindings(unsigned index)
+{
+    synth->release_all_voices();
+    control.reset();
+    selected_preset = index;
+    binds = compatible_bindings[index];
+}
+
+void cafefm::save_current_bindings()
+{
+    if(selected_controller)
+        binds.set_target_device(selected_controller);
+
+    write_bindings(binds);
+    update_compatible_bindings();
+
+    for(unsigned i = 0; i < compatible_bindings.size(); ++i)
+    {
+        if(compatible_bindings[i].get_name() == binds.get_name())
+        {
+            selected_preset = i;
+            break;
+        }
+    }
+}
+
+void cafefm::create_new_bindings()
+{
+    synth->release_all_voices();
+    control.reset();
+    selected_preset = -1;
+    binds.clear();
+
+    if(selected_controller)
+        binds.set_target_device(selected_controller);
+
+    std::string name = "New bindings";
+    if(all_bindings.count(name) == 0) binds.set_name(name);
+    else
+    {
+        unsigned i = 1;
+        name += " #";
+        std::string modified_name;
+        do
+        {
+            modified_name = name + std::to_string(i++);
+        }
+        while(all_bindings.count(modified_name) != 0);
+        binds.set_name(modified_name);
+    }
+}
+
+void cafefm::delete_bindings(const std::string& name)
+{
+    auto it = all_bindings.find(name);
+    if(it == all_bindings.end()) return;
+
+    remove_bindings(it->second);
+    update_compatible_bindings();
+    select_compatible_bindings(selected_preset);
+}
+
+void cafefm::update_all_bindings()
+{
+    all_bindings.clear();
+    auto all_bindings_vector = load_all_bindings();
+    for(const bindings& b: all_bindings_vector)
+        all_bindings.emplace(b.get_name(), b);
+}
+
+void cafefm::update_compatible_bindings()
+{
+    update_all_bindings();
+
+    compatible_bindings.clear();
+
+    if(!selected_controller) return;
+    for(auto& pair: all_bindings)
+    {
+        unsigned comp = pair.second.rate_compatibility(selected_controller);
+        if(comp <= 2) compatible_bindings.emplace_back(pair.second);
+    }
+
+    auto compare = [](const bindings& a, const bindings& b){
+        return a.get_name() < b.get_name();
+    };
+
+    std::sort(compatible_bindings.begin(), compatible_bindings.end(), compare);
+
+    if(compatible_bindings.size() == 0) selected_preset = -1;
+    if(selected_preset > (int)compatible_bindings.size())
+        selected_preset = compatible_bindings.size() - 1;
+}
+
 void cafefm::reset_synth(
     uint64_t samplerate,
     oscillator_type carrier,
@@ -873,24 +1060,4 @@ void cafefm::reset_synth(
     synth.swap(new_synth);
     output.reset(new audio_output(*synth));
     output->start();
-}
-
-std::vector<std::pair<bindings, unsigned>> cafefm::filter_compatible_bindings()
-{
-    if(!selected_controller) return {};
-    using pair = std::pair<bindings, unsigned>;
-    std::vector<pair> compatible;
-    for(const bindings& b: all_bindings)
-    {
-        unsigned comp = b.rate_compatibility(selected_controller);
-        if(comp <= 2) compatible.emplace_back(b, comp);
-    }
-
-    auto compare = [](const pair& a, const pair& b){
-        if(a.second == b.second) return a.first.get_name() < b.first.get_name();
-        else return a.second < b.second;
-    };
-
-    std::sort(compatible.begin(), compatible.end(), compare);
-    return compatible;
 }

@@ -331,6 +331,16 @@ bool bindings::is_write_locked() const
 void bindings::set_name(const std::string& name) { this->name = name; }
 std::string bindings::get_name() const { return name; }
 
+void bindings::set_path(const fs::path& path)
+{
+    this->path = path;
+}
+
+fs::path bindings::get_path() const
+{
+    return path;
+}
+
 void bindings::set_target_device(controller* c)
 {
     if(!c) return;
@@ -509,6 +519,7 @@ bool bindings::deserialize(const json& j)
 void bindings::clear()
 {
     name = "New binding";
+    path.clear();
     device_type = "None";
     device_name = "Unnamed",
     id_counter = 0;

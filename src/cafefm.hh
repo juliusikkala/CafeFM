@@ -10,6 +10,7 @@
 #include "SDL.h"
 #include "SDL_opengl.h"
 #include <memory>
+#include <map>
 
 class cafefm
 {
@@ -46,15 +47,20 @@ private:
 
     void gui();
 
+    void select_controller(controller* c);
+    void select_compatible_bindings(unsigned index);
+    void save_current_bindings();
+    void create_new_bindings();
+    void delete_bindings(const std::string& name);
+
+    void update_all_bindings();
+    void update_compatible_bindings();
+
     void reset_synth(
         uint64_t samplerate = 44100,
         oscillator_type carrier = OSC_SINE,
         const std::vector<dynamic_oscillator>& modulators = {}
     );
-
-    std::vector<
-        std::pair<bindings, unsigned /* compatibility */>
-    > filter_compatible_bindings();
 
     nk_context* ctx;
     SDL_Window* win;
@@ -66,7 +72,8 @@ private:
     struct nk_image close_img, yellow_warn_img, gray_warn_img, red_warn_img,
         lock_img;
     unsigned selected_tab;
-    unsigned selected_preset;
+    int selected_preset;
+    bool delete_popup_open;
 
     std::vector<std::unique_ptr<controller>> available_controllers;
     controller* selected_controller;
@@ -82,7 +89,8 @@ private:
     float master_volume;
     control_state control;
 
-    std::vector<bindings> all_bindings;
+    std::map<std::string, bindings> all_bindings;
+    std::vector<bindings> compatible_bindings;
     bindings binds;
 };
 

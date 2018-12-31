@@ -13,7 +13,8 @@ class bindings;
 
 std::string make_filename_safe(const std::string& name);
 
-void write_bindings(const bindings& b);
+void write_bindings(bindings& b);
+void remove_bindings(const bindings& b);
 std::vector<bindings> load_all_bindings();
 
 #endif

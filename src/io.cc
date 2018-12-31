@@ -147,15 +147,29 @@ std::string make_filename_safe(const std::string& name)
     return fixed;
 }
 
-void write_bindings(const bindings& b)
+void write_bindings(bindings& b)
 {
     json bindings_json = b.serialize();
     std::string name = bindings_json.at("name").get<std::string>();
     fs::path filename(
         make_filename_safe(name) + "_" + string_hash(name) + ".bnd"
     );
+    fs::path path = get_writable_bindings_path()/filename;
+    b.set_path(path);
 
-    write_json_file(get_writable_bindings_path()/filename, bindings_json);
+    write_json_file(path, bindings_json);
+}
+
+void remove_bindings(const bindings& b)
+{
+    // Safety checks, just in case something goes very wrong.
+    fs::path writable_path = get_writable_bindings_path();
+    fs::path b_path = b.get_path();
+    if(
+        b_path.extension() == ".bnd" &&
+        b_path.has_stem() &&
+        b_path.parent_path() == writable_path
+    ) fs::remove(b_path);
 }
 
 std::vector<bindings> load_all_bindings()
@@ -175,6 +189,7 @@ std::vector<bindings> load_all_bindings()
             {
                 bindings new_bindings;
                 new_bindings.deserialize(read_json_file(x.path()));
+                new_bindings.set_path(x.path());
                 if(ro_paths.count(p)) new_bindings.set_write_lock(true);
                 binds.push_back(new_bindings);
             }
