@@ -47,7 +47,7 @@ struct bind
         {
             int index;
             bool invert;
-            float threshold; // unused for continuous
+            double threshold; // unused for continuous
         } axis_1d;
     };
 
@@ -100,7 +100,7 @@ struct bind
         int button_index
     ) const;
 
-    double input_value(const controller* c) const;
+    double input_value(const controller* c, bool* is_signed = nullptr) const;
 
     double get_value(const control_state& ctx, const controller* c) const;
     // Returns false if should be skipped

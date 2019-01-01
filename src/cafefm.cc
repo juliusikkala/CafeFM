@@ -47,6 +47,79 @@ namespace
         }
     }
 
+    void axis_widget(
+        struct nk_context* ctx,
+        double input_value,
+        bool is_signed,
+        double* threshold
+    ){
+        struct nk_rect bounds;
+        nk_widget_layout_states state;
+        state = nk_widget(&bounds, ctx);
+        if (!state) return;
+
+        struct nk_command_buffer *out = &ctx->current->buffer;
+        struct nk_style_progress* style = &ctx->style.progress;
+        struct nk_style_item* background = &style->normal;
+
+        nk_input* in = threshold ? &ctx->input : nullptr;
+
+        struct nk_rect click_area = bounds;
+        struct nk_rect cursor = bounds;
+
+        // Handle input
+        if(
+            in &&
+            nk_input_has_mouse_click_down_in_rect(
+                in, NK_BUTTON_LEFT, click_area, nk_true
+            )
+        ){
+            double new_threshold = (in->mouse.pos.x - cursor.x) / cursor.w;
+            new_threshold = std::min(new_threshold, 1.0);
+            new_threshold = std::max(new_threshold, 0.0);
+            *threshold = is_signed ?  new_threshold * 2.0 - 1.0 : new_threshold;
+        }
+
+        double normalized_input =
+            is_signed ? input_value*0.5 + 0.5 : input_value;
+        cursor.w = normalized_input * cursor.w;
+
+        // Draw
+
+        struct nk_color line_color = nk_rgb(240, 0, 0);
+        struct nk_color bar_color = style->cursor_normal.data.color;
+
+        if(threshold && *threshold < input_value) bar_color = nk_rgb(175,0,0);
+
+        // Background
+        nk_fill_rect(out, bounds, style->rounding, background->data.color);
+        nk_stroke_rect(
+            out, bounds, style->rounding, style->border, style->border_color
+        );
+
+        // Bar
+        nk_fill_rect(out, cursor, style->rounding, bar_color);
+        nk_stroke_rect(
+            out, cursor, style->rounding, style->border, style->border_color
+        );
+
+        // Threshold marker
+        if(threshold)
+        {
+            double threshold_x = is_signed ?  *threshold*0.5 + 0.5 : *threshold;
+            threshold_x = threshold_x * bounds.w + cursor.x;
+
+            nk_stroke_line(
+                out,
+                threshold_x, cursor.y,
+                threshold_x, cursor.y+cursor.h,
+                2.0f,
+                line_color
+            );
+        }
+
+    }
+
     const char* modulator_index_names[] = {"1", "2", "3"};
 };
 
@@ -758,11 +831,11 @@ void cafefm::gui_bind_action_template(bind& b)
         break;
     case bind::PERIOD_EXPT:
         nk_layout_row_template_push_static(ctx, 40);
-        nk_layout_row_template_push_static(ctx, 140);
+        nk_layout_row_template_push_static(ctx, 150);
         break;
     case bind::AMPLITUDE_MUL:
         nk_layout_row_template_push_static(ctx, 40);
-        nk_layout_row_template_push_static(ctx, 140);
+        nk_layout_row_template_push_static(ctx, 150);
         break;
     }
 }
@@ -844,21 +917,49 @@ void cafefm::gui_bind_action(bind& b)
 }
 
 void cafefm::gui_bind_modifiers(
-    bind& b, bool allow_toggle, bool allow_cumulative
+    bind& b, bool allow_toggle, bool allow_cumulative, bool allow_threshold
 ){
-    if(allow_toggle && allow_cumulative)
+    if(b.control == bind::UNBOUND) return;
+
+    bool allow_invert = false;
+
+    if(
+        b.control == bind::AXIS_1D_CONTINUOUS ||
+        b.control == bind::AXIS_1D_THRESHOLD
+    ) allow_invert = true;
+    else allow_threshold = false;
+
+    bool multiple =
+        ((int)allow_toggle +
+        (int)allow_cumulative +
+        (int)allow_threshold +
+        (int)allow_invert) > 1;
+
+    if(multiple)
     {
-        if (nk_combo_begin_label(ctx, "Modifiers", nk_vec2(130,200))) {
+        if(nk_combo_begin_label(ctx, "Modifiers", nk_vec2(130,200)))
             nk_layout_row_dynamic(ctx, 25, 1);
-            b.toggle = !nk_check_label(ctx, "Toggle", !b.toggle);
-            b.cumulative = !nk_check_label(ctx, "Cumulative", !b.cumulative);
-            nk_combo_end(ctx);
-        }
+        else return;
     }
-    else if(allow_toggle)
+
+    if(allow_toggle)
         b.toggle = !nk_check_label(ctx, "Toggle", !b.toggle);
-    else if(allow_cumulative)
+
+    if(allow_cumulative)
         b.cumulative = !nk_check_label(ctx, "Cumulative", !b.cumulative);
+
+    if(allow_threshold)
+    {
+        bool has_threshold = b.control == bind::AXIS_1D_THRESHOLD;
+        has_threshold = !nk_check_label(ctx, "Threshold", !has_threshold);
+        if(has_threshold) b.control = bind::AXIS_1D_THRESHOLD;
+        else b.control = bind::AXIS_1D_CONTINUOUS;
+    }
+
+    if(allow_invert)
+        b.axis_1d.invert = !nk_check_label(ctx, "Invert", !b.axis_1d.invert);
+
+    if(multiple) nk_combo_end(ctx);
 }
 
 void cafefm::gui_bind_button(bind& b, bool discrete_only)
@@ -935,9 +1036,11 @@ void cafefm::gui_bind_control_template(bind& b)
         nk_layout_row_template_push_static(ctx, 100);
         break;
     case bind::AXIS_1D_CONTINUOUS:
+        nk_layout_row_template_push_static(ctx, 80);
         nk_layout_row_template_push_static(ctx, 100);
         break;
     case bind::AXIS_1D_THRESHOLD:
+        nk_layout_row_template_push_static(ctx, 80);
         nk_layout_row_template_push_static(ctx, 100);
         break;
     }
@@ -949,11 +1052,26 @@ void cafefm::gui_bind_control_template(bind& b)
 
 int cafefm::gui_bind_control(bind& b, bool discrete_only)
 {
+    if(
+        b.control == bind::AXIS_1D_CONTINUOUS ||
+        b.control == bind::AXIS_1D_THRESHOLD
+    ){
+        bool is_signed;
+        double input_value = b.input_value(selected_controller, &is_signed);
+        axis_widget(
+            ctx,
+            input_value,
+            is_signed,
+            b.control == bind::AXIS_1D_CONTINUOUS ?
+                nullptr : &b.axis_1d.threshold
+        );
+    }
+
     gui_bind_modifiers(
         b,
-        b.control == bind::BUTTON_PRESS ||
-        b.control == bind::AXIS_1D_THRESHOLD,
-        b.action != bind::KEY && b.control != bind::UNBOUND
+        b.control != bind::AXIS_1D_CONTINUOUS,
+        b.action != bind::KEY,
+        b.action != bind::KEY
     );
 
     gui_bind_button(b, discrete_only);

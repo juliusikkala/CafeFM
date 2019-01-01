@@ -185,7 +185,7 @@ bool bind::triggered(
     }
 }
 
-double bind::input_value(const controller* c) const
+double bind::input_value(const controller* c, bool* is_signed) const
 {
     if(control == UNBOUND) return 0.0;
 
@@ -202,6 +202,7 @@ double bind::input_value(const controller* c) const
         {
             ::axis_1d ax = c->get_axis_1d_state(axis_1d.index);
             value = ax.value;
+            if(is_signed != nullptr) *is_signed = ax.is_signed;
 
             if(axis_1d.invert)
             {
@@ -214,14 +215,13 @@ double bind::input_value(const controller* c) const
         break;
     }
 
-    if(control == AXIS_1D_THRESHOLD)
-        value = value > axis_1d.threshold ? 1.0 : 0.0;
     return value;
 }
 
 double bind::get_value(const control_state& state, const controller* c) const
 {
     double v = input_value(c);
+    if(control == AXIS_1D_THRESHOLD) v = v > axis_1d.threshold ? 1.0 : 0.0;
 
     if(toggle)
     {
@@ -246,6 +246,7 @@ bool bind::update_value(
     double& v
 ) const {
     v = input_value(c);
+    if(control == AXIS_1D_THRESHOLD) v = v > axis_1d.threshold ? 1.0 : 0.0;
 
     if(toggle)
     {

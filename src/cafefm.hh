@@ -48,7 +48,12 @@ private:
 
     void gui_bind_action_template(bind& b);
     void gui_bind_action(bind& b);
-    void gui_bind_modifiers(bind& b, bool allow_toggle, bool allow_cumulative);
+    void gui_bind_modifiers(
+        bind& b,
+        bool allow_toggle,
+        bool allow_cumulative,
+        bool allow_threshold
+    );
     void gui_bind_button(bind& b, bool discrete_only = false);
     void gui_bind_control_template(bind& b);
     // Return values:
