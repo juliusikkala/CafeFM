@@ -257,24 +257,32 @@ bool bind::update_value(
         // 1 - enabled, input active
         // 2 - enabled, input inactive
         // 3 - disabled, input active
-        if(prev_state == 0 && d)
+        if(prev_state == 0)
         {
-            v = 1.0;
-            state.set_toggle_state(id, 1);
+            if(d)
+            {
+                v = 1.0;
+                state.set_toggle_state(id, 1);
+            }
+            else v = 0.0;
         }
-        else if(prev_state == 1 && !d)
+        else if(prev_state == 1)
         {
-            state.set_toggle_state(id, 2);
+            if(!d) state.set_toggle_state(id, 2);
             return false;
         }
-        else if(prev_state == 2 && d)
+        else if(prev_state == 2)
         {
-            v = 0.0;
-            state.set_toggle_state(id, 3);
+            if(d)
+            {
+                v = 0.0;
+                state.set_toggle_state(id, 3);
+            }
+            else v = 1.0;
         }
-        else if(prev_state == 3 && !d)
+        else if(prev_state == 3)
         {
-            state.set_toggle_state(id, 0);
+            if(!d) state.set_toggle_state(id, 0);
             return false;
         }
     }
@@ -559,7 +567,11 @@ void bindings::handle_action(control_state& state, const bind& b, double value)
     switch(b.action)
     {
     case bind::KEY:
-        if(value) state.press_key(b.id, b.key_semitone);
+        if(value)
+        {
+            if(!state.is_active_key(b.id))
+                state.press_key(b.id, b.key_semitone);
+        }
         else state.release_key(b.id);
         break;
     case bind::FREQUENCY_EXPT:

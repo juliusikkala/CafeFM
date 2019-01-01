@@ -233,8 +233,15 @@ void control_state::apply(
 
     for(action_id id: release_queue)
     {
-        for(auto& pair: pressed_keys)
-            if(pair.second == id) synth.release_voice(pair.first);
+        for(auto it = pressed_keys.begin(); it != pressed_keys.end();)
+        {
+            auto old_it = it++;
+            if(old_it->second == id)
+            {
+                synth.release_voice(old_it->first);
+                pressed_keys.erase(old_it);
+            }
+        }
     }
 
     release_queue.clear();
