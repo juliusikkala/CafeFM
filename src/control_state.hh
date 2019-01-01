@@ -5,6 +5,8 @@
 #include <map>
 
 class bind;
+class controller;
+class bindings;
 class control_state
 {
 public:
@@ -14,6 +16,10 @@ public:
 
     void set_toggle_state(action_id id, int state);
     int get_toggle_state(action_id id) const;
+
+    void set_cumulation_speed(action_id id, double speed);
+    void clear_cumulation(action_id id);
+    double get_cumulation(action_id id);
 
     void erase_action(action_id id);
 
@@ -42,6 +48,7 @@ public:
     ) const;
 
     void reset();
+    void update(bindings& b, unsigned dt);
 
     double total_freq_mul() const;
     double total_volume_mul() const;
@@ -67,6 +74,10 @@ private:
     std::map<instrument::voice_id, action_id> pressed_keys;
 
     std::map<action_id, int> toggle_state;
+    std::map<
+        action_id,
+        std::pair<double /* Cumulation */, double /* Speed */>
+    > cumulative_state;
 
     std::map<action_id, double> freq_expt;
     std::map<action_id, double> volume_mul;

@@ -380,6 +380,15 @@ unsigned bindings::rate_compatibility(controller* c) const
     else return 4;
 }
 
+void bindings::cumulative_update(control_state& state)
+{
+    for(const bind& b: binds)
+    {
+        if(b.cumulative)
+            handle_action(state, b, state.get_cumulation(b.id));
+    }
+}
+
 void bindings::act(
     control_state& state,
     controller* c,
@@ -395,38 +404,20 @@ void bindings::act(
         double value = 0.0;
         if(!b.update_value(state, c, value)) continue;
 
-        // Perform actual action.
-        switch(b.action)
+        // Handle cumulative actions.
+        if(b.cumulative)
         {
-        case bind::KEY:
-            if(value) state.press_key(b.id, b.key_semitone);
-            else state.release_key(b.id);
-            break;
-        case bind::FREQUENCY_EXPT:
-            state.set_frequency_expt(b.id, b.frequency.max_expt * value);
-            break;
-        case bind::VOLUME_MUL:
-            value = b.normalize(c, value);
-            state.set_volume_mul(
-                b.id, lerp(1.0, b.volume.max_mul, value)
-            );
-            break;
-        case bind::PERIOD_EXPT:
-            state.set_period_expt(
-                b.period.modulator_index,
-                b.id,
-                b.period.max_expt * value
-            );
-            break;
-        case bind::AMPLITUDE_MUL:
-            value = b.normalize(c, value);
-            state.set_amplitude_mul(
-                b.amplitude.modulator_index,
-                b.id,
-                lerp(1.0, b.amplitude.max_mul, value)
-            );
-            break;
+            state.set_cumulation_speed(b.id, value);
+            continue;
         }
+
+        if(
+            b.action == bind::VOLUME_MUL ||
+            b.action == bind::AMPLITUDE_MUL
+        ) value = b.normalize(c, value);
+
+        // Perform actual action.
+        handle_action(state, b, value);
     }
 }
 
@@ -560,4 +551,42 @@ void bindings::clear()
     id_counter = 0;
     write_lock = false;
     binds.clear();
+}
+
+void bindings::handle_action(control_state& state, const bind& b, double value)
+{
+    switch(b.action)
+    {
+    case bind::KEY:
+        if(value) state.press_key(b.id, b.key_semitone);
+        else state.release_key(b.id);
+        break;
+    case bind::FREQUENCY_EXPT:
+        state.set_frequency_expt(b.id, b.frequency.max_expt * value);
+        break;
+    case bind::VOLUME_MUL:
+        state.set_volume_mul(
+            b.id,
+            b.cumulative ?
+                pow(b.volume.max_mul, value):
+                lerp(1.0, b.volume.max_mul, value)
+        );
+        break;
+    case bind::PERIOD_EXPT:
+        state.set_period_expt(
+            b.period.modulator_index,
+            b.id,
+            b.period.max_expt * value
+        );
+        break;
+    case bind::AMPLITUDE_MUL:
+        state.set_amplitude_mul(
+            b.amplitude.modulator_index,
+            b.id,
+            b.cumulative ? 
+                pow(b.amplitude.max_mul, value):
+                lerp(1.0, b.amplitude.max_mul, value)
+        );
+        break;
+    }
 }

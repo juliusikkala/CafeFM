@@ -144,7 +144,10 @@ public:
     //     range.
     unsigned rate_compatibility(controller* c) const;
 
-    // Applies controller inputs to control context according to the bindings.
+    // Called by control state whenever cumulative values have changed.
+    void cumulative_update(control_state& state);
+
+    // Applies controller inputs to control state according to the bindings.
     void act(
         control_state& state,
         controller* c,
@@ -175,6 +178,8 @@ public:
     void clear();
 
 private:
+    void handle_action(control_state& state, const bind& b, double input_value);
+
     bool write_lock;
     std::string name;
     fs::path path;

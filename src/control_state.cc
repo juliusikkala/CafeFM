@@ -1,4 +1,5 @@
 #include "control_state.hh"
+#include "bindings.hh"
 #include <stdexcept>
 
 control_state::control_state() { }
@@ -15,6 +16,26 @@ int control_state::get_toggle_state(action_id id) const
     return it->second;
 }
 
+void control_state::set_cumulation_speed(action_id id, double speed)
+{
+    auto it = cumulative_state.find(id);
+    if(it == cumulative_state.end())
+        cumulative_state[id] = std::make_pair(0.0, speed);
+    else it->second.second = speed;
+}
+
+void control_state::clear_cumulation(action_id id)
+{
+    cumulative_state.erase(id);
+}
+
+double control_state::get_cumulation(action_id id)
+{
+    auto it = cumulative_state.find(id);
+    if(it == cumulative_state.end()) return 0;
+    return it->second.first;
+}
+
 void control_state::erase_action(action_id id)
 {
     for(unsigned i = 0; i < press_queue.size(); ++i)
@@ -29,6 +50,7 @@ void control_state::erase_action(action_id id)
     release_key(id);
 
     toggle_state.erase(id);
+    cumulative_state.erase(id);
 
     freq_expt.erase(id);
     volume_mul.erase(id);
@@ -120,6 +142,7 @@ void control_state::reset()
     release_queue.clear();
     pressed_keys.clear();
     toggle_state.clear();
+    cumulative_state.clear();
     freq_expt.clear();
     volume_mul.clear();
 
@@ -128,6 +151,23 @@ void control_state::reset()
         osc[i].period_expt.clear();
         osc[i].amplitude_mul.clear();
     }
+}
+
+void control_state::update(bindings& b, unsigned dt)
+{
+    bool changed = false;
+    for(auto& pair: cumulative_state)
+    {
+        double change = pair.second.second * dt / 1000.0;
+        if(change != 0)
+        {
+            pair.second.first += change;
+            changed = true;
+        }
+    }
+
+    if(changed)
+        b.cumulative_update(*this);
 }
 
 double control_state::total_freq_mul() const

@@ -278,6 +278,7 @@ bool cafefm::update(unsigned dt)
         if(!handled) nk_sdl_handle_event(&e);
     }
 
+    control.update(binds, dt);
     control.apply(*synth, master_volume, modulators);
     return !quit;
 }
@@ -842,6 +843,24 @@ void cafefm::gui_bind_action(bind& b)
     }
 }
 
+void cafefm::gui_bind_modifiers(
+    bind& b, bool allow_toggle, bool allow_cumulative
+){
+    if(allow_toggle && allow_cumulative)
+    {
+        if (nk_combo_begin_label(ctx, "Modifiers", nk_vec2(130,200))) {
+            nk_layout_row_dynamic(ctx, 25, 1);
+            b.toggle = !nk_check_label(ctx, "Toggle", !b.toggle);
+            b.cumulative = !nk_check_label(ctx, "Cumulative", !b.cumulative);
+            nk_combo_end(ctx);
+        }
+    }
+    else if(allow_toggle)
+        b.toggle = !nk_check_label(ctx, "Toggle", !b.toggle);
+    else if(allow_cumulative)
+        b.cumulative = !nk_check_label(ctx, "Cumulative", !b.cumulative);
+}
+
 void cafefm::gui_bind_button(bind& b, bool discrete_only)
 {
     if(!selected_controller) return;
@@ -913,12 +932,13 @@ void cafefm::gui_bind_control_template(bind& b)
     case bind::UNBOUND:
         break;
     case bind::BUTTON_PRESS:
-        nk_layout_row_template_push_static(ctx, 80);
+        nk_layout_row_template_push_static(ctx, 100);
         break;
     case bind::AXIS_1D_CONTINUOUS:
+        nk_layout_row_template_push_static(ctx, 100);
         break;
     case bind::AXIS_1D_THRESHOLD:
-        nk_layout_row_template_push_static(ctx, 80);
+        nk_layout_row_template_push_static(ctx, 100);
         break;
     }
     nk_layout_row_template_push_static(ctx, 80);
@@ -929,8 +949,12 @@ void cafefm::gui_bind_control_template(bind& b)
 
 int cafefm::gui_bind_control(bind& b, bool discrete_only)
 {
-    if(b.control == bind::BUTTON_PRESS || b.control == bind::AXIS_1D_THRESHOLD)
-        b.toggle = !nk_check_label(ctx, "Toggle", !b.toggle);
+    gui_bind_modifiers(
+        b,
+        b.control == bind::BUTTON_PRESS ||
+        b.control == bind::AXIS_1D_THRESHOLD,
+        b.action != bind::KEY && b.control != bind::UNBOUND
+    );
 
     gui_bind_button(b, discrete_only);
 
@@ -1003,6 +1027,7 @@ void cafefm::gui_instrument_editor()
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 80);
         nk_layout_row_template_push_static(ctx, 400);
+        nk_layout_row_template_push_static(ctx, 90);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
 
@@ -1031,6 +1056,11 @@ void cafefm::gui_instrument_editor()
         if(new_selected_index != selected_index)
             select_controller(available_controllers[new_selected_index].get());
 
+        if(nk_button_label(ctx, "Reset"))
+        {
+            synth->release_all_voices();
+            control.reset();
+        }
         // Show manager (Grab Keyboard, etc.)
         gui_controller_manager();
         nk_style_set_font(ctx, &small_font->handle);
@@ -1197,9 +1227,10 @@ void cafefm::gui_instrument_editor()
             {"Modulator period", bind::PERIOD_EXPT},
             {"Modulator amplitude", bind::AMPLITUDE_MUL}
         };
+        unsigned id = 0;
         for(auto a: actions)
         {
-            if(nk_tree_push(ctx, NK_TREE_TAB, a.title, NK_MAXIMIZED))
+            if(nk_tree_push_id(ctx, NK_TREE_TAB, a.title, NK_MAXIMIZED, id++))
             {
                 nk_layout_row_dynamic(ctx, 35, 1);
                 int changed_index = -1;
