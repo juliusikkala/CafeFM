@@ -6,7 +6,7 @@ static const char* const osc_strings[] = {
 };
 
 synth_state::synth_state(uint64_t samplerate)
-: name("Unnamed synth"), carrier(OSC_SINE), polyphony(6), write_lock(false)
+: name("New synth"), carrier(OSC_SINE), polyphony(6), write_lock(false)
 {
     adsr.set_volume(1.0f, 0.5f);
     adsr.set_curve(0.07f, 0.2f, 0.05f, samplerate);

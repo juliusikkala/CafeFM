@@ -74,11 +74,16 @@ private:
     void save_current_bindings();
     void create_new_bindings();
     void delete_bindings(const std::string& name);
-
     void update_all_bindings();
     void update_compatible_bindings();
 
-    void reset_synth(uint64_t samplerate = 44100);
+    void select_synth(unsigned index);
+    void save_current_synth();
+    void create_new_synth();
+    void delete_current_synth();
+    void update_all_synths();
+
+    void reset_synth(bool refresh_only = true);
 
     nk_context* ctx;
     SDL_Window* win;
@@ -87,11 +92,12 @@ private:
     struct nk_font* small_font;
     struct nk_font* medium_font;
     struct nk_font* huge_font;
-    struct nk_image close_img, yellow_warn_img, gray_warn_img, red_warn_img,
-        lock_img;
+    struct nk_image yellow_warn_img, gray_warn_img; 
     unsigned selected_tab;
-    int selected_preset;
-    bool delete_popup_open;
+    int selected_bindings_preset;
+    int selected_synth_preset;
+    bool bindings_delete_popup_open;
+    bool synth_delete_popup_open;
     // Used for assigning binds
     int latest_input_button, latest_input_axis_1d, latest_input_axis_2d;
 
@@ -107,6 +113,9 @@ private:
 
     float master_volume;
     control_state control;
+
+    uint64_t samplerate;
+    std::vector<synth_state> all_synths;
     synth_state synth;
 
     std::map<std::string, bindings> all_bindings;

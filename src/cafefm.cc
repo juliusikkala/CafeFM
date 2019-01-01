@@ -18,6 +18,7 @@
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 #define MAX_BINDING_NAME_LENGTH 128
+#define MAX_SYNTH_NAME_LENGTH 128
 
 using namespace std::string_literals;
 
@@ -122,7 +123,8 @@ namespace
 };
 
 cafefm::cafefm()
-:   win(nullptr), delete_popup_open(false), selected_controller(nullptr),
+:   win(nullptr), bindings_delete_popup_open(false),
+    synth_delete_popup_open(false), selected_controller(nullptr),
     keyboard_grabbed(false), mouse_grabbed(false), master_volume(0.5)
 {
     SDL_GL_SetAttribute(
@@ -181,13 +183,9 @@ cafefm::~cafefm()
 
 void cafefm::load()
 {
-    uint64_t samplerate = 44100;
-    synth = synth_state(samplerate);
-    reset_synth();
-    control.apply(*fm_synth, master_volume, synth);
-
     selected_tab = 1;
-    selected_preset = -1;
+    selected_bindings_preset = -1;
+    selected_synth_preset = -1;
 
     // Determine data directories
     fs::path font_dir("data/fonts");
@@ -242,11 +240,14 @@ void cafefm::load()
     if(id == -1) throw std::runtime_error("Failed to load image " + img_path); \
     name = nk_image_id(id); \
 
-    load_texture(close_img, "close.png");
     load_texture(yellow_warn_img, "yellow_warning.png");
     load_texture(gray_warn_img, "gray_warning.png");
-    load_texture(red_warn_img, "red_warning.png");
-    load_texture(lock_img, "lock.png");
+
+    // Load synth presets
+    samplerate = 44100;
+
+    update_all_synths();
+    create_new_synth();
 
     // Setup controllers
     available_controllers.emplace_back(new keyboard());
@@ -261,13 +262,11 @@ void cafefm::unload()
     all_bindings.clear();
     compatible_bindings.clear();
 
-    delete_popup_open = false;
+    bindings_delete_popup_open = false;
+    synth_delete_popup_open = false;
 
-    nk_sdl_destroy_texture(close_img.handle.id);
     nk_sdl_destroy_texture(yellow_warn_img.handle.id);
-    nk_sdl_destroy_texture(red_warn_img.handle.id);
     nk_sdl_destroy_texture(gray_warn_img.handle.id);
-    nk_sdl_destroy_texture(lock_img.handle.id);
 }
 
 void cafefm::render()
@@ -558,7 +557,6 @@ unsigned cafefm::gui_carrier(oscillator_type& type)
             synth.adsr.sustain_volume_num = sustain_vol;
 
             static constexpr float expt = 4.0f;
-            unsigned samplerate = output->get_samplerate();
 
             float attack = synth.adsr.attack_length/(double)samplerate;
             nk_labelf(ctx, NK_TEXT_LEFT, "Attack: %.2fs", attack);
@@ -707,7 +705,7 @@ unsigned cafefm::gui_modulator(
         )){
             nk_layout_row_static(ctx, 32, 32, 1);
             nk_style_set_font(ctx, &huge_font->handle);
-            if(nk_button_image(ctx, close_img))
+            if(nk_button_symbol(ctx, NK_SYMBOL_X))
             {
                 erase = true;
                 mask |= CHANGE_REQUIRE_RESET;
@@ -722,46 +720,127 @@ unsigned cafefm::gui_modulator(
 
 void cafefm::gui_synth_editor()
 {
-    struct nk_rect s = nk_window_get_content_region(ctx);
     unsigned mask = CHANGE_NONE;
 
+    nk_layout_row_dynamic(ctx, 155, 1);
+
     nk_style_set_font(ctx, &small_font->handle);
-    // Render carrier & ADSR
-    mask |= gui_carrier(synth.carrier);
 
-    // Render modulators
-    for(unsigned i = 0; i < synth.modulators.size(); ++i)
-    {
-        bool erase = false;
-        mask |= gui_modulator(synth.modulators[i], i, erase);
-        if(erase)
-        {
-            synth.modulators.erase(synth.modulators.begin() + i);
-            --i;
-        }
-    }
-
-    // + button for modulators
-    nk_style_set_font(ctx, &huge_font->handle);
-    nk_layout_row_dynamic(ctx, OSCILLATOR_HEIGHT, 1);
-    if(synth.modulators.size() <= 2 && nk_button_symbol(ctx, NK_SYMBOL_PLUS))
-    {
-        synth.modulators.push_back({OSC_SINE, 1.0, 0.5});
-        mask |= CHANGE_REQUIRE_RESET;
-    }
-
-    // Various options at the bottom of the screen
-    unsigned synth_control_height =
-        s.h-CARRIER_HEIGHT-3*OSCILLATOR_HEIGHT-50;
-    nk_style_set_font(ctx, &small_font->handle);
-    nk_layout_space_begin(ctx, NK_STATIC, synth_control_height, 1);
-    nk_layout_space_push(
-        ctx, nk_layout_space_rect_to_local(ctx, nk_rect(
-            s.x+4,s.y+s.h-synth_control_height,s.w-8,synth_control_height-5)));
+    // Save, etc. controls at the top
     if(nk_group_begin(
         ctx, "Synth Control", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
     )){
         float max_safe_volume = 1.0/synth.polyphony;
+
+        nk_layout_row_template_begin(ctx, 30);
+        nk_layout_row_template_push_static(ctx, 80);
+        nk_layout_row_template_push_static(ctx, 400);
+        nk_layout_row_template_push_static(ctx, 90);
+        nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_end(ctx);
+
+        // Preset picker
+        nk_label(ctx, "Preset:", NK_TEXT_LEFT);
+        std::string combo_label = "(None)";
+        if(selected_synth_preset >= 0)
+            combo_label = all_synths[selected_synth_preset].name;
+
+        if(nk_combo_begin_label(ctx, combo_label.c_str(), nk_vec2(400,200)))
+        {
+            int new_selected_preset = -1;
+            for(unsigned i = 0; i < all_synths.size(); ++i)
+            {
+                const auto& s = all_synths[i];
+                nk_layout_row_dynamic(ctx, 25, 1);
+                if(nk_combo_item_label(
+                    ctx, s.name.c_str(), NK_TEXT_ALIGN_LEFT
+                )) new_selected_preset = i;
+            }
+
+            if(new_selected_preset != -1)
+                select_synth(new_selected_preset);
+            nk_combo_end(ctx);
+        }
+
+        if(nk_button_label(ctx, "Reset"))
+        {
+            fm_synth->release_all_voices();
+            control.reset();
+        }
+
+        gui_controller_manager();
+        nk_style_set_font(ctx, &small_font->handle);
+
+        nk_layout_row_template_begin(ctx, 30);
+        nk_layout_row_template_push_static(ctx, 484);
+        nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_end(ctx);
+
+        // Name editor
+        char current_name[MAX_SYNTH_NAME_LENGTH+1] = {0};
+        int current_name_len = synth.name.size();
+        strncpy(current_name, synth.name.c_str(), MAX_SYNTH_NAME_LENGTH);
+        nk_edit_string(
+            ctx, NK_EDIT_SIMPLE, current_name, &current_name_len,
+            MAX_SYNTH_NAME_LENGTH, nk_filter_default
+        );
+        synth.name = std::string(current_name, current_name_len);
+
+        // Save, New and Delete buttons
+        auto name_match = all_synths.end();
+        for(auto it = all_synths.begin(); it != all_synths.end(); ++it)
+            if(it->name == synth.name) name_match = it;
+        
+        bool can_save = false;
+        bool can_delete = false;
+        if(name_match == all_synths.end()) can_save = true;
+        else
+        {
+            can_save = !name_match->write_lock;
+            can_delete = !name_match->write_lock;
+        }
+
+        if(button_label_active(ctx, "Save", can_save))
+            save_current_synth();
+
+        if(nk_button_label(ctx, "New"))
+            create_new_synth();
+
+        if(button_label_active(ctx, "Delete", can_delete))
+            synth_delete_popup_open = true;
+
+        // Handle delete popup
+        if(synth_delete_popup_open)
+        {
+            struct nk_rect s = {0, 100, 300, 136};
+            s.x = WINDOW_WIDTH/2-s.w/2;
+            if(nk_popup_begin(
+                ctx, NK_POPUP_STATIC, "Delete?",
+                NK_WINDOW_BORDER|NK_WINDOW_TITLE, s
+            )){
+                std::string warning_text =
+                    "Are you sure you want to delete preset \"";
+                warning_text += synth.name + "\"?";
+                nk_layout_row_dynamic(ctx, 50, 1);
+                nk_label_wrap(ctx, warning_text.c_str());
+                nk_layout_row_dynamic(ctx, 30, 2);
+                if (nk_button_label(ctx, "Delete"))
+                {
+                    synth_delete_popup_open = false;
+                    delete_current_synth();
+                    nk_popup_close(ctx);
+                }
+                if (nk_button_label(ctx, "Cancel"))
+                {
+                    synth_delete_popup_open = false;
+                    nk_popup_close(ctx);
+                }
+                nk_popup_end(ctx);
+            }
+            else synth_delete_popup_open = false;
+        }
 
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 140);
@@ -795,18 +874,38 @@ void cafefm::gui_synth_editor()
             output->start();
         }
 
-
-        nk_layout_row_static(ctx, 60, 150, 1);
-        gui_controller_manager();
-
         nk_group_end(ctx);
     }
-    nk_layout_space_end(ctx);
+
+    nk_style_set_font(ctx, &small_font->handle);
+    // Render carrier & ADSR
+    mask |= gui_carrier(synth.carrier);
+
+    // Render modulators
+    for(unsigned i = 0; i < synth.modulators.size(); ++i)
+    {
+        bool erase = false;
+        mask |= gui_modulator(synth.modulators[i], i, erase);
+        if(erase)
+        {
+            synth.modulators.erase(synth.modulators.begin() + i);
+            --i;
+        }
+    }
+
+    // + button for modulators
+    nk_style_set_font(ctx, &huge_font->handle);
+    nk_layout_row_dynamic(ctx, OSCILLATOR_HEIGHT, 1);
+    if(synth.modulators.size() <= 2 && nk_button_symbol(ctx, NK_SYMBOL_PLUS))
+    {
+        synth.modulators.push_back({OSC_SINE, 1.0, 0.5});
+        mask |= CHANGE_REQUIRE_RESET;
+    }
 
     // Do necessary updates
     if(mask & CHANGE_REQUIRE_RESET)
     {
-        reset_synth(44100);
+        reset_synth();
         control.apply(*fm_synth, master_volume, synth);
     }
 }
@@ -1216,8 +1315,10 @@ void cafefm::gui_instrument_editor()
         nk_label(ctx, "Preset:", NK_TEXT_LEFT);
 
         std::string combo_label = "(None)";
-        if(selected_preset >= 0)
-            combo_label = compatible_bindings[selected_preset].get_name();
+        if(selected_bindings_preset >= 0)
+            combo_label = compatible_bindings[
+                selected_bindings_preset
+            ].get_name();
 
         if(nk_combo_begin_label(ctx, combo_label.c_str(), nk_vec2(400,200)))
         {
@@ -1312,10 +1413,10 @@ void cafefm::gui_instrument_editor()
             create_new_bindings();
 
         if(button_label_active(ctx, "Delete", can_delete))
-            delete_popup_open = true;
+            bindings_delete_popup_open = true;
 
         // Handle delete popup
-        if(delete_popup_open)
+        if(bindings_delete_popup_open)
         {
             struct nk_rect s = {0, 100, 300, 136};
             s.x = WINDOW_WIDTH/2-s.w/2;
@@ -1331,18 +1432,18 @@ void cafefm::gui_instrument_editor()
                 nk_layout_row_dynamic(ctx, 30, 2);
                 if (nk_button_label(ctx, "Delete"))
                 {
-                    delete_popup_open = false;
+                    bindings_delete_popup_open = false;
                     delete_bindings(binds.get_name());
                     nk_popup_close(ctx);
                 }
                 if (nk_button_label(ctx, "Cancel"))
                 {
-                    delete_popup_open = false;
+                    bindings_delete_popup_open = false;
                     nk_popup_close(ctx);
                 }
                 nk_popup_end(ctx);
             }
-            else delete_popup_open = false;
+            else bindings_delete_popup_open = false;
         }
 
         nk_group_end(ctx);
@@ -1480,12 +1581,12 @@ void cafefm::select_controller(controller* c)
     update_compatible_bindings();
     if(compatible_bindings.size() >= 1)
     {
-        selected_preset = 0;
+        selected_bindings_preset = 0;
         binds = compatible_bindings[0];
     }
     else
     {
-        selected_preset = -1;
+        selected_bindings_preset = -1;
         create_new_bindings();
     }
 }
@@ -1495,14 +1596,17 @@ void cafefm::select_compatible_bindings(unsigned index)
     fm_synth->release_all_voices();
     control.reset();
     if(compatible_bindings.size() == 0)
+    {
+        selected_bindings_preset = -1;
         create_new_bindings();
+    }
     else
     {
-        selected_preset = std::min(
+        selected_bindings_preset = std::min(
             index,
             (unsigned)compatible_bindings.size()-1
         );
-        binds = compatible_bindings[selected_preset];
+        binds = compatible_bindings[selected_bindings_preset];
     }
 }
 
@@ -1519,7 +1623,7 @@ void cafefm::save_current_bindings()
     {
         if(compatible_bindings[i].get_name() == binds.get_name())
         {
-            selected_preset = i;
+            selected_bindings_preset = i;
             break;
         }
     }
@@ -1529,7 +1633,7 @@ void cafefm::create_new_bindings()
 {
     fm_synth->release_all_voices();
     control.reset();
-    selected_preset = -1;
+    selected_bindings_preset = -1;
     binds.clear();
 
     if(selected_controller)
@@ -1544,7 +1648,7 @@ void cafefm::create_new_bindings()
         std::string modified_name;
         do
         {
-            modified_name = name + std::to_string(i++);
+            modified_name = name + std::to_string(++i);
         }
         while(all_bindings.count(modified_name) != 0);
         binds.set_name(modified_name);
@@ -1558,7 +1662,7 @@ void cafefm::delete_bindings(const std::string& name)
 
     remove_bindings(it->second);
     update_compatible_bindings();
-    select_compatible_bindings(selected_preset);
+    select_compatible_bindings(selected_bindings_preset);
 }
 
 void cafefm::update_all_bindings()
@@ -1588,25 +1692,109 @@ void cafefm::update_compatible_bindings()
 
     std::sort(compatible_bindings.begin(), compatible_bindings.end(), compare);
 
-    if(compatible_bindings.size() == 0) selected_preset = -1;
-    if(selected_preset > (int)compatible_bindings.size())
-        selected_preset = compatible_bindings.size() - 1;
+    if(compatible_bindings.size() == 0) selected_bindings_preset = -1;
+    if(selected_bindings_preset > (int)compatible_bindings.size())
+        selected_bindings_preset = compatible_bindings.size() - 1;
 }
 
-void cafefm::reset_synth(uint64_t samplerate)
+void cafefm::select_synth(unsigned index)
+{
+    if(all_synths.size() == 0)
+    {
+        selected_synth_preset = -1;
+        create_new_synth();
+    }
+    else
+    {
+        selected_synth_preset = std::min(index, (unsigned)all_synths.size()-1);
+        synth = all_synths[selected_synth_preset];
+        reset_synth(false);
+        control.apply(*fm_synth, master_volume, synth);
+    }
+}
+
+void cafefm::save_current_synth()
+{
+    synth.write_lock = false;
+    write_synth(samplerate, synth);
+    update_all_synths();
+
+    for(unsigned i = 0; i < all_synths.size(); ++i)
+    {
+        if(all_synths[i].name == synth.name)
+        {
+            selected_synth_preset = i;
+            break;
+        }
+    }
+}
+
+void cafefm::create_new_synth()
+{
+    selected_synth_preset = -1;
+
+    synth = synth_state(samplerate);
+
+    std::string name = "New synth";
+    std::string modified_name = name;
+    for(unsigned i = 0; ; ++i)
+    {
+        modified_name = name;
+        if(i > 0) modified_name += " #" + std::to_string(i+1);
+        bool found = true;
+        for(auto& s: all_synths)
+        {
+            if(s.name == modified_name)
+            {
+                found = false;
+                break;
+            }
+        }
+        if(found) break;
+    }
+    synth.name = modified_name;
+
+    reset_synth(false);
+    control.apply(*fm_synth, master_volume, synth);
+}
+
+void cafefm::delete_current_synth()
+{
+    remove_synth(synth);
+    update_all_synths();
+    select_synth(selected_synth_preset);
+}
+
+void cafefm::update_all_synths()
+{
+    all_synths = load_all_synths(samplerate);
+}
+
+void cafefm::reset_synth(bool refresh_only)
 {
     if(output) output->stop();
     output.reset(nullptr);
 
-    std::unique_ptr<basic_fm_synth> new_synth(
-        create_fm_synth(
-            samplerate,
-            synth.carrier,
-            synth.modulators
-        )
-    );
-    new_synth->set_polyphony(synth.polyphony);
-    new_synth->set_volume(master_volume);
+    std::unique_ptr<basic_fm_synth> new_synth;
+    
+    if(refresh_only)
+    {
+        new_synth.reset(
+            create_fm_synth(
+                samplerate,
+                synth.carrier,
+                synth.modulators
+            )
+        );
+        new_synth->set_polyphony(synth.polyphony);
+        new_synth->set_volume(master_volume);
+    }
+    else
+    {
+        new_synth.reset(synth.create_synth(samplerate));
+        master_volume = 1.0/synth.polyphony;
+        new_synth->set_volume(master_volume);
+    }
 
     if(fm_synth) new_synth->copy_state(*fm_synth);
 
