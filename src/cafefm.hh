@@ -46,6 +46,8 @@ private:
     );
     void gui_synth_editor();
 
+    void gui_bind_action_template(bind& b);
+    void gui_bind_action(bind& b);
     void gui_bind_button(bind& b, bool discrete_only = false);
     void gui_bind_control_template(bind& b);
     // Return values:
@@ -55,11 +57,7 @@ private:
     // -2 - remove
     int gui_bind_control(bind& b, bool discrete_only = false);
     nk_color gui_bind_background_color(bind& b);
-    int gui_key_bind(bind& b, unsigned index);
-    int gui_freq_bind(bind& b, unsigned index);
-    int gui_volume_bind(bind& b, unsigned index);
-    int gui_period_bind(bind& b, unsigned index);
-    int gui_amplitude_bind(bind& b, unsigned index);
+    int gui_bind(bind& b, unsigned index);
     void gui_instrument_editor();
 
     void gui();

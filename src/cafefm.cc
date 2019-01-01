@@ -742,6 +742,106 @@ void cafefm::gui_synth_editor()
     }
 }
 
+void cafefm::gui_bind_action_template(bind& b)
+{
+    switch(b.action)
+    {
+    case bind::KEY:
+        nk_layout_row_template_push_static(ctx, 80);
+        break;
+    case bind::FREQUENCY_EXPT:
+        nk_layout_row_template_push_static(ctx, 150);
+        break;
+    case bind::VOLUME_MUL:
+        nk_layout_row_template_push_static(ctx, 150);
+        break;
+    case bind::PERIOD_EXPT:
+        nk_layout_row_template_push_static(ctx, 40);
+        nk_layout_row_template_push_static(ctx, 140);
+        break;
+    case bind::AMPLITUDE_MUL:
+        nk_layout_row_template_push_static(ctx, 40);
+        nk_layout_row_template_push_static(ctx, 140);
+        break;
+    }
+}
+
+void cafefm::gui_bind_action(bind& b)
+{
+    static constexpr int min_semitone = -45;
+    static const std::vector<std::string> note_list =
+        generate_note_list(min_semitone, min_semitone + 96);
+
+    // Needed for stupid hacks to fix nuklear's rounding and decimals.
+    constexpr double eps = 0.001;
+    constexpr double step = 0.01;
+
+    switch(b.action)
+    {
+    case bind::KEY:
+        {
+            std::string note_name = generate_semitone_name(b.key_semitone);
+
+            bool was_open = ctx->current->popup.win;
+            if(nk_combo_begin_label(ctx, note_name.c_str(), nk_vec2(80, 200)))
+            {
+                nk_layout_row_dynamic(ctx, 30, 1);
+                unsigned match_i = 0;
+                for(unsigned i = 0; i < note_list.size(); ++i)
+                {
+                    if(note_list[i] == note_name) match_i = i;
+                    if(nk_combo_item_label(
+                        ctx, note_list[i].c_str(), NK_TEXT_LEFT
+                    )) b.key_semitone = min_semitone + i;
+                }
+
+                if(!was_open)
+                {
+                    struct nk_window *win = ctx->current;
+                    win->scrollbar.y = 34*match_i;
+                }
+
+                nk_combo_end(ctx);
+            }
+        }
+        break;
+    case bind::FREQUENCY_EXPT:
+        nk_property_double(
+            ctx, "#Offset:", -72.0f, &b.frequency.max_expt, 72.0f, 0.5f, 0.5f
+        );
+        break;
+    case bind::VOLUME_MUL:
+        b.volume.max_mul = nk_propertyd(
+            ctx, "#Multiplier:", eps, b.volume.max_mul+eps, 2.0+eps, 0.05, step
+        )-eps;
+        b.volume.max_mul = round(b.volume.max_mul/step)*step;
+        break;
+    case bind::PERIOD_EXPT:
+        nk_combobox(
+            ctx, modulator_index_names,
+            sizeof(modulator_index_names)/sizeof(*modulator_index_names),
+            (int*)&b.period.modulator_index, 20, nk_vec2(60, 80)
+        );
+
+        nk_property_double(
+            ctx, "#Offset:", -36.0f, &b.period.max_expt, 36.0f, 0.5f, 0.5f
+        );
+        break;
+    case bind::AMPLITUDE_MUL:
+        nk_combobox(
+            ctx, modulator_index_names,
+            sizeof(modulator_index_names)/sizeof(*modulator_index_names),
+            (int*)&b.amplitude.modulator_index, 20, nk_vec2(60, 80)
+        );
+        b.amplitude.max_mul = nk_propertyd(
+            ctx, "#Multiplier:", eps, b.amplitude.max_mul+eps,
+            8.0+eps, 0.05, step
+        )-eps;
+        b.amplitude.max_mul = round(b.amplitude.max_mul/step)*step;
+        break;
+    }
+}
+
 void cafefm::gui_bind_button(bind& b, bool discrete_only)
 {
     if(!selected_controller) return;
@@ -760,7 +860,6 @@ void cafefm::gui_bind_button(bind& b, bool discrete_only)
         ) label = selected_controller->get_button_name(b.button.index);
         break;
     case bind::AXIS_1D_CONTINUOUS:
-    case bind::AXIS_1D_RELATIVE:
     case bind::AXIS_1D_THRESHOLD:
     case bind::AXIS_1D_THRESHOLD_TOGGLE:
         if(
@@ -820,7 +919,6 @@ void cafefm::gui_bind_control_template(bind& b)
         nk_layout_row_template_push_static(ctx, 80);
         break;
     case bind::AXIS_1D_CONTINUOUS:
-    case bind::AXIS_1D_RELATIVE:
         break;
     case bind::AXIS_1D_THRESHOLD:
     case bind::AXIS_1D_THRESHOLD_TOGGLE:
@@ -880,18 +978,18 @@ nk_color cafefm::gui_bind_background_color(bind& b)
     return bg;
 }
 
-int cafefm::gui_key_bind(bind& b, unsigned index)
+int cafefm::gui_bind(bind& b, unsigned index)
 {
-    static constexpr int min_semitone = -45;
-    static const std::vector<std::string> note_list =
-        generate_note_list(min_semitone, min_semitone + 96);
-
-    std::string title = "Key Bind " + std::to_string(index);
+    std::string title = "Bind " + std::to_string(index);
 
     nk_color bg = gui_bind_background_color(b);
 
     struct nk_style *s = &ctx->style;
-    nk_style_push_style_item(ctx, &s->window.fixed_background, nk_style_item_color(bg));
+    nk_style_push_style_item(
+        ctx,
+        &s->window.fixed_background,
+        nk_style_item_color(bg)
+    );
 
     int ret = 0;
     struct nk_rect empty_space;
@@ -899,190 +997,12 @@ int cafefm::gui_key_bind(bind& b, unsigned index)
         ctx, title.c_str(), NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
     )){
         nk_layout_row_template_begin(ctx, 25);
-        nk_layout_row_template_push_static(ctx, 80);
+        gui_bind_action_template(b);
         nk_layout_row_template_push_dynamic(ctx);
         gui_bind_control_template(b);
         nk_layout_row_template_end(ctx);
 
-        std::string note_name = generate_semitone_name(b.key_semitone);
-
-        bool was_open = ctx->current->popup.win;
-        if(nk_combo_begin_label(ctx, note_name.c_str(), nk_vec2(80, 200)))
-        {
-            nk_layout_row_dynamic(ctx, 30, 1);
-            unsigned match_i = 0;
-            for(unsigned i = 0; i < note_list.size(); ++i)
-            {
-                if(note_list[i] == note_name) match_i = i;
-                if(nk_combo_item_label(ctx, note_list[i].c_str(), NK_TEXT_LEFT))
-                    b.key_semitone = min_semitone + i;
-            }
-
-            if(!was_open)
-            {
-                struct nk_window *win = ctx->current;
-                win->scrollbar.y = 34*match_i;
-            }
-
-            nk_combo_end(ctx);
-        }
-        
-        nk_widget(&empty_space, ctx);
-
-        ret = gui_bind_control(b, true);
-        nk_group_end(ctx);
-    }
-
-    nk_style_pop_style_item(ctx);
-    return ret;
-}
-
-int cafefm::gui_freq_bind(bind& b, unsigned index)
-{
-    std::string title = "Freq Bind " + std::to_string(index);
-
-    nk_color bg = gui_bind_background_color(b);
-
-    struct nk_style *s = &ctx->style;
-    nk_style_push_style_item(ctx, &s->window.fixed_background, nk_style_item_color(bg));
-
-    int ret = 0;
-    struct nk_rect empty_space;
-    if(nk_group_begin(
-        ctx, title.c_str(), NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
-    )){
-        nk_layout_row_template_begin(ctx, 25);
-        nk_layout_row_template_push_static(ctx, 150);
-        nk_layout_row_template_push_dynamic(ctx);
-        gui_bind_control_template(b);
-        nk_layout_row_template_end(ctx);
-
-        nk_property_double(
-            ctx, "#Offset:", -72.0f, &b.frequency.max_expt, 72.0f, 0.5f, 0.5f
-        );
-
-        nk_widget(&empty_space, ctx);
-
-        ret = gui_bind_control(b, true);
-        nk_group_end(ctx);
-    }
-
-    nk_style_pop_style_item(ctx);
-    return ret;
-}
-
-int cafefm::gui_volume_bind(bind& b, unsigned index)
-{
-    std::string title = "Volume Bind " + std::to_string(index);
-
-    nk_color bg = gui_bind_background_color(b);
-
-    struct nk_style *s = &ctx->style;
-    nk_style_push_style_item(ctx, &s->window.fixed_background, nk_style_item_color(bg));
-
-    int ret = 0;
-    struct nk_rect empty_space;
-    if(nk_group_begin(
-        ctx, title.c_str(), NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
-    )){
-        nk_layout_row_template_begin(ctx, 25);
-        nk_layout_row_template_push_static(ctx, 150);
-        nk_layout_row_template_push_dynamic(ctx);
-        gui_bind_control_template(b);
-        nk_layout_row_template_end(ctx);
-
-        // Stupid hacks to fix nuklear's rounding and decimals.
-        constexpr double eps = 0.001;
-        constexpr double step = 0.01;
-        b.volume.max_mul = nk_propertyd(
-            ctx, "#Multiplier:", eps, b.volume.max_mul+eps, 2.0+eps, 0.05, step
-        )-eps; b.volume.max_mul = round(b.volume.max_mul/step)*step;
-
-        nk_widget(&empty_space, ctx);
-
-        ret = gui_bind_control(b, true);
-        nk_group_end(ctx);
-    }
-
-    nk_style_pop_style_item(ctx);
-    return ret;
-}
-
-int cafefm::gui_period_bind(bind& b, unsigned index)
-{
-    std::string title = "Period Bind " + std::to_string(index);
-
-    nk_color bg = gui_bind_background_color(b);
-
-    struct nk_style *s = &ctx->style;
-    nk_style_push_style_item(ctx, &s->window.fixed_background, nk_style_item_color(bg));
-
-    int ret = 0;
-    struct nk_rect empty_space;
-    if(nk_group_begin(
-        ctx, title.c_str(), NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
-    )){
-        nk_layout_row_template_begin(ctx, 25);
-        nk_layout_row_template_push_static(ctx, 40);
-        nk_layout_row_template_push_static(ctx, 140);
-        nk_layout_row_template_push_dynamic(ctx);
-        gui_bind_control_template(b);
-        nk_layout_row_template_end(ctx);
-
-        nk_combobox(
-            ctx, modulator_index_names,
-            sizeof(modulator_index_names)/sizeof(*modulator_index_names),
-            (int*)&b.period.modulator_index, 20, nk_vec2(60, 80)
-        );
-
-        nk_property_double(
-            ctx, "#Offset:", -36.0f, &b.period.max_expt, 36.0f, 0.5f, 0.5f
-        );
-
-        nk_widget(&empty_space, ctx);
-
-        ret = gui_bind_control(b, true);
-        nk_group_end(ctx);
-    }
-
-    nk_style_pop_style_item(ctx);
-    return ret;
-}
-
-int cafefm::gui_amplitude_bind(bind& b, unsigned index)
-{
-    std::string title = "Amplitude Bind " + std::to_string(index);
-
-    nk_color bg = gui_bind_background_color(b);
-
-    struct nk_style *s = &ctx->style;
-    nk_style_push_style_item(ctx, &s->window.fixed_background, nk_style_item_color(bg));
-
-    int ret = 0;
-    struct nk_rect empty_space;
-    if(nk_group_begin(
-        ctx, title.c_str(), NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
-    )){
-        nk_layout_row_template_begin(ctx, 25);
-        nk_layout_row_template_push_static(ctx, 40);
-        nk_layout_row_template_push_static(ctx, 140);
-        nk_layout_row_template_push_dynamic(ctx);
-        gui_bind_control_template(b);
-        nk_layout_row_template_end(ctx);
-
-        nk_combobox(
-            ctx, modulator_index_names,
-            sizeof(modulator_index_names)/sizeof(*modulator_index_names),
-            (int*)&b.amplitude.modulator_index, 20, nk_vec2(60, 80)
-        );
-
-        // Stupid hacks to fix nuklear's rounding and decimals.
-        constexpr double eps = 0.001;
-        constexpr double step = 0.01;
-        b.amplitude.max_mul = nk_propertyd(
-            ctx, "#Multiplier:", eps, b.amplitude.max_mul+eps,
-            8.0+eps, 0.05, step
-        )-eps; b.amplitude.max_mul = round(b.amplitude.max_mul/step)*step;
+        gui_bind_action(b);
 
         nk_widget(&empty_space, ctx);
 
@@ -1290,37 +1210,43 @@ void cafefm::gui_instrument_editor()
     // Actual bindings section
     if(nk_group_begin(ctx, "Bindings Group", NK_WINDOW_BORDER))
     {
-#define section(title, act, func) \
-        if(nk_tree_push(ctx, NK_TREE_TAB, title, NK_MAXIMIZED)) \
-        { \
-            nk_layout_row_dynamic(ctx, 35, 1); \
-            int changed_index = -1; \
-            int movement = 0; \
-            for(unsigned i = 0; i < binds.bind_count(); ++i) \
-            { \
-                auto& b = binds.get_bind(i); \
-                if(b.action != act) continue; \
-                int ret = func (b, i); \
-                if(ret != 0) \
-                { \
-                    changed_index = i; \
-                    movement = ret; \
-                } \
-            } \
-            if(movement) \
-                binds.move_bind(changed_index, movement, control, true); \
-            nk_style_set_font(ctx, &huge_font->handle); \
-            if(nk_button_symbol(ctx, NK_SYMBOL_PLUS)) \
-                binds.create_new_bind(act); \
-            nk_style_set_font(ctx, &small_font->handle); \
-            nk_tree_pop(ctx); \
+        struct {
+            const char* title;
+            enum bind::action action;
+        } actions[] = {
+            {"Keys", bind::KEY},
+            {"Pitch", bind::FREQUENCY_EXPT},
+            {"Volume", bind::VOLUME_MUL},
+            {"Modulator period", bind::PERIOD_EXPT},
+            {"Modulator amplitude", bind::AMPLITUDE_MUL}
+        };
+        for(auto a: actions)
+        {
+            if(nk_tree_push(ctx, NK_TREE_TAB, a.title, NK_MAXIMIZED))
+            {
+                nk_layout_row_dynamic(ctx, 35, 1);
+                int changed_index = -1;
+                int movement = 0;
+                for(unsigned i = 0; i < binds.bind_count(); ++i)
+                {
+                    auto& b = binds.get_bind(i);
+                    if(b.action != a.action) continue;
+                    int ret = gui_bind(b, i);
+                    if(ret != 0)
+                    {
+                        changed_index = i;
+                        movement = ret;
+                    }
+                }
+                if(movement)
+                    binds.move_bind(changed_index, movement, control, true);
+                nk_style_set_font(ctx, &huge_font->handle);
+                if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
+                    binds.create_new_bind(a.action);
+                nk_style_set_font(ctx, &small_font->handle);
+                nk_tree_pop(ctx);
+            }
         }
-
-        section("Keys", bind::KEY, gui_key_bind)
-        section("Pitch", bind::FREQUENCY_EXPT, gui_freq_bind)
-        section("Volume", bind::VOLUME_MUL, gui_volume_bind)
-        section("Modulator period", bind::PERIOD_EXPT, gui_period_bind)
-        section("Modulator amplitude", bind::AMPLITUDE_MUL, gui_amplitude_bind)
 
         nk_group_end(ctx);
     }

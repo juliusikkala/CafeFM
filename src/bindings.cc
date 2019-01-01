@@ -10,7 +10,6 @@ static const char* const control_strings[] = {
     "BUTTON_PRESS",
     "BUTTON_TOGGLE",
     "AXIS_1D_CONTINUOUS",
-    "AXIS_1D_RELATIVE",
     "AXIS_1D_THRESHOLD",
     "AXIS_1D_THRESHOLD_TOGGLE"
 };
@@ -61,7 +60,6 @@ json bind::serialize() const
         j["control"]["active_state"] = button.active_state;
         break;
     case AXIS_1D_CONTINUOUS:
-    case AXIS_1D_RELATIVE:
     case AXIS_1D_THRESHOLD:
     case AXIS_1D_THRESHOLD_TOGGLE:
         j["control"]["index"] = axis_1d.index;
@@ -119,7 +117,6 @@ bool bind::deserialize(const json& j)
             j.at("control").at("active_state").get_to(button.active_state);
             break;
         case AXIS_1D_CONTINUOUS:
-        case AXIS_1D_RELATIVE:
         case AXIS_1D_THRESHOLD:
         case AXIS_1D_THRESHOLD_TOGGLE:
             j.at("control").at("index").get_to(axis_1d.index);
@@ -185,7 +182,6 @@ bool bind::triggered(
     case BUTTON_PRESS:
         return button_index >= 0 && button_index == button.index;
     case AXIS_1D_CONTINUOUS:
-    case AXIS_1D_RELATIVE:
     case AXIS_1D_THRESHOLD_TOGGLE:
     case AXIS_1D_THRESHOLD:
         return axis_1d_index >= 0 && axis_1d_index == axis_1d.index;
@@ -210,7 +206,6 @@ double bind::input_value(const controller* c) const
             ? 1.0 : 0.0;
         break;
     case AXIS_1D_CONTINUOUS:
-    case AXIS_1D_RELATIVE:
     case AXIS_1D_THRESHOLD:
     case AXIS_1D_THRESHOLD_TOGGLE:
         {
@@ -230,17 +225,12 @@ double bind::input_value(const controller* c) const
 
     if(control == AXIS_1D_THRESHOLD || control == AXIS_1D_THRESHOLD_TOGGLE)
         value = value > axis_1d.threshold ? 1.0 : 0.0;
-    else if(control == AXIS_1D_RELATIVE)
-        value = value * axis_1d.threshold;
     return value;
 }
 
 double bind::get_value(const control_state& state, const controller* c) const
 {
     double v = input_value(c);
-
-    if(control == AXIS_1D_RELATIVE)
-        v += state.get_action_state(id);
 
     if(control == AXIS_1D_THRESHOLD_TOGGLE || control == BUTTON_TOGGLE)
     {
@@ -265,12 +255,6 @@ bool bind::update_value(
     double& v
 ) const {
     v = input_value(c);
-
-    if(control == AXIS_1D_RELATIVE)
-    {
-        v += state.get_action_state(id);
-        state.set_action_state(id, v);
-    }
 
     if(control == AXIS_1D_THRESHOLD_TOGGLE || control == BUTTON_TOGGLE)
     {
@@ -307,7 +291,7 @@ bool bind::update_value(
 
 double bind::normalize(const controller* c, double v) const
 {
-    if(control == AXIS_1D_CONTINUOUS || control == AXIS_1D_RELATIVE)
+    if(control == AXIS_1D_CONTINUOUS)
     {
         ::axis_1d ax = c->get_axis_1d_state(axis_1d.index);
         if(ax.is_signed || !ax.is_limited)
@@ -388,7 +372,6 @@ unsigned bindings::rate_compatibility(controller* c) const
             if(b.button.index >= button_count) index_match = false;
             break;
         case bind::AXIS_1D_CONTINUOUS:
-        case bind::AXIS_1D_RELATIVE:
         case bind::AXIS_1D_THRESHOLD:
         case bind::AXIS_1D_THRESHOLD_TOGGLE:
             if(b.axis_1d.index >= axis_1d_count) index_match = false;

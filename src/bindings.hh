@@ -27,7 +27,6 @@ struct bind
         BUTTON_PRESS,
         BUTTON_TOGGLE,
         AXIS_1D_CONTINUOUS,
-        AXIS_1D_RELATIVE,
         AXIS_1D_THRESHOLD,
         AXIS_1D_THRESHOLD_TOGGLE
     } control;
@@ -41,13 +40,12 @@ struct bind
             unsigned active_state;
         } button;
 
-        // AXIS_1D_CONTINUOUS, AXIS_1D_RELATIVE,
-        // AXIS_1D_THRESHOLD, AXIS_1D_THRESHOLD_TOGGLE
+        // AXIS_1D_CONTINUOUS, AXIS_1D_THRESHOLD, AXIS_1D_THRESHOLD_TOGGLE
         struct
         {
             int index;
             bool invert;
-            float threshold; // unused for continuous, multiplier for relative
+            float threshold; // unused for continuous
         } axis_1d;
     };
 
