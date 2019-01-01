@@ -10,7 +10,8 @@ static const char* const control_strings[] = {
 };
 
 static const char* const action_strings[] = {
-    "KEY", "FREQUENCY_EXPT", "VOLUME_MUL", "PERIOD_EXPT", "AMPLITUDE_MUL"
+    "KEY", "FREQUENCY_EXPT", "VOLUME_MUL", "PERIOD_EXPT", "AMPLITUDE_MUL",
+    "ENVELOPE_ADJUST"
 };
 
 bind::bind(enum action a)
@@ -35,6 +36,10 @@ bind::bind(enum action a)
     case AMPLITUDE_MUL:
         amplitude.modulator_index = 0;
         amplitude.max_mul = 0.5;
+        break;
+    case ENVELOPE_ADJUST:
+        envelope.which = 3;
+        envelope.max_mul = 10.0;
         break;
     }
 }
@@ -84,6 +89,10 @@ json bind::serialize() const
     case AMPLITUDE_MUL:
         j["action"]["amplitude"]["modulator_index"] = amplitude.modulator_index;
         j["action"]["amplitude"]["max_mul"] = amplitude.max_mul;
+        break;
+    case ENVELOPE_ADJUST:
+        j["action"]["envelope"]["which"] = envelope.which;
+        j["action"]["envelope"]["max_mul"] = envelope.max_mul;
         break;
     }
 
@@ -153,6 +162,11 @@ bool bind::deserialize(const json& j)
                 .at("modulator_index").get_to(amplitude.modulator_index);
             j.at("action").at("amplitude")
                 .at("max_mul").get_to(amplitude.max_mul);
+            break;
+        case ENVELOPE_ADJUST:
+            j.at("action").at("envelope").at("which").get_to(envelope.which);
+            j.at("action").at("envelope")
+                .at("max_mul").get_to(envelope.max_mul);
             break;
         }
     }
@@ -599,6 +613,15 @@ void bindings::handle_action(control_state& state, const bind& b, double value)
             b.cumulative ? 
                 pow(b.amplitude.max_mul, value):
                 lerp(1.0, b.amplitude.max_mul, value)
+        );
+        break;
+    case bind::ENVELOPE_ADJUST:
+        state.set_envelope_adjust(
+            b.envelope.which,
+            b.id,
+            b.cumulative ? 
+                pow(b.envelope.max_mul, value):
+                lerp(1.0, b.envelope.max_mul, value)
         );
         break;
     }

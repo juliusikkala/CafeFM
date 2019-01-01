@@ -60,6 +60,9 @@ void control_state::erase_action(action_id id)
         osc[i].period_expt.erase(id);
         osc[i].amplitude_mul.erase(id);
     }
+
+    for(unsigned i = 0; i < sizeof(env)/sizeof(*env); ++i)
+        env[i].mul.erase(id);
 }
 
 void control_state::press_key(action_id id, int semitone)
@@ -135,6 +138,22 @@ bool control_state::get_amplitude_mul(
     return true;
 }
 
+void control_state::set_envelope_adjust(
+    unsigned which, action_id id, double mul
+){
+    env[which].mul[id] = mul;
+}
+
+bool control_state::get_envelope_adjust(
+    unsigned which, action_id id, double& mul
+) const
+{
+    auto it = env[which].mul.find(id);
+    if(it == env[which].mul.end()) return false;
+    mul = it->second;
+    return true;
+}
+
 void control_state::reset()
 {
     dst_modulators.clear();
@@ -150,6 +169,11 @@ void control_state::reset()
     {
         osc[i].period_expt.clear();
         osc[i].amplitude_mul.clear();
+    }
+
+    for(unsigned i = 0; i < sizeof(env)/sizeof(*env); ++i)
+    {
+        env[i].mul.clear();
     }
 }
 
@@ -198,8 +222,16 @@ double control_state::total_amp_mul(unsigned i) const
     return mul;
 }
 
+double control_state::total_envelope_adjust(unsigned which) const
+{
+    double mul = 1.0;
+    for(auto& pair: env[which].mul) mul *= pair.second;
+    return mul;
+}
+
 void control_state::apply(
     basic_fm_synth& synth,
+    envelope src_envelope,
     double src_volume,
     const std::vector<dynamic_oscillator>& src_modulators
 ){
@@ -223,6 +255,13 @@ void control_state::apply(
     }
 
     synth.set_tuning(total_freq_mul());
+
+    src_envelope.attack_length *= total_envelope_adjust(0);
+    src_envelope.decay_length *= total_envelope_adjust(1);
+    src_envelope.sustain_volume_num *= total_envelope_adjust(2);
+    src_envelope.release_length *= total_envelope_adjust(3);
+
+    synth.set_envelope(src_envelope);
     synth.set_volume(src_volume*total_volume_mul());
     synth.import_modulators(dst_modulators);
 

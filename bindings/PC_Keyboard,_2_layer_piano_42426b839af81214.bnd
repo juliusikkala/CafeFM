@@ -7,7 +7,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 29,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -18,7 +20,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 22,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -29,7 +33,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 27,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -40,7 +46,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 7,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -51,7 +59,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 6,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -62,7 +72,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 25,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -73,7 +85,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 10,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -84,7 +98,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 5,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -95,7 +111,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 11,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -106,7 +124,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 17,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -117,7 +137,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 13,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -128,7 +150,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 16,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -139,7 +163,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 54,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -150,7 +176,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 15,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -161,7 +189,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 55,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -172,7 +202,9 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 51,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     },
@@ -183,13 +215,267 @@
       },
       "control": {
         "active_state": 1,
+        "cumulative": false,
         "index": 56,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 15,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 20,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 16,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 31,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 17,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 26,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 18,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 32,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 19,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 8,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 20,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 21,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 21,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 34,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 22,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 23,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 23,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 35,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 24,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 28,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 25,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 36,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 26,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 24,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 27,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 12,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 28,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 38,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 29,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 18,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 30,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 39,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 31,
+        "type": "KEY"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 19,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "frequency": {
+          "max_expt": -12.0
+        },
+        "type": "FREQUENCY_EXPT"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 225,
+        "toggle": true,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "envelope": {
+          "max_mul": 32.0,
+          "which": 3
+        },
+        "type": "ENVELOPE_ADJUST"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 44,
+        "toggle": false,
         "type": "BUTTON_PRESS"
       }
     }
   ],
   "controller_type": "Keyboard",
   "device_name": "Keyboard",
-  "locked": true,
+  "locked": false,
   "name": "PC Keyboard, 2 layer piano"
 }

@@ -109,6 +109,7 @@ private:
     std::unique_ptr<audio_output> output;
 
     std::vector<dynamic_oscillator> modulators;
+    envelope adsr;
     float master_volume;
     control_state control;
 

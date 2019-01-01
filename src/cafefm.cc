@@ -119,8 +119,6 @@ namespace
         }
 
     }
-
-    const char* modulator_index_names[] = {"1", "2", "3"};
 };
 
 cafefm::cafefm()
@@ -184,7 +182,8 @@ cafefm::~cafefm()
 void cafefm::load()
 {
     reset_synth();
-    control.apply(*synth, master_volume, modulators);
+    adsr = synth->get_envelope();
+    control.apply(*synth, adsr, master_volume, modulators);
 
     selected_tab = 1;
     selected_preset = -1;
@@ -352,7 +351,7 @@ bool cafefm::update(unsigned dt)
     }
 
     control.update(binds, dt);
-    control.apply(*synth, master_volume, modulators);
+    control.apply(*synth, adsr, master_volume, modulators);
     return !quit;
 }
 
@@ -535,7 +534,6 @@ unsigned cafefm::gui_carrier(oscillator_type& type)
         nk_layout_row_template_end(ctx);
 
         synth->get_volume();
-        envelope adsr = synth->get_envelope();
 
         // Waveform type selection
         nk_style_set_font(ctx, &small_font->handle);
@@ -596,7 +594,6 @@ unsigned cafefm::gui_carrier(oscillator_type& type)
             gui_draw_adsr(adsr);
             nk_group_end(ctx);
         }
-        synth->set_envelope(adsr);
 
         nk_group_end(ctx);
     }
@@ -812,7 +809,7 @@ void cafefm::gui_synth_editor()
     if(mask & CHANGE_REQUIRE_RESET)
     {
         reset_synth(44100, carrier, modulators);
-        control.apply(*synth, master_volume, modulators);
+        control.apply(*synth, adsr, master_volume, modulators);
     }
 }
 
@@ -837,6 +834,10 @@ void cafefm::gui_bind_action_template(bind& b)
         nk_layout_row_template_push_static(ctx, 40);
         nk_layout_row_template_push_static(ctx, 150);
         break;
+    case bind::ENVELOPE_ADJUST:
+        nk_layout_row_template_push_static(ctx, 90);
+        nk_layout_row_template_push_static(ctx, 150);
+        break;
     }
 }
 
@@ -846,9 +847,14 @@ void cafefm::gui_bind_action(bind& b)
     static const std::vector<std::string> note_list =
         generate_note_list(min_semitone, min_semitone + 96);
 
+    static const char* modulator_index_names[] = {"1", "2", "3"};
+    static const char* envelope_index_names[] = {
+        "Attack", "Decay", "Sustain", "Release"
+    };
+
     // Needed for stupid hacks to fix nuklear's rounding and decimals.
-    constexpr double eps = 0.001;
-    constexpr double step = 0.01;
+    static constexpr double eps = 0.001;
+    static constexpr double step = 0.01;
 
     switch(b.action)
     {
@@ -896,7 +902,6 @@ void cafefm::gui_bind_action(bind& b)
             sizeof(modulator_index_names)/sizeof(*modulator_index_names),
             (int*)&b.period.modulator_index, 20, nk_vec2(60, 80)
         );
-
         nk_property_double(
             ctx, "#Offset:", -36.0f, &b.period.max_expt, 36.0f, 0.5f, 0.5f
         );
@@ -912,6 +917,25 @@ void cafefm::gui_bind_action(bind& b)
             8.0+eps, 0.05, step
         )-eps;
         b.amplitude.max_mul = round(b.amplitude.max_mul/step)*step;
+        break;
+    case bind::ENVELOPE_ADJUST:
+        nk_combobox(
+            ctx, envelope_index_names,
+            sizeof(envelope_index_names)/sizeof(*envelope_index_names),
+            (int*)&b.envelope.which, 20, nk_vec2(80, 80)
+        );
+        if(b.envelope.which == 2)
+        {
+            if(b.envelope.max_mul > 2.0) b.envelope.max_mul = 2.0;
+            b.envelope.max_mul = nk_propertyd(
+                ctx, "#Multiplier:", eps, b.envelope.max_mul+eps,
+                2.0+eps, 0.05, step
+            )-eps;
+            b.envelope.max_mul = round(b.envelope.max_mul/step)*step;
+        }
+        else nk_property_double(
+            ctx, "#Multiplier:", eps, &b.envelope.max_mul, 128.0, 0.5, 0.25
+        );
         break;
     }
 }
@@ -1343,7 +1367,8 @@ void cafefm::gui_instrument_editor()
             {"Pitch", bind::FREQUENCY_EXPT},
             {"Volume", bind::VOLUME_MUL},
             {"Modulator period", bind::PERIOD_EXPT},
-            {"Modulator amplitude", bind::AMPLITUDE_MUL}
+            {"Modulator amplitude", bind::AMPLITUDE_MUL},
+            {"Envelope", bind::ENVELOPE_ADJUST}
         };
         unsigned id = 0;
         for(auto a: actions)

@@ -2,6 +2,7 @@
 #include "func.hh"
 #include <cstddef>
 #include <cstdio>
+#include <cstring>
 #include <climits>
 #include <cmath>
 
@@ -36,6 +37,11 @@ envelope envelope::convert(
     c.decay_length = new_samplerate * decay_length / cur_samplerate;
     c.release_length = new_samplerate * release_length / cur_samplerate;
     return c;
+}
+
+bool envelope::operator==(const envelope& other) const
+{
+    return memcmp(&other, this, sizeof(envelope)) == 0;
 }
 
 instrument::instrument(uint64_t samplerate)
@@ -124,10 +130,14 @@ unsigned instrument::get_polyphony() const
 
 void instrument::set_envelope(const envelope& adsr)
 {
+    if(this->adsr == adsr) return;
+
     envelope old_adsr = this->adsr;
     this->adsr = adsr;
     uint64_t old_pt = old_adsr.attack_length + old_adsr.decay_length;
     uint64_t old_rt = old_adsr.release_length;
+    if(old_pt == 0 || old_rt == 0) return;
+
     uint64_t pt = adsr.attack_length + adsr.decay_length;
     uint64_t rt = adsr.release_length;
 

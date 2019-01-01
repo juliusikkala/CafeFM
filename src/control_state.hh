@@ -47,6 +47,9 @@ public:
         unsigned modulator_index, action_id id, double& amplitude_mul
     ) const;
 
+    void set_envelope_adjust(unsigned which, action_id id, double mul);
+    bool get_envelope_adjust(unsigned which, action_id id, double& mul) const;
+
     void reset();
     void update(bindings& b, unsigned dt);
 
@@ -54,10 +57,12 @@ public:
     double total_volume_mul() const;
     double total_period_mul(unsigned oscillator_index) const;
     double total_amp_mul(unsigned oscillator_index) const;
+    double total_envelope_adjust(unsigned which) const;
 
     // Applies alterations by actions to synth and modulators.
     void apply(
         basic_fm_synth& synth,
+        envelope src_envelope,
         double src_volume,
         const std::vector<dynamic_oscillator>& src_modulators
     );
@@ -87,6 +92,11 @@ private:
         std::map<action_id, double> period_expt;
         std::map<action_id, double> amplitude_mul;
     } osc[3];
+
+    struct envelope_mod
+    {
+        std::map<action_id, double> mul;
+    } env[4];
 };
 
 #endif

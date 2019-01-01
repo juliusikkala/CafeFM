@@ -57,7 +57,8 @@ struct bind
         FREQUENCY_EXPT,
         VOLUME_MUL,
         PERIOD_EXPT,
-        AMPLITUDE_MUL
+        AMPLITUDE_MUL,
+        ENVELOPE_ADJUST
     } action;
 
     union
@@ -90,6 +91,18 @@ struct bind
             unsigned modulator_index;
             double max_mul;
         } amplitude;
+
+        // ENVELOPE_ADJUST (discrete jumps to max, must be positive)
+        struct
+        {
+            // Which envelope part?
+            // 0 - attack
+            // 1 - decay
+            // 2 - sustain
+            // 3 - release
+            unsigned which;
+            double max_mul;
+        } envelope;
     };
 
     bind(enum action a = KEY);

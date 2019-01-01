@@ -1,0 +1,158 @@
+{
+  "binds": [
+    {
+      "action": {
+        "semitone": -9,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 5,
+        "invert": false,
+        "threshold": 0.0,
+        "toggle": false,
+        "type": "AXIS_1D_THRESHOLD"
+      }
+    },
+    {
+      "action": {
+        "type": "VOLUME_MUL",
+        "volume": {
+          "max_mul": 0.5
+        }
+      },
+      "control": {
+        "cumulative": false,
+        "index": 5,
+        "invert": true,
+        "threshold": 0.5,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "frequency": {
+          "max_expt": 1.0
+        },
+        "type": "FREQUENCY_EXPT"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 0,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "frequency": {
+          "max_expt": 2.0
+        },
+        "type": "FREQUENCY_EXPT"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 1,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "frequency": {
+          "max_expt": 4.0
+        },
+        "type": "FREQUENCY_EXPT"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 2,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "frequency": {
+          "max_expt": 8.0
+        },
+        "type": "FREQUENCY_EXPT"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 3,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "frequency": {
+          "max_expt": 12.0
+        },
+        "type": "FREQUENCY_EXPT"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 11,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "frequency": {
+          "max_expt": -12.0
+        },
+        "type": "FREQUENCY_EXPT"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 12,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    },
+    {
+      "action": {
+        "frequency": {
+          "max_expt": -0.5
+        },
+        "type": "FREQUENCY_EXPT"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 5,
+        "invert": true,
+        "threshold": 0.862500011920929,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "envelope": {
+          "max_mul": 10.0,
+          "which": 3
+        },
+        "type": "ENVELOPE_ADJUST"
+      },
+      "control": {
+        "active_state": 1,
+        "cumulative": false,
+        "index": 9,
+        "toggle": false,
+        "type": "BUTTON_PRESS"
+      }
+    }
+  ],
+  "controller_type": "Game controller",
+  "device_name": "XInput Controller",
+  "locked": false,
+  "name": "Ocarina"
+}

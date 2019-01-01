@@ -23,6 +23,8 @@ struct envelope
         uint64_t new_samplerate
     ) const;
 
+    bool operator==(const envelope& other) const;
+
     int64_t peak_volume_num;
     int64_t sustain_volume_num; // Set to 0 for no sustain
     int64_t volume_denom;
