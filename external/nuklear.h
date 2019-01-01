@@ -18150,7 +18150,7 @@ nk_layout_widget_space(struct nk_rect *bounds, const struct nk_context *ctx,
     /* set the bounds of the newly allocated widget */
     bounds->w = item_width;
     bounds->h = layout->row.height - spacing.y;
-    bounds->y = layout->at_y - (float)*layout->offset_y;
+    bounds->y = layout->at_y - (float)(layout->offset_y ? *layout->offset_y : 0);
     bounds->x = layout->at_x + item_offset + item_spacing + padding.x;
     if (((bounds->x + bounds->w) > layout->max_x) && modify)
         layout->max_x = bounds->x + bounds->w;
@@ -18581,8 +18581,8 @@ nk_group_scrolled_offset_begin(struct nk_context *ctx,
     nk_zero(&panel, sizeof(panel));
     panel.bounds = bounds;
     panel.flags = flags;
-    panel.scrollbar.x = *x_offset;
-    panel.scrollbar.y = *y_offset;
+    panel.scrollbar.x = x_offset ? *x_offset : 0;
+    panel.scrollbar.y = y_offset ? *y_offset : 0;
     panel.buffer = win->buffer;
     panel.layout = (struct nk_panel*)nk_create_panel(ctx);
     ctx->current = &panel;
@@ -18650,7 +18650,7 @@ nk_group_scrolled_end(struct nk_context *ctx)
         pan.bounds.h += ctx->style.window.scrollbar_size.y;
     }
     pan.scrollbar.x = *g->offset_x;
-    pan.scrollbar.y = *g->offset_y;
+    pan.scrollbar.y = (g->offset_y ? *g->offset_y : 0);
     pan.flags = g->flags;
     pan.buffer = win->buffer;
     pan.layout = g;

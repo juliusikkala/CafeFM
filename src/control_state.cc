@@ -230,12 +230,11 @@ double control_state::total_envelope_adjust(unsigned which) const
 }
 
 void control_state::apply(
-    basic_fm_synth& synth,
-    envelope src_envelope,
+    basic_fm_synth& fm_synth,
     double src_volume,
-    const std::vector<dynamic_oscillator>& src_modulators
+    synth_state& synth
 ){
-    dst_modulators = src_modulators;
+    dst_modulators = synth.modulators;
 
     for(
         unsigned i = 0;
@@ -254,19 +253,20 @@ void control_state::apply(
         dst_modulators[i].set_period_fract(period_num, period_denom);
     }
 
-    synth.set_tuning(total_freq_mul());
+    fm_synth.set_tuning(total_freq_mul());
 
-    src_envelope.attack_length *= total_envelope_adjust(0);
-    src_envelope.decay_length *= total_envelope_adjust(1);
-    src_envelope.sustain_volume_num *= total_envelope_adjust(2);
-    src_envelope.release_length *= total_envelope_adjust(3);
+    envelope adsr = synth.adsr;
+    adsr.attack_length *= total_envelope_adjust(0);
+    adsr.decay_length *= total_envelope_adjust(1);
+    adsr.sustain_volume_num *= total_envelope_adjust(2);
+    adsr.release_length *= total_envelope_adjust(3);
 
-    synth.set_envelope(src_envelope);
-    synth.set_volume(src_volume*total_volume_mul());
-    synth.import_modulators(dst_modulators);
+    fm_synth.set_envelope(adsr);
+    fm_synth.set_volume(src_volume*total_volume_mul());
+    fm_synth.import_modulators(dst_modulators);
 
     for(auto& pair: press_queue)
-        pressed_keys[synth.press_voice(pair.second)] = pair.first;
+        pressed_keys[fm_synth.press_voice(pair.second)] = pair.first;
 
     press_queue.clear();
 
@@ -277,7 +277,7 @@ void control_state::apply(
             auto old_it = it++;
             if(old_it->second == id)
             {
-                synth.release_voice(old_it->first);
+                fm_synth.release_voice(old_it->first);
                 pressed_keys.erase(old_it);
             }
         }

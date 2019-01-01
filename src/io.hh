@@ -17,4 +17,14 @@ void write_bindings(bindings& b);
 void remove_bindings(const bindings& b);
 std::vector<bindings> load_all_bindings();
 
+void write_bindings(bindings& b);
+void remove_bindings(const bindings& b);
+std::vector<bindings> load_all_bindings();
+
+class synth_state;
+
+void write_synth(uint64_t samplerate, synth_state& synth);
+void remove_synth(const synth_state& synth);
+std::vector<synth_state> load_all_synths(uint64_t samplerate);
+
 #endif

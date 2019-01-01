@@ -3,6 +3,7 @@
 #include <GL/glew.h>
 #include "fm.hh"
 #include "control_state.hh"
+#include "synth_state.hh"
 #include "bindings.hh"
 #include "controller/controller.hh"
 #include "audio.hh"
@@ -77,11 +78,7 @@ private:
     void update_all_bindings();
     void update_compatible_bindings();
 
-    void reset_synth(
-        uint64_t samplerate = 44100,
-        oscillator_type carrier = OSC_SINE,
-        const std::vector<dynamic_oscillator>& modulators = {}
-    );
+    void reset_synth(uint64_t samplerate = 44100);
 
     nk_context* ctx;
     SDL_Window* win;
@@ -105,13 +102,12 @@ private:
     // grabbing/detaching them.
     bool keyboard_grabbed, mouse_grabbed;
 
-    std::unique_ptr<basic_fm_synth> synth;
+    std::unique_ptr<basic_fm_synth> fm_synth;
     std::unique_ptr<audio_output> output;
 
-    std::vector<dynamic_oscillator> modulators;
-    envelope adsr;
     float master_volume;
     control_state control;
+    synth_state synth;
 
     std::map<std::string, bindings> all_bindings;
     std::vector<bindings> compatible_bindings;

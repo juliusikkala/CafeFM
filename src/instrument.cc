@@ -171,7 +171,9 @@ double instrument::get_volume() const
 
 void instrument::copy_state(const instrument& other)
 {
+    unsigned polyphony = voices.size();
     voices = other.voices;
+    voices.resize(polyphony, {false, false, 0, 0, 0});
     for(voice& v: voices)
     {
         v.press_timer = samplerate * v.press_timer / other.samplerate;
@@ -182,7 +184,6 @@ void instrument::copy_state(const instrument& other)
     base_frequency = other.base_frequency;
     volume = other.volume;
 
-    handle_polyphony(voices.size());
     refresh_all_voices();
 }
 

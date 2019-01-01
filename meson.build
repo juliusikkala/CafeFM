@@ -18,6 +18,7 @@ src = [
   'src/instrument.cc',
   'src/io.cc',
   'src/main.cc',
+  'src/synth_state.cc',
 ]
 
 cc = meson.get_compiler('cpp')

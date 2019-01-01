@@ -1,6 +1,7 @@
 #ifndef CAFEFM_CONTROL_CONTEXT_HH
 #define CAFEFM_CONTROL_CONTEXT_HH
 #include "fm.hh"
+#include "synth_state.hh"
 #include <set>
 #include <map>
 
@@ -61,10 +62,9 @@ public:
 
     // Applies alterations by actions to synth and modulators.
     void apply(
-        basic_fm_synth& synth,
-        envelope src_envelope,
+        basic_fm_synth& fm_synth,
         double src_volume,
-        const std::vector<dynamic_oscillator>& src_modulators
+        synth_state& synth
     );
 
 private:

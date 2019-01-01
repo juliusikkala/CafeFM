@@ -1,5 +1,6 @@
 #include "io.hh"
 #include "bindings.hh"
+#include "synth_state.hh"
 #include "SDL.h"
 #include <cstdio>
 #include <algorithm>
@@ -51,55 +52,75 @@ void write_text_file(const std::string& path, const std::string& content)
     fclose(f);
 }
 
-fs::path get_writable_bindings_path()
+fs::path get_writable_path()
 {
-    static bool has_bindings_path = false;
+    static bool has_path = false;
     static fs::path path;
-    if(!has_bindings_path)
+    if(!has_path)
     {
-        char* bindings_path = SDL_GetPrefPath("jji.fi", "CafeFM");
-        path = bindings_path;
-        SDL_free(bindings_path);
-
-        path /= "bindings";
+        char* path_str = SDL_GetPrefPath("jji.fi", "CafeFM");
+        path = path_str;
+        SDL_free(path_str);
         path = path.make_preferred();
-        has_bindings_path = true;
-
-        if(!fs::exists(path))
-        {
-            // The writable bindings path doesn't exist, so create it.
-            fs::create_directory(path);
-        }
+        has_path = true;
     }
 
     return path;
 }
 
-std::set<fs::path> get_readonly_bindings_paths()
+fs::path get_writable_bindings_path()
 {
-    static bool has_bindings_path = false;
-    static fs::path base_path;
-    if(!has_bindings_path)
-    {
-        char* bindings_path = SDL_GetBasePath();
-        base_path = bindings_path;
-        SDL_free(bindings_path);
+    fs::path path = get_writable_path()/"bindings";
+    if(!fs::exists(path)) fs::create_directory(path);
+    return path;
+}
 
-        base_path /= "bindings";
-        base_path = base_path.make_preferred();
-        has_bindings_path = true;
+fs::path get_writable_synths_path()
+{
+    fs::path path = get_writable_path()/"synths";
+    if(!fs::exists(path)) fs::create_directory(path);
+    return path;
+}
+
+std::set<fs::path> get_readonly_paths()
+{
+    static bool has_path = false;
+    static fs::path path;
+    if(!has_path)
+    {
+        char* path_str = SDL_GetBasePath();
+        path = path_str;
+        SDL_free(path_str);
+        path = path.make_preferred();
+        has_path = true;
     }
 
     std::set<fs::path> paths;
-    paths.insert(base_path);
+    paths.insert(path);
     // This is mostly for testing, but useful if you don't want to install
     // CafeFM.
-    paths.insert("bindings");
+    paths.insert(".");
 #ifdef DATA_DIRECTORY
-    paths.insert(fs::path{DATA_DIRECTORY}/"bindings");
+    paths.insert(fs::path{DATA_DIRECTORY});
 #endif
 
     return paths;
+}
+
+std::set<fs::path> get_readonly_bindings_paths()
+{
+    std::set<fs::path> paths = get_readonly_paths();
+    std::set<fs::path> bindings_paths;
+    for(const fs::path& path: paths) bindings_paths.insert(path/"bindings");
+    return bindings_paths;
+}
+
+std::set<fs::path> get_readonly_synths_paths()
+{
+    std::set<fs::path> paths = get_readonly_paths();
+    std::set<fs::path> bindings_paths;
+    for(const fs::path& path: paths) bindings_paths.insert(path/"synths");
+    return bindings_paths;
 }
 
 std::string string_hash(const std::string& str)
@@ -199,4 +220,58 @@ std::vector<bindings> load_all_bindings()
     }
 
     return binds;
+}
+
+void write_synth(uint64_t samplerate, synth_state& synth)
+{
+    json synth_json = synth.serialize(samplerate);
+    fs::path filename(
+        make_filename_safe(synth.name) + "_" + string_hash(synth.name) + ".syn"
+    );
+    fs::path path = get_writable_synths_path()/filename;
+    synth.path = path;
+    synth.write_lock = false;
+
+    write_json_file(path, synth_json);
+}
+
+void remove_synth(const synth_state& synth)
+{
+    // Safety checks, just in case something goes very wrong.
+    fs::path writable_path = get_writable_synths_path();
+    fs::path path = synth.path;
+    if(
+        path.extension() == ".syn" &&
+        path.has_stem() &&
+        path.parent_path() == writable_path
+    ) fs::remove(path);
+}
+
+std::vector<synth_state> load_all_synths(uint64_t samplerate)
+{
+    std::vector<synth_state> synths;
+
+    std::set<fs::path> ro_paths = get_readonly_synths_paths();
+    std::set<fs::path> paths = ro_paths;
+    paths.insert(get_writable_synths_path());
+
+    for(const fs::path& p: paths)
+    {
+        if(!fs::exists(p) || !fs::is_directory(p)) continue;
+        for(fs::directory_entry& x: fs::directory_iterator(p))
+        {
+            try
+            {
+                synth_state synth;
+                synth.deserialize(read_json_file(x.path()), samplerate);
+                synth.path = x.path();
+                if(ro_paths.count(p)) synth.write_lock = true;
+                synths.push_back(synth);
+            }
+            // Quietly swallow failed files.
+            catch(...) {}
+        }
+    }
+
+    return synths;
 }
