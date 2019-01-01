@@ -124,13 +124,18 @@ unsigned instrument::get_polyphony() const
 
 void instrument::set_envelope(const envelope& adsr)
 {
+    envelope old_adsr = this->adsr;
     this->adsr = adsr;
+    uint64_t old_pt = old_adsr.attack_length + old_adsr.decay_length;
+    uint64_t old_rt = old_adsr.release_length;
     uint64_t pt = adsr.attack_length + adsr.decay_length;
     uint64_t rt = adsr.release_length;
+
+    // Adjust timers accordingly.
     for(voice& v: voices)
     {
-        v.press_timer = std::min(v.press_timer, pt);
-        v.release_timer = std::min(v.release_timer, rt);
+        v.press_timer = pt*v.press_timer/old_pt;
+        v.release_timer = rt*v.release_timer/old_rt;
     }
 }
 
