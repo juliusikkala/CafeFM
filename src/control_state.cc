@@ -3,16 +3,15 @@
 
 control_state::control_state() { }
 
-void control_state::set_action_state(action_id id, double state)
+void control_state::set_toggle_state(action_id id, int state)
 {
-    action_state[id] = state;
+    toggle_state[id] = state;
 }
 
-double control_state::get_action_state(action_id id) const
+int control_state::get_toggle_state(action_id id) const
 {
-    auto it = action_state.find(id);
-    if(it == action_state.end())
-        return 0.0;
+    auto it = toggle_state.find(id);
+    if(it == toggle_state.end()) return 0;
     return it->second;
 }
 
@@ -29,7 +28,7 @@ void control_state::erase_action(action_id id)
 
     release_key(id);
 
-    action_state.erase(id);
+    toggle_state.erase(id);
 
     freq_expt.erase(id);
     volume_mul.erase(id);
@@ -120,7 +119,7 @@ void control_state::reset()
     press_queue.clear();
     release_queue.clear();
     pressed_keys.clear();
-    action_state.clear();
+    toggle_state.clear();
     freq_expt.clear();
     volume_mul.clear();
 

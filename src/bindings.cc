@@ -6,24 +6,16 @@
 #include <algorithm>
 
 static const char* const control_strings[] = {
-    "UNBOUND",
-    "BUTTON_PRESS",
-    "BUTTON_TOGGLE",
-    "AXIS_1D_CONTINUOUS",
-    "AXIS_1D_THRESHOLD",
-    "AXIS_1D_THRESHOLD_TOGGLE"
+    "UNBOUND", "BUTTON_PRESS", "AXIS_1D_CONTINUOUS", "AXIS_1D_THRESHOLD"
 };
 
 static const char* const action_strings[] = {
-    "KEY",
-    "FREQUENCY_EXPT",
-    "VOLUME_MUL",
-    "PERIOD_EXPT",
-    "AMPLITUDE_MUL"
+    "KEY", "FREQUENCY_EXPT", "VOLUME_MUL", "PERIOD_EXPT", "AMPLITUDE_MUL"
 };
 
 bind::bind(enum action a)
-: id(0), wait_assign(false), control(UNBOUND), action(a)
+:   id(0), wait_assign(false), control(UNBOUND), toggle(false),
+    cumulative(false), action(a)
 {
     switch(action)
     {
@@ -55,13 +47,11 @@ json bind::serialize() const
     switch(control)
     {
     case BUTTON_PRESS:
-    case BUTTON_TOGGLE:
         j["control"]["index"] = button.index;
         j["control"]["active_state"] = button.active_state;
         break;
     case AXIS_1D_CONTINUOUS:
     case AXIS_1D_THRESHOLD:
-    case AXIS_1D_THRESHOLD_TOGGLE:
         j["control"]["index"] = axis_1d.index;
         j["control"]["invert"] = axis_1d.invert;
         j["control"]["threshold"] = axis_1d.threshold;
@@ -69,6 +59,10 @@ json bind::serialize() const
     default:
         break;
     }
+
+    if(control != AXIS_1D_CONTINUOUS)
+        j["control"]["toggle"] = toggle;
+    j["control"]["cumulative"] = cumulative;
 
     j["action"]["type"] = action_strings[(unsigned)action];
 
@@ -112,13 +106,11 @@ bool bind::deserialize(const json& j)
         switch(control)
         {
         case BUTTON_PRESS:
-        case BUTTON_TOGGLE:
             j.at("control").at("index").get_to(button.index);
             j.at("control").at("active_state").get_to(button.active_state);
             break;
         case AXIS_1D_CONTINUOUS:
         case AXIS_1D_THRESHOLD:
-        case AXIS_1D_THRESHOLD_TOGGLE:
             j.at("control").at("index").get_to(axis_1d.index);
             j.at("control").at("invert").get_to(axis_1d.invert);
             j.at("control").at("threshold").get_to(axis_1d.threshold);
@@ -126,6 +118,9 @@ bool bind::deserialize(const json& j)
         default:
             break;
         }
+
+        toggle = j.at("control").value("toggle", false);
+        cumulative = j.at("control").value("cumulative", false);
 
         std::string action_str = j.at("action").at("type").get<std::string>();
         int action_i = find_string_arg(
@@ -178,11 +173,9 @@ bool bind::triggered(
 
     switch(control)
     {
-    case BUTTON_TOGGLE:
     case BUTTON_PRESS:
         return button_index >= 0 && button_index == button.index;
     case AXIS_1D_CONTINUOUS:
-    case AXIS_1D_THRESHOLD_TOGGLE:
     case AXIS_1D_THRESHOLD:
         return axis_1d_index >= 0 && axis_1d_index == axis_1d.index;
     default:
@@ -201,13 +194,11 @@ double bind::input_value(const controller* c) const
     switch(control)
     {
     case BUTTON_PRESS:
-    case BUTTON_TOGGLE:
         value = c->get_button_state(button.index) == button.active_state
             ? 1.0 : 0.0;
         break;
     case AXIS_1D_CONTINUOUS:
     case AXIS_1D_THRESHOLD:
-    case AXIS_1D_THRESHOLD_TOGGLE:
         {
             ::axis_1d ax = c->get_axis_1d_state(axis_1d.index);
             value = ax.value;
@@ -223,7 +214,7 @@ double bind::input_value(const controller* c) const
         break;
     }
 
-    if(control == AXIS_1D_THRESHOLD || control == AXIS_1D_THRESHOLD_TOGGLE)
+    if(control == AXIS_1D_THRESHOLD)
         value = value > axis_1d.threshold ? 1.0 : 0.0;
     return value;
 }
@@ -232,9 +223,9 @@ double bind::get_value(const control_state& state, const controller* c) const
 {
     double v = input_value(c);
 
-    if(control == AXIS_1D_THRESHOLD_TOGGLE || control == BUTTON_TOGGLE)
+    if(toggle)
     {
-        int prev_state = state.get_action_state(id);
+        int prev_state = state.get_toggle_state(id);
         // Mealy state machine. States:
         // 0 - disabled, input inactive
         // 1 - enabled, input active
@@ -256,9 +247,9 @@ bool bind::update_value(
 ) const {
     v = input_value(c);
 
-    if(control == AXIS_1D_THRESHOLD_TOGGLE || control == BUTTON_TOGGLE)
+    if(toggle)
     {
-        int prev_state = state.get_action_state(id);
+        int prev_state = state.get_toggle_state(id);
         bool d = v > 0.5;
         // Mealy state machine. States:
         // 0 - disabled, input inactive
@@ -268,21 +259,21 @@ bool bind::update_value(
         if(prev_state == 0 && d)
         {
             v = 1.0;
-            state.set_action_state(id, 1);
+            state.set_toggle_state(id, 1);
         }
         else if(prev_state == 1 && !d)
         {
-            state.set_action_state(id, 2);
+            state.set_toggle_state(id, 2);
             return false;
         }
         else if(prev_state == 2 && d)
         {
             v = 0.0;
-            state.set_action_state(id, 3);
+            state.set_toggle_state(id, 3);
         }
         else if(prev_state == 3 && !d)
         {
-            state.set_action_state(id, 0);
+            state.set_toggle_state(id, 0);
             return false;
         }
     }
@@ -368,12 +359,10 @@ unsigned bindings::rate_compatibility(controller* c) const
         switch(b.control)
         {
         case bind::BUTTON_PRESS:
-        case bind::BUTTON_TOGGLE:
             if(b.button.index >= button_count) index_match = false;
             break;
         case bind::AXIS_1D_CONTINUOUS:
         case bind::AXIS_1D_THRESHOLD:
-        case bind::AXIS_1D_THRESHOLD_TOGGLE:
             if(b.axis_1d.index >= axis_1d_count) index_match = false;
             break;
         default:

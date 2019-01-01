@@ -25,22 +25,24 @@ struct bind
     {
         UNBOUND = 0,
         BUTTON_PRESS,
-        BUTTON_TOGGLE,
         AXIS_1D_CONTINUOUS,
-        AXIS_1D_THRESHOLD,
-        AXIS_1D_THRESHOLD_TOGGLE
+        AXIS_1D_THRESHOLD
     } control;
+
+    // Ignored for AXIS_1D_CONTINUOUS
+    bool toggle;
+    bool cumulative;
 
     union
     {
-        // BUTTON_PRESS, BUTTON_TOGGLE
+        // BUTTON_PRESS
         struct
         {
             int index;
             unsigned active_state;
         } button;
 
-        // AXIS_1D_CONTINUOUS, AXIS_1D_THRESHOLD, AXIS_1D_THRESHOLD_TOGGLE
+        // AXIS_1D_CONTINUOUS, AXIS_1D_THRESHOLD
         struct
         {
             int index;

@@ -12,10 +12,8 @@ public:
 
     control_state();
 
-    // These are used to implement toggling and relative modes.
-    // This class has no use for them on its own.
-    void set_action_state(action_id id, double state);
-    double get_action_state(action_id id) const;
+    void set_toggle_state(action_id id, int state);
+    int get_toggle_state(action_id id) const;
 
     void erase_action(action_id id);
 
@@ -68,7 +66,7 @@ private:
     // indexed but often iterated.
     std::map<instrument::voice_id, action_id> pressed_keys;
 
-    std::map<action_id, double> action_state;
+    std::map<action_id, int> toggle_state;
 
     std::map<action_id, double> freq_expt;
     std::map<action_id, double> volume_mul;
