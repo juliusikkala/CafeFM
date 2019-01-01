@@ -1504,7 +1504,7 @@ void cafefm::select_compatible_bindings(unsigned index)
             index,
             (unsigned)compatible_bindings.size()-1
         );
-        binds = compatible_bindings[index];
+        binds = compatible_bindings[selected_preset];
     }
 }
 
@@ -1513,6 +1513,7 @@ void cafefm::save_current_bindings()
     if(selected_controller)
         binds.set_target_device(selected_controller);
 
+    binds.set_write_lock(false);
     write_bindings(binds);
     update_compatible_bindings();
 
