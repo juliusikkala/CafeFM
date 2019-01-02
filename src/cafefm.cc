@@ -183,7 +183,7 @@ cafefm::~cafefm()
 
 void cafefm::load()
 {
-    selected_tab = 1;
+    selected_tab = 0;
     selected_bindings_preset = -1;
     selected_synth_preset = -1;
 
@@ -206,7 +206,7 @@ void cafefm::load()
     // Load fonts
     static const nk_rune nk_font_glyph_ranges[] = {
         0x0020, 0x024F,
-        0x0370, 0x03FF,
+        0x0300, 0x03FF,
         0x2200, 0x22FF,
         0x2C60, 0x2C7F,
         0x2600, 0x26FF,
@@ -1502,6 +1502,194 @@ void cafefm::gui_instrument_editor()
     }
 }
 
+void cafefm::gui_options_editor()
+{
+    nk_layout_row_template_begin(ctx, 535);
+    nk_layout_row_template_push_dynamic(ctx);
+    nk_layout_row_template_push_static(ctx, 400);
+    nk_layout_row_template_push_dynamic(ctx);
+    nk_layout_row_template_end(ctx);
+
+    nk_style_set_font(ctx, &small_font->handle);
+
+    struct nk_rect empty_space;
+    nk_widget(&empty_space, ctx);
+
+    // Save, etc. controls at the top
+    if(nk_group_begin(ctx, "Options", NK_WINDOW_NO_SCROLLBAR))
+    {
+        nk_layout_row_template_begin(ctx, 30);
+        nk_layout_row_template_push_static(ctx, 120);
+        nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_end(ctx);
+
+        nk_label(ctx, "Samplerate: ", NK_TEXT_LEFT);
+
+        const char* dummy_samplerate_str[] = {
+            "44100", "48000", "192000"
+        };
+
+        nk_combo(
+            ctx, dummy_samplerate_str,
+            sizeof(dummy_samplerate_str)/sizeof(const char*),
+            0, 25, nk_vec2(400, 200)
+        );
+
+        nk_label(ctx, "Buffer length: ", NK_TEXT_LEFT);
+
+        const char* dummy_length_str[] = {
+            "Auto", "4096", "2048", "1024", "512", "256", "128", "64", "32",
+            "16", "8", "4", "2", "1"
+        };
+
+        nk_combo(
+            ctx, dummy_length_str,
+            sizeof(dummy_length_str)/sizeof(const char*),
+            0, 25, nk_vec2(400, 200)
+        );
+
+        nk_label(ctx, "Audio backend: ", NK_TEXT_LEFT);
+
+        const char* dummy_backend_str[] = {
+            "Auto", "Pulseaudio", "ALSA", "Jack"
+        };
+
+        nk_combo(
+            ctx, dummy_backend_str,
+            sizeof(dummy_backend_str)/sizeof(const char*),
+            0, 25, nk_vec2(400, 200)
+        );
+
+        nk_label(ctx, "Output device: ", NK_TEXT_LEFT);
+
+        const char* dummy_device_str[] = {
+            "Auto", "Device 1", "Device 2"
+        };
+
+        nk_combo(
+            ctx, dummy_device_str,
+            sizeof(dummy_device_str)/sizeof(const char*),
+            0, 25, nk_vec2(400, 200)
+        );
+
+        nk_layout_row_dynamic(ctx, 30, 2);
+
+        if(nk_button_label(ctx, "Save settings"))
+            printf("Should save!\n");
+
+        if(nk_button_label(ctx, "Reset settings"))
+            printf("Should reset!\n");
+
+        if(nk_button_label(ctx, "Open bindings folder"))
+            open_bindings_folder();
+
+        if(nk_button_label(ctx, "Open synths folder"))
+            open_synths_folder();
+
+        nk_layout_row_dynamic(ctx, 30, 1);
+
+        if(nk_button_label(ctx, "Refresh all files"))
+        {
+            update_compatible_bindings();
+            for(unsigned i = 0; i < compatible_bindings.size(); ++i)
+            {
+                if(compatible_bindings[i].get_name() == binds.get_name())
+                {
+                    selected_bindings_preset = i;
+                    break;
+                }
+            }
+            update_all_synths();
+            for(unsigned i = 0; i < all_synths.size(); ++i)
+            {
+                if(all_synths[i].name == synth.name)
+                {
+                    selected_synth_preset = i;
+                    break;
+                }
+            }
+        }
+
+        static unsigned help_state = 0;
+        if(nk_button_label(ctx, "Help")) help_state = 1;
+
+        if(help_state)
+        {
+            struct nk_rect s = {0, 100, 300, 136};
+            s.x = 200-s.w/2;
+            const char* help_titles[] = {
+                "There is no help.",
+                "Press OK.",
+                "You have reached the world's edge.",
+                "None but devils play past here.",
+                "-.-",
+                "Chapter 1. A game of cards.",
+                "Pick one.",
+                "Chapter 2. Foul play",
+                "I win.",
+                "Chapter 3. Go away.",
+                "Protip: save often.",
+                "P̧͉̩̗Ṛ͈͎̋͊̈ͨ͋A̝͍̠̫̘ͣ̃ͫͮĬ̸̜͖̦̭̙͈̝͂̐́̊ͪ̾Ŝ̟͎̮ͤ͋̓͡E̽̀ͩ̄ͯ̊̅҉̠ ͒͂͢Ẑ̭̘͇̻ͅA͓̻̝̜̮̲ͅL̩̭͇T̴̯͔͈̔́H̿̐ͬ҉̰̣Ōͦ͐͌ͨ͝R̴̝͎̮̜ͣ͆̋̓ͩ͑"
+            };
+
+            if(nk_popup_begin(
+                ctx, NK_POPUP_STATIC, help_titles[help_state-1],
+                NK_WINDOW_BORDER|NK_WINDOW_TITLE, s
+            )){
+                const char* help_messages[] = {
+                    "I have no advice to offer to you.",
+                    "No, really. The author didn't bother to write proper "
+                    "documentation, so there is nothing to show. Just press "
+                    "OK.",
+                    "Just press OK. This really goes nowhere.",
+                    "Really?",
+                    "What would you expect to see?",
+                    "Alright, let's play your stupid games. I'll show you four "
+                    "cards. Pick one and make a mental note.",
+                    "♠5, ♣9, ♦K, ♥Q",
+                    "Next, I'll remove exactly the card you were thinking of!",
+                    "♣C, ♥J, ♦4",
+                    "Wasn't funny? Who's the one clicking cancel just to see "
+                    "some shitty jokes?",
+                    "Do you really want to see what happens when you push a "
+                    "poor program over the edge?",
+                    "This."
+                };
+                nk_layout_row_dynamic(ctx, 50, 1);
+                nk_label_wrap(ctx, help_messages[help_state-1]);
+                nk_layout_row_dynamic(ctx, 30, 2);
+                if(nk_button_label(ctx, "OK"))
+                {
+                    help_state = 0;
+                    nk_popup_close(ctx);
+                }
+                if(nk_button_label(ctx, "Cancel"))
+                {
+                    help_state++;
+                    nk_popup_close(ctx);
+                }
+                nk_popup_end(ctx);
+            }
+            else synth_delete_popup_open = false;
+        }
+
+        nk_group_end(ctx);
+    }
+
+    nk_widget(&empty_space, ctx);
+    
+    // Draw notes at the bottom
+    nk_layout_row_dynamic(ctx, 30, 2);
+
+    struct nk_color fade_color = nk_rgb(80,80,80);
+    nk_label_colored(
+        ctx, "Copyright 2018-2019 Julius Ikkala", NK_TEXT_LEFT, fade_color
+    );
+    nk_label_colored(
+        ctx, "0.1.0 Moldy Bread edition", NK_TEXT_RIGHT, fade_color
+    );
+}
+
 void cafefm::gui()
 {
     int w, h;
@@ -1559,6 +1747,9 @@ void cafefm::gui()
             break;
         case 1:
             gui_instrument_editor();
+            break;
+        case 2:
+            gui_options_editor();
             break;
         default:
             break;

@@ -144,6 +144,26 @@ json read_json_file(const fs::path& path)
     return json::parse(read_text_file(path.string()));
 }
 
+void open_bindings_folder()
+{
+    fs::path path = get_writable_bindings_path();
+#ifdef USE_XDG
+    system(("xdg-open "+path.string()).c_str());
+#else
+#error "Unimplented!"
+#endif
+}
+
+void open_synths_folder()
+{
+    fs::path path = get_writable_synths_path();
+#ifdef USE_XDG
+    system(("xdg-open "+path.string()).c_str());
+#else
+#error "Unimplented!"
+#endif
+}
+
 std::string make_filename_safe(const std::string& name)
 {
     std::string fixed = name;

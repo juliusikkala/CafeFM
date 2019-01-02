@@ -11,6 +11,9 @@ json read_json_file(const fs::path& path);
 
 class bindings;
 
+void open_bindings_folder();
+void open_synths_folder();
+
 std::string make_filename_safe(const std::string& name);
 
 void write_bindings(bindings& b);

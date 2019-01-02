@@ -35,6 +35,7 @@ regular_unices = ['linux', 'cygwin', 'dragonfly', 'freebsd', 'gnu', 'netbsd']
 if regular_unices.contains(target_machine.system())
   data_path = join_paths([get_option('prefix'), get_option('datadir'), 'cafefm'])
   add_project_arguments('-DDATA_DIRECTORY="'+data_path+'"', language: 'cpp')
+  add_project_arguments('-DUSE_XDG', language: 'cpp')
 endif
 
 executable(

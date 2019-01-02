@@ -67,6 +67,8 @@ private:
     int gui_bind(bind& b, unsigned index);
     void gui_instrument_editor();
 
+    void gui_options_editor();
+
     void gui();
 
     void select_controller(controller* c);
