@@ -45,9 +45,10 @@ bool envelope::operator==(const envelope& other) const
 }
 
 instrument::instrument(uint64_t samplerate)
-: base_frequency(440), volume(0.5), samplerate(samplerate)
+:   base_frequency(440), volume(0.5), max_volume_skip(0.0001),
+    samplerate(samplerate)
 {
-    voices.resize(1, {false, false, 0, 0, 0});
+    voices.resize(1, {false, false, 0, 0, 0, 0});
     adsr.set_volume(1.0f, 0.5f);
     adsr.set_curve(0.07f, 0.2f, 0.05f, samplerate);
 }
@@ -103,6 +104,7 @@ void instrument::press_voice(voice_id id, int semitone)
     voices[id].press_timer = adsr.attack_length + adsr.decay_length;
     voices[id].release_timer = adsr.release_length;
     voices[id].semitone = semitone;
+    voices[id].volume = 0;
     refresh_voice(id);
 }
 
@@ -119,7 +121,7 @@ void instrument::release_all_voices()
 void instrument::set_polyphony(unsigned n)
 {
     if(voices.size() == n) return;
-    voices.resize(n, {false, false, 0, 0, 0});
+    voices.resize(n, {false, false, 0, 0, 0, 0});
     handle_polyphony(n);
 }
 
@@ -169,11 +171,21 @@ double instrument::get_volume() const
     return volume;
 }
 
+void instrument::set_max_volume_skip(double max_volume_skip)
+{
+    this->max_volume_skip = max_volume_skip;
+}
+
+double instrument::get_max_volume_skip() const
+{
+    return max_volume_skip;
+}
+
 void instrument::copy_state(const instrument& other)
 {
     unsigned polyphony = voices.size();
     voices = other.voices;
-    voices.resize(polyphony, {false, false, 0, 0, 0});
+    voices.resize(polyphony, {false, false, 0, 0, 0, 0});
     for(voice& v: voices)
     {
         v.press_timer = samplerate * v.press_timer / other.samplerate;
@@ -195,32 +207,54 @@ double instrument::get_frequency(voice_id id) const
 void instrument::get_voice_volume(voice_id id, int64_t& num, int64_t& denom)
 {
     voice& v = voices[id];
-
     denom = adsr.volume_denom;
+    num = v.volume;
+}
+
+void instrument::update_voice_volume(voice& v)
+{
     if(!v.enabled)
     {
-        num = 0;
+        v.volume = 0;
         return;
     }
+
+    int64_t denom = adsr.volume_denom;
+    int64_t target_volume = 0;
+    int64_t max_skip = denom * max_volume_skip;
 
     int64_t attack_timer = v.press_timer - adsr.decay_length;
     int64_t decay_timer = v.press_timer;
 
     if(attack_timer > 0)
-        num = lerp(adsr.peak_volume_num, 0, attack_timer, adsr.attack_length);
+    {
+        target_volume = lerp(
+            adsr.peak_volume_num, 0, attack_timer, adsr.attack_length
+        );
+    }
     else if(decay_timer > 0)
-        num = lerp(
+    {
+        target_volume = lerp(
             adsr.sustain_volume_num,
             adsr.peak_volume_num,
             decay_timer,
             adsr.decay_length
         );
-    else num = adsr.sustain_volume_num;
+    }
+    else target_volume = adsr.sustain_volume_num;
 
     if(!v.pressed)
-        num = lerp(0, num, v.release_timer, adsr.release_length);
+    {
+        target_volume = lerp(
+            0, target_volume, v.release_timer, adsr.release_length
+        );
+    }
 
-    num *= volume;
+    target_volume *= volume;
+    int64_t skip_size = target_volume - v.volume;
+    if(skip_size < -max_skip) skip_size = -max_skip;
+    if(skip_size > max_skip) skip_size = max_skip;
+    v.volume += skip_size;
 }
 
 void instrument::step_voices()
@@ -241,6 +275,7 @@ void instrument::step_voices()
                 if(v.release_timer == 0) v.enabled = false;
             }
         }
+        update_voice_volume(v);
     }
 }
 

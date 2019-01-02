@@ -62,6 +62,9 @@ public:
     void set_max_safe_volume();
     double get_volume() const;
 
+    void set_max_volume_skip(double max_volume_skip);
+    double get_max_volume_skip() const;
+
     void copy_state(const instrument& other);
 
     virtual void synthesize(int32_t* samples, unsigned sample_count) = 0;
@@ -74,10 +77,10 @@ protected:
         uint64_t press_timer;
         uint64_t release_timer;
         int semitone;
+        int64_t volume; // Used for limiting volume jumps
     };
 
     double get_frequency(voice_id id) const;
-    // If this is too slow, consider generating a table from the envelope
     void get_voice_volume(voice_id id, int64_t& num, int64_t& denom);
     void step_voices();
 
@@ -86,10 +89,14 @@ protected:
     virtual void handle_polyphony(unsigned n) = 0;
 
 private:
+    // If this is too slow, consider generating a table from the envelope
+    void update_voice_volume(voice& v);
+
     std::vector<voice> voices;
     envelope adsr;
     double base_frequency;
     double volume;
+    double max_volume_skip;
     uint64_t samplerate;
 };
 
