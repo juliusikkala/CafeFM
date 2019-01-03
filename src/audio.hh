@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <vector>
 #include <cstring>
 
 class audio_output
@@ -12,33 +13,44 @@ public:
     template<typename Synth>
     audio_output(
         Synth& s,
-        unsigned buffer_size = paFramesPerBufferUnspecified
+        double target_latency = 0.025,
+        int system_index = -1,
+        int device_index = -1
     ): samplerate(s.get_samplerate())
     {
-        PaError err = Pa_OpenDefaultStream(
-            &stream,
-            0,
-            1,
-            paInt32,
-            samplerate,
-            buffer_size,
+        open_stream(
+            target_latency,
+            system_index,
+            device_index,
             stream_callback<Synth>,
             &s
         );
-        if(err != paNoError)
-            throw std::runtime_error(
-                "Unable to open stream: " + std::string(Pa_GetErrorText(err))
-            );
     }
+
+    ~audio_output();
 
     void start();
     void stop();
 
     unsigned get_samplerate() const;
 
-    ~audio_output();
+    static std::vector<const char*> get_available_systems();
+    static std::vector<const char*> get_available_devices(
+        int system_index
+    );
+    static std::vector<uint64_t> get_available_samplerates(
+        int system_index, int device_index, double target_latency = 0.025
+    );
 
 private:
+    void open_stream(
+        double target_latency,
+        int system_index,
+        int device_index,
+        PaStreamCallback* callback,
+        void* userdata
+    );
+
     template<typename Synth>
     static int stream_callback(
         const void* input,

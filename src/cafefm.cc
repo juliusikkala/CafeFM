@@ -1523,53 +1523,44 @@ void cafefm::gui_options_editor()
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
 
-        nk_label(ctx, "Samplerate: ", NK_TEXT_LEFT);
+        nk_label(ctx, "Audio system: ", NK_TEXT_LEFT);
 
-        const char* dummy_samplerate_str[] = {
-            "44100", "48000", "192000"
-        };
+        std::vector<const char*> systems =
+            audio_output::get_available_systems();
+        systems.insert(systems.begin(), "Auto");
 
-        nk_combo(
-            ctx, dummy_samplerate_str,
-            sizeof(dummy_samplerate_str)/sizeof(const char*),
-            0, 25, nk_vec2(400, 200)
-        );
-
-        nk_label(ctx, "Buffer length: ", NK_TEXT_LEFT);
-
-        const char* dummy_length_str[] = {
-            "Auto", "4096", "2048", "1024", "512", "256", "128", "64", "32",
-            "16", "8", "4", "2", "1"
-        };
-
-        nk_combo(
-            ctx, dummy_length_str,
-            sizeof(dummy_length_str)/sizeof(const char*),
-            0, 25, nk_vec2(400, 200)
-        );
-
-        nk_label(ctx, "Audio backend: ", NK_TEXT_LEFT);
-
-        const char* dummy_backend_str[] = {
-            "Auto", "Pulseaudio", "ALSA", "Jack"
-        };
-
-        nk_combo(
-            ctx, dummy_backend_str,
-            sizeof(dummy_backend_str)/sizeof(const char*),
-            0, 25, nk_vec2(400, 200)
-        );
+        nk_combo(ctx, systems.data(), systems.size(), 0, 25, nk_vec2(260, 200));
 
         nk_label(ctx, "Output device: ", NK_TEXT_LEFT);
 
-        const char* dummy_device_str[] = {
-            "Auto", "Device 1", "Device 2"
-        };
+        std::vector<const char*> devices =
+            audio_output::get_available_devices(-1);
+        devices.insert(devices.begin(), "Auto");
 
         nk_combo(
-            ctx, dummy_device_str,
-            sizeof(dummy_device_str)/sizeof(const char*),
-            0, 25, nk_vec2(400, 200)
+            ctx, devices.data(), devices.size(), 0, 25, nk_vec2(260, 200)
+        );
+
+        nk_label(ctx, "Samplerate: ", NK_TEXT_LEFT);
+
+        std::vector<uint64_t> samplerates =
+            audio_output::get_available_samplerates(-1, -1);
+        std::vector<std::string> samplerates_str;
+        for(uint64_t sr: samplerates)
+            samplerates_str.push_back(std::to_string(sr));
+        std::vector<const char*> samplerates_cstr;
+        for(std::string& str: samplerates_str)
+            samplerates_cstr.push_back(str.c_str());
+
+        nk_combo(
+            ctx, samplerates_cstr.data(), samplerates_cstr.size(),
+            0, 25, nk_vec2(260, 200)
+        );
+
+        nk_label(ctx, "Target latency: ", NK_TEXT_LEFT);
+
+        nk_propertyi(
+            ctx, "#Milliseconds:", 0, 25, 1000, 1, 5
         );
 
         nk_layout_row_dynamic(ctx, 30, 2);
