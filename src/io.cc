@@ -1,5 +1,6 @@
 #include "io.hh"
 #include "bindings.hh"
+#include "options.hh"
 #include "synth_state.hh"
 #include "SDL.h"
 #include <cstdio>
@@ -294,4 +295,22 @@ std::vector<synth_state> load_all_synths(uint64_t samplerate)
     }
 
     return synths;
+}
+
+void write_options(const options& opts)
+{
+    write_json_file(get_writable_path()/"options.json", opts.serialize());
+}
+
+void load_options(options& opts)
+{
+    try
+    {
+        opts.deserialize(read_json_file(get_writable_path()/"options.json"));
+    }
+    // Failure is fine, just reset options.
+    catch(...)
+    {
+        opts = options();
+    }
 }

@@ -4,6 +4,7 @@
 #include "fm.hh"
 #include "control_state.hh"
 #include "synth_state.hh"
+#include "options.hh"
 #include "bindings.hh"
 #include "controller/controller.hh"
 #include "audio.hh"
@@ -87,6 +88,8 @@ private:
 
     void reset_synth(bool refresh_only = true);
 
+    void apply_options(const options& new_opts);
+
     nk_context* ctx;
     SDL_Window* win;
     SDL_GLContext gl_ctx;
@@ -116,9 +119,10 @@ private:
     float master_volume;
     control_state control;
 
-    uint64_t samplerate;
     std::vector<synth_state> all_synths;
     synth_state synth;
+
+    options opts;
 
     std::map<std::string, bindings> all_bindings;
     std::vector<bindings> compatible_bindings;

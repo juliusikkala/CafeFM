@@ -30,4 +30,9 @@ void write_synth(uint64_t samplerate, synth_state& synth);
 void remove_synth(const synth_state& synth);
 std::vector<synth_state> load_all_synths(uint64_t samplerate);
 
+class options;
+
+void write_options(const options& opts);
+void load_options(options& opts);
+
 #endif

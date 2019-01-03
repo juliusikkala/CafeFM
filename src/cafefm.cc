@@ -244,7 +244,7 @@ void cafefm::load()
     load_texture(gray_warn_img, "gray_warning.png");
 
     // Load synth presets
-    samplerate = 44100;
+    load_options(opts);
 
     update_all_synths();
     create_new_synth();
@@ -558,29 +558,29 @@ unsigned cafefm::gui_carrier(oscillator_type& type)
 
             static constexpr float expt = 4.0f;
 
-            float attack = synth.adsr.attack_length/(double)samplerate;
+            float attack = synth.adsr.attack_length/(double)opts.samplerate;
             nk_labelf(ctx, NK_TEXT_LEFT, "Attack: %.2fs", attack);
             attack = pow(attack, 1.0/expt);
             nk_slider_float(
                 ctx, pow(0.001f, 1.0/expt), &attack, pow(4.0f, 1.0/expt), 0.01f
             );
-            synth.adsr.attack_length = pow(attack, expt)*samplerate;
+            synth.adsr.attack_length = pow(attack, expt)*opts.samplerate;
 
-            float decay = synth.adsr.decay_length/(double)samplerate;
+            float decay = synth.adsr.decay_length/(double)opts.samplerate;
             nk_labelf(ctx, NK_TEXT_LEFT, "Decay: %.2fs", decay);
             decay = pow(decay, 1.0/expt);
             nk_slider_float(
                 ctx, pow(0.001f, 1.0/expt), &decay, pow(4.0f, 1.0/expt), 0.01f
             );
-            synth.adsr.decay_length = pow(decay, expt)*samplerate;
+            synth.adsr.decay_length = pow(decay, expt)*opts.samplerate;
 
-            float release = synth.adsr.release_length/(double)samplerate;
+            float release = synth.adsr.release_length/(double)opts.samplerate;
             nk_labelf(ctx, NK_TEXT_LEFT, "Release: %.2fs", release);
             release = pow(release, 1.0/expt);
             nk_slider_float(
                 ctx, pow(0.001f, 1.0/expt), &release, pow(4.0f, 1.0/expt), 0.01f
             );
-            synth.adsr.release_length = pow(release, expt)*samplerate;
+            synth.adsr.release_length = pow(release, expt)*opts.samplerate;
 
             nk_group_end(ctx);
         }
@@ -1518,6 +1518,8 @@ void cafefm::gui_options_editor()
     // Save, etc. controls at the top
     if(nk_group_begin(ctx, "Options", NK_WINDOW_NO_SCROLLBAR))
     {
+        options new_opts(opts);
+
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 120);
         nk_layout_row_template_push_dynamic(ctx);
@@ -1529,16 +1531,19 @@ void cafefm::gui_options_editor()
             audio_output::get_available_systems();
         systems.insert(systems.begin(), "Auto");
 
-        nk_combo(ctx, systems.data(), systems.size(), 0, 25, nk_vec2(260, 200));
+        new_opts.system_index = nk_combo(
+            ctx, systems.data(), systems.size(),
+            opts.system_index+1, 25, nk_vec2(260, 200)
+        )-1;
 
         nk_label(ctx, "Output device: ", NK_TEXT_LEFT);
 
         std::vector<const char*> devices =
-            audio_output::get_available_devices(-1);
-        devices.insert(devices.begin(), "Auto");
+            audio_output::get_available_devices(new_opts.system_index);
 
-        nk_combo(
-            ctx, devices.data(), devices.size(), 0, 25, nk_vec2(260, 200)
+        new_opts.device_index = nk_combo(
+            ctx, devices.data(), devices.size(),
+            opts.device_index < 0 ? 0 : opts.device_index, 25, nk_vec2(260, 200)
         );
 
         nk_label(ctx, "Samplerate: ", NK_TEXT_LEFT);
@@ -1546,30 +1551,38 @@ void cafefm::gui_options_editor()
         std::vector<uint64_t> samplerates =
             audio_output::get_available_samplerates(-1, -1);
         std::vector<std::string> samplerates_str;
-        for(uint64_t sr: samplerates)
+        unsigned samplerate_index = 0;
+        for(unsigned i = 0; i < samplerates.size(); ++i)
+        {
+            uint64_t sr = samplerates[i];
+            if(sr == opts.samplerate) samplerate_index = i;
             samplerates_str.push_back(std::to_string(sr));
+        }
         std::vector<const char*> samplerates_cstr;
         for(std::string& str: samplerates_str)
             samplerates_cstr.push_back(str.c_str());
 
-        nk_combo(
+        new_opts.samplerate = samplerates[nk_combo(
             ctx, samplerates_cstr.data(), samplerates_cstr.size(),
-            0, 25, nk_vec2(260, 200)
-        );
+            samplerate_index, 25, nk_vec2(260, 200)
+        )];
 
         nk_label(ctx, "Target latency: ", NK_TEXT_LEFT);
 
-        nk_propertyi(
-            ctx, "#Milliseconds:", 0, 25, 1000, 1, 5
-        );
+        int milliseconds = round(opts.target_latency*1000.0);
+        nk_property_int(ctx, "#Milliseconds:", 0, &milliseconds, 1000, 1, 1);
+        new_opts.target_latency = milliseconds/1000.0;
+
+        if(new_opts != opts)
+            apply_options(new_opts);
 
         nk_layout_row_dynamic(ctx, 30, 2);
 
         if(nk_button_label(ctx, "Save settings"))
-            printf("Should save!\n");
+            write_options(opts);
 
         if(nk_button_label(ctx, "Reset settings"))
-            printf("Should reset!\n");
+            apply_options(options());
 
         if(nk_button_label(ctx, "Open bindings folder"))
             open_bindings_folder();
@@ -1898,7 +1911,7 @@ void cafefm::select_synth(unsigned index)
 void cafefm::save_current_synth()
 {
     synth.write_lock = false;
-    write_synth(samplerate, synth);
+    write_synth(opts.samplerate, synth);
     update_all_synths();
 
     for(unsigned i = 0; i < all_synths.size(); ++i)
@@ -1915,7 +1928,7 @@ void cafefm::create_new_synth()
 {
     selected_synth_preset = -1;
 
-    synth = synth_state(samplerate);
+    synth = synth_state(opts.samplerate);
 
     std::string name = "New synth";
     std::string modified_name = name;
@@ -1949,7 +1962,7 @@ void cafefm::delete_current_synth()
 
 void cafefm::update_all_synths()
 {
-    all_synths = load_all_synths(samplerate);
+    all_synths = load_all_synths(opts.samplerate);
 }
 
 void cafefm::reset_synth(bool refresh_only)
@@ -1963,7 +1976,7 @@ void cafefm::reset_synth(bool refresh_only)
     {
         new_synth.reset(
             create_fm_synth(
-                samplerate,
+                opts.samplerate,
                 synth.carrier,
                 synth.modulators
             )
@@ -1973,7 +1986,7 @@ void cafefm::reset_synth(bool refresh_only)
     }
     else
     {
-        new_synth.reset(synth.create_synth(samplerate));
+        new_synth.reset(synth.create_synth(opts.samplerate));
         master_volume = 1.0/synth.polyphony;
         new_synth->set_volume(master_volume);
     }
@@ -1981,6 +1994,26 @@ void cafefm::reset_synth(bool refresh_only)
     if(fm_synth) new_synth->copy_state(*fm_synth);
 
     fm_synth.swap(new_synth);
-    output.reset(new audio_output(*fm_synth));
+    output.reset(
+        new audio_output(
+            *fm_synth,
+            opts.target_latency,
+            opts.system_index,
+            opts.device_index
+        )
+    );
     output->start();
+}
+
+void cafefm::apply_options(const options& new_opts)
+{
+    synth.adsr = synth.adsr.convert(opts.samplerate, new_opts.samplerate);
+    for(synth_state& state: all_synths)
+    {
+        state.adsr = state.adsr.convert(opts.samplerate, new_opts.samplerate);
+    }
+
+    opts = new_opts;
+    reset_synth();
+    control.apply(*fm_synth, master_volume, synth);
 }
