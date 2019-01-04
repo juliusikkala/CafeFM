@@ -196,6 +196,7 @@ cafefm::~cafefm()
 
 void cafefm::load()
 {
+    // Setup GUI state
     selected_tab = 0;
     selected_bindings_preset = -1;
     selected_synth_preset = -1;
@@ -203,6 +204,7 @@ void cafefm::load()
     // Determine data directories
     fs::path font_dir("data/fonts");
     fs::path img_dir("data/images");
+    fs::path icon_dir("data/icon");
 #ifdef DATA_DIRECTORY
     fs::path data_dir(DATA_DIRECTORY);
 #ifdef NDEBUG
@@ -213,8 +215,13 @@ void cafefm::load()
     {
         font_dir = DATA_DIRECTORY/font_dir;
         img_dir = DATA_DIRECTORY/img_dir;
+        icon_dir = DATA_DIRECTORY/icon_dir;
     }
 #endif
+
+    // Load icon first, to display it ASAP.
+    icon = IMG_Load((icon_dir/"128.png").string().c_str());
+    if(icon) SDL_SetWindowIcon(win, icon);
 
     // Load fonts
     static const nk_rune nk_font_glyph_ranges[] = {
@@ -316,6 +323,8 @@ void cafefm::unload()
 
     nk_sdl_destroy_texture(yellow_warn_img.handle.id);
     nk_sdl_destroy_texture(gray_warn_img.handle.id);
+
+    SDL_FreeSurface(icon);
 }
 
 void cafefm::render()
@@ -545,7 +554,7 @@ void cafefm::gui_draw_adsr(const envelope& adsr)
     nk_layout_space_end(ctx);
 }
 
-unsigned cafefm::gui_oscillator_type(oscillator_type& type)
+unsigned cafefm::gui_oscillator_type(oscillator_type& type, bool down)
 {
     static const char* oscillator_labels[] = {
         "Sine",
@@ -560,8 +569,8 @@ unsigned cafefm::gui_oscillator_type(oscillator_type& type)
         oscillator_labels,
         sizeof(oscillator_labels)/sizeof(const char*),
         old_type,
-        25,
-        nk_vec2(200, 200)
+        20,
+        nk_vec2(180, down?200:-200)
     );
     return old_type != type ? CHANGE_REQUIRE_RESET : CHANGE_NONE;
 }
@@ -682,7 +691,7 @@ unsigned cafefm::gui_modulator(
             nk_layout_row_dynamic(ctx, 30, 1);
             nk_label(ctx, "Waveform:", NK_TEXT_LEFT);
             oscillator_type type = osc.get_type();
-            mask |= gui_oscillator_type(type);
+            mask |= gui_oscillator_type(type, index < 2);
             osc.set_type(type);
 
             nk_group_end(ctx);
@@ -1685,8 +1694,8 @@ void cafefm::gui_options_editor()
             const char* help_titles[] = {
                 "There is no help.",
                 "Press OK.",
-                "You have reached the world's edge.",
-                "None but devils play past here.",
+                "Go away.",
+                "...",
                 "-.-",
                 "Chapter 1. A game of cards.",
                 "Pick one.",

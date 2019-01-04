@@ -24360,6 +24360,7 @@ nk_combo_begin(struct nk_context *ctx, struct nk_window *win,
     struct nk_window *popup;
     int is_open = 0;
     int is_active = 0;
+    int is_above = size.y < 0;
     struct nk_rect body;
     nk_hash hash;
 
@@ -24372,8 +24373,17 @@ nk_combo_begin(struct nk_context *ctx, struct nk_window *win,
     popup = win->popup.win;
     body.x = header.x;
     body.w = size.x;
-    body.y = header.y + header.h-ctx->style.window.combo_border;
-    body.h = size.y;
+    if (is_above)
+    {
+        // TODO: This hack should probably be cleaned up ;)
+        body.y = header.y + size.y+10;
+        body.h = -size.y-10;
+    }
+    else
+    {
+        body.y = header.y + header.h-ctx->style.window.combo_border;
+        body.h = size.y;
+    }
 
     hash = win->popup.combo_count++;
     is_open = (popup) ? nk_true:nk_false;
@@ -24969,6 +24979,7 @@ nk_combo(struct nk_context *ctx, const char **items, int count,
 {
     int i = 0;
     int max_height;
+    int is_above = size.y < 0;
     struct nk_vec2 item_spacing;
     struct nk_vec2 window_padding;
 
@@ -24982,7 +24993,7 @@ nk_combo(struct nk_context *ctx, const char **items, int count,
     window_padding = nk_panel_get_padding(&ctx->style, ctx->current->layout->type);
     max_height = count * item_height + count * (int)item_spacing.y;
     max_height += (int)item_spacing.y * 2 + (int)window_padding.y * 2;
-    size.y = NK_MIN(size.y, (float)max_height);
+    size.y = is_above ? NK_MAX(size.y, (float)-max_height) : NK_MIN(size.y, (float)max_height);
     if (nk_combo_begin_label(ctx, items[selected], size)) {
         nk_layout_row_dynamic(ctx, (float)item_height, 1);
         for (i = 0; i < count; ++i) {

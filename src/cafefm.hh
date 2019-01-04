@@ -39,7 +39,7 @@ private:
     void gui_keyboard_grab();
     void gui_controller_manager();
     void gui_draw_adsr(const envelope& adsr);
-    unsigned gui_oscillator_type(oscillator_type& type);
+    unsigned gui_oscillator_type(oscillator_type& type, bool down = true);
     unsigned gui_carrier(oscillator_type& type);
     unsigned gui_modulator(
         dynamic_oscillator& osc,
@@ -93,6 +93,8 @@ private:
     nk_context* ctx;
     SDL_Window* win;
     SDL_GLContext gl_ctx;
+
+    SDL_Surface* icon;
 
     struct nk_font* small_font;
     struct nk_font* medium_font;
