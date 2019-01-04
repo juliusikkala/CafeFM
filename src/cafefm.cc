@@ -34,14 +34,14 @@ namespace
         {
             struct nk_style_button button;
             button = ctx->style.button;
-            ctx->style.button.normal = nk_style_item_color(nk_rgb(40,40,40));
-            ctx->style.button.hover = nk_style_item_color(nk_rgb(40,40,40));
-            ctx->style.button.active = nk_style_item_color(nk_rgb(40,40,40));
-            ctx->style.button.border_color = nk_rgb(60,60,60);
-            ctx->style.button.text_background = nk_rgb(60,60,60);
-            ctx->style.button.text_normal = nk_rgb(60,60,60);
-            ctx->style.button.text_hover = nk_rgb(60,60,60);
-            ctx->style.button.text_active = nk_rgb(60,60,60);
+            ctx->style.button.normal = nk_style_item_color(nk_rgb(40,34,31));
+            ctx->style.button.hover = nk_style_item_color(nk_rgb(40,34,31));
+            ctx->style.button.active = nk_style_item_color(nk_rgb(40,34,31));
+            ctx->style.button.border_color = nk_rgb(60,51,47);
+            ctx->style.button.text_background = nk_rgb(60,51,47);
+            ctx->style.button.text_normal = nk_rgb(60,51,47);
+            ctx->style.button.text_hover = nk_rgb(60,51,47);
+            ctx->style.button.text_active = nk_rgb(60,51,47);
             nk_button_label(ctx, title);
             ctx->style.button = button;
             return 0;
@@ -230,6 +230,42 @@ void cafefm::load()
     medium_font = nk_font_atlas_add_from_file(atlas, font_file.c_str(), 19, 0);
     huge_font = nk_font_atlas_add_from_file(atlas, font_file.c_str(), 23, 0);
     nk_sdl_font_stash_end();
+
+    // Setup theme
+    struct nk_color fg = nk_rgba(175, 150, 130, 255);
+    struct nk_color fg_hover = nk_rgba(205, 180, 160, 255);
+    struct nk_color fg_active = nk_rgba(226, 178, 139, 255);
+    struct nk_color table[NK_COLOR_COUNT];
+
+    table[NK_COLOR_TEXT] = nk_rgba(195,190,185,255);
+    table[NK_COLOR_WINDOW] = nk_rgba(45, 38, 35, 255);
+    table[NK_COLOR_HEADER] = nk_rgba(40, 34, 31, 255);
+    table[NK_COLOR_BORDER] = nk_rgba(65, 55, 51, 255);
+    table[NK_COLOR_BUTTON] = nk_rgba(50, 42, 39, 255);
+    table[NK_COLOR_BUTTON_HOVER] = nk_rgba(40, 34, 31, 255);
+    table[NK_COLOR_BUTTON_ACTIVE] = nk_rgba(35, 30, 27, 255);
+    table[NK_COLOR_TOGGLE] = nk_rgba(100,84,78,255);
+    table[NK_COLOR_TOGGLE_HOVER] = nk_rgba(120,101,93,255);
+    table[NK_COLOR_TOGGLE_CURSOR] = nk_rgba(45, 38, 35, 255);
+    table[NK_COLOR_SELECT] = nk_rgba(45, 38, 35, 255);
+    table[NK_COLOR_SELECT_ACTIVE] = nk_rgba(35, 30, 27, 255);
+    table[NK_COLOR_SLIDER] = nk_rgba(38, 32, 30, 255);
+    table[NK_COLOR_SLIDER_CURSOR] = fg;
+    table[NK_COLOR_SLIDER_CURSOR_HOVER] = fg_hover;
+    table[NK_COLOR_SLIDER_CURSOR_ACTIVE] = fg_active;
+    table[NK_COLOR_PROPERTY] = nk_rgba(38, 32, 30, 255);
+    table[NK_COLOR_EDIT] = nk_rgba(38, 32, 30, 255);
+    table[NK_COLOR_EDIT_CURSOR] = nk_rgba(175,175,175,255);
+    table[NK_COLOR_COMBO] = nk_rgba(45, 38, 35, 255);
+    table[NK_COLOR_CHART] = nk_rgba(120,101,93,255);
+    table[NK_COLOR_CHART_COLOR] = nk_rgba(45, 38, 35, 255);
+    table[NK_COLOR_CHART_COLOR_HIGHLIGHT] = nk_rgba(255, 0,  0, 255);
+    table[NK_COLOR_SCROLLBAR] = nk_rgba(38, 32, 30, 255);
+    table[NK_COLOR_SCROLLBAR_CURSOR] = fg;
+    table[NK_COLOR_SCROLLBAR_CURSOR_HOVER] = fg_hover;
+    table[NK_COLOR_SCROLLBAR_CURSOR_ACTIVE] = fg_active;
+    table[NK_COLOR_TAB_HEADER] = nk_rgba(40, 34, 31, 255);
+    nk_style_from_table(ctx, table);
 
     // Load textures
     int id = -1;
@@ -453,9 +489,9 @@ void cafefm::gui_draw_adsr(const envelope& adsr)
     float sustain_y =
         t.h-(adsr.sustain_volume_num/(double)adsr.peak_volume_num)*t.h;
 
-    const struct nk_color bg_color = nk_rgb(30, 30, 30);
-    const struct nk_color line_color = nk_rgb(175, 175, 175);
-    const struct nk_color border_color = nk_rgb(100, 100, 100);
+    const struct nk_color bg_color = nk_rgb(38, 32, 30);
+    const struct nk_color line_color = nk_rgb(175, 150, 130);
+    const struct nk_color border_color = nk_rgb(100, 84, 78);
     // Border & background
     nk_fill_rect(canvas, s, 4.0, bg_color);
     nk_stroke_rect(canvas, s, 4.0, 4.0f, border_color);
