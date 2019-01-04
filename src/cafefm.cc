@@ -713,7 +713,7 @@ unsigned cafefm::gui_modulator(
             float old_amplitude = osc.get_amplitude();
             float amplitude = old_amplitude;
             nk_labelf(ctx, NK_TEXT_LEFT, "%.2f", old_amplitude);
-            nk_slider_float(ctx, 0, &amplitude, 2.0f, 0.05f);
+            nk_slider_float(ctx, 0, &amplitude, 4.0f, 0.05f);
             if(amplitude != old_amplitude)
             {
                 osc.set_amplitude(amplitude);
@@ -736,7 +736,7 @@ unsigned cafefm::gui_modulator(
             double period = period_denom/(double)period_num;
 
             period = fixed_propertyd(
-                ctx, "#Period:", 0.0, period, 32.0, 0.01, 0.01
+                ctx, "#Period:", 0.0, period, 1024.0, 0.01, 0.01
             );
             uint64_t new_period_denom = round(period*period_num);
 
@@ -752,7 +752,6 @@ unsigned cafefm::gui_modulator(
             );
             if(fabs(new_phase-phase)>1e-8)
             {
-                printf("Phase change! %f => %f\n", phase, new_phase);
                 osc.set_phase_constant(new_phase);
                 mask |= CHANGE_REQUIRE_IMPORT;
             }
