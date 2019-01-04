@@ -1245,7 +1245,7 @@ nk_color cafefm::gui_bind_background_color(bind& b)
     nk_color bg = ctx->style.window.background;
     if(!selected_controller) return bg;
 
-    nk_color active = nk_rgb(30,30,30);
+    nk_color active = nk_rgb(30,25,23);
     double value = fabs(b.get_value(control, selected_controller));
     value = std::min(1.0, value);
     bg.r = round(lerp(bg.r, active.r, value));
