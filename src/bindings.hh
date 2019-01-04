@@ -32,6 +32,8 @@ struct bind
     // Ignored for AXIS_1D_CONTINUOUS
     bool toggle;
     bool cumulative;
+    // If set, toggle and cumulative should be false.
+    bool stacking;
 
     union
     {

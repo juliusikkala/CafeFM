@@ -22,6 +22,9 @@ public:
     void clear_cumulation(action_id id);
     double get_cumulation(action_id id);
 
+    void set_stacking(action_id id, int s);
+    int get_stacking(action_id id) const;
+
     void erase_action(action_id id);
 
     void press_key(action_id id, int semitone);
@@ -79,6 +82,7 @@ private:
     std::map<instrument::voice_id, action_id> pressed_keys;
 
     std::map<action_id, int> toggle_state;
+    std::map<action_id, int> stacking;
     std::map<
         action_id,
         std::pair<double /* Cumulation */, double /* Speed */>

@@ -36,6 +36,18 @@ double control_state::get_cumulation(action_id id)
     return it->second.first;
 }
 
+void control_state::set_stacking(action_id id, int s)
+{
+    stacking[id] = s;
+}
+
+int control_state::get_stacking(action_id id) const
+{
+    auto it = stacking.find(id);
+    if(it == stacking.end()) return 0;
+    return it->second;
+}
+
 void control_state::erase_action(action_id id)
 {
     for(unsigned i = 0; i < press_queue.size(); ++i)
@@ -50,6 +62,7 @@ void control_state::erase_action(action_id id)
     release_key(id);
 
     toggle_state.erase(id);
+    stacking.erase(id);
     cumulative_state.erase(id);
 
     freq_expt.erase(id);
@@ -161,6 +174,7 @@ void control_state::reset()
     release_queue.clear();
     pressed_keys.clear();
     toggle_state.clear();
+    stacking.clear();
     cumulative_state.clear();
     freq_expt.clear();
     volume_mul.clear();

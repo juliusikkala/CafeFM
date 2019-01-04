@@ -1079,16 +1079,22 @@ void cafefm::gui_bind_modifiers(
     if(b.control == bind::UNBOUND) return;
 
     bool allow_invert = false;
+    bool allow_stacking = allow_cumulative;
 
     if(
         b.control == bind::AXIS_1D_CONTINUOUS ||
         b.control == bind::AXIS_1D_THRESHOLD
-    ) allow_invert = true;
+    ){
+        allow_invert = true;
+    }
     else allow_threshold = false;
+    if(b.control == bind::AXIS_1D_CONTINUOUS)
+        allow_stacking = false;
 
     bool multiple =
         ((int)allow_toggle +
         (int)allow_cumulative +
+        (int)allow_stacking +
         (int)allow_threshold +
         (int)allow_invert) > 1;
 
@@ -1111,6 +1117,16 @@ void cafefm::gui_bind_modifiers(
         has_threshold = !nk_check_label(ctx, "Threshold", !has_threshold);
         if(has_threshold) b.control = bind::AXIS_1D_THRESHOLD;
         else b.control = bind::AXIS_1D_CONTINUOUS;
+    }
+
+    if(allow_stacking)
+    {
+        b.stacking = !nk_check_label(ctx, "Stacking", !b.stacking);
+        if(b.stacking)
+        {
+            b.toggle = false;
+            b.cumulative = false;
+        }
     }
 
     if(allow_invert)

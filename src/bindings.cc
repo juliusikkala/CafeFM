@@ -16,7 +16,7 @@ static const char* const action_strings[] = {
 
 bind::bind(enum action a)
 :   id(0), wait_assign(false), control(UNBOUND), toggle(false),
-    cumulative(false), action(a)
+    cumulative(false), stacking(false), action(a)
 {
     switch(action)
     {
@@ -68,6 +68,7 @@ json bind::serialize() const
     if(control != AXIS_1D_CONTINUOUS)
         j["control"]["toggle"] = toggle;
     j["control"]["cumulative"] = cumulative;
+    j["control"]["stacking"] = stacking;
 
     j["action"]["type"] = action_strings[(unsigned)action];
 
@@ -130,6 +131,7 @@ bool bind::deserialize(const json& j)
 
         toggle = j.at("control").value("toggle", false);
         cumulative = j.at("control").value("cumulative", false);
+        stacking = j.at("control").value("stacking", false);
 
         std::string action_str = j.at("action").at("type").get<std::string>();
         int action_i = find_string_arg(
@@ -237,7 +239,11 @@ double bind::get_value(const control_state& state, const controller* c) const
     double v = input_value(c);
     if(control == AXIS_1D_THRESHOLD) v = v > axis_1d.threshold ? 1.0 : 0.0;
 
-    if(toggle)
+    if(stacking)
+    {
+        return state.get_stacking(id);
+    }
+    else if(toggle)
     {
         int prev_state = state.get_toggle_state(id);
         // Mealy state machine. States:
@@ -262,6 +268,21 @@ bool bind::update_value(
     v = input_value(c);
     if(control == AXIS_1D_THRESHOLD) v = v > axis_1d.threshold ? 1.0 : 0.0;
 
+    if(stacking)
+    {
+        // Stacking control uses toggle state to remove repeat presses from
+        // thresholding.
+        int prev_state = state.get_toggle_state(id);
+        bool d = v > 0.5;
+        int s = state.get_stacking(id);
+        if(prev_state == 0 && d)
+        {
+            s++;
+            state.set_stacking(id, s);
+        }
+        state.set_toggle_state(id, (int)d);
+        v = s;
+    }
     if(toggle)
     {
         int prev_state = state.get_toggle_state(id);
