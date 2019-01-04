@@ -105,7 +105,7 @@ void instrument::press_voice(voice_id id, int semitone)
     voices[id].release_timer = adsr.release_length;
     voices[id].semitone = semitone;
     voices[id].volume = 0;
-    refresh_voice(id);
+    reset_voice(id);
 }
 
 void instrument::release_voice(voice_id id)

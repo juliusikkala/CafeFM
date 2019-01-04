@@ -24,12 +24,17 @@ public:
         context();
 
         void period_changed();
+        void reset();
 
         int64_t time_offset, phase_offset;
         int64_t t, x;
     };
 
-    basic_oscillator(double period = 1.0, double amplitude = 1.0);
+    basic_oscillator(
+        double period = 1.0,
+        double amplitude = 1.0,
+        double phase_constant = 0.0
+    );
     ~basic_oscillator();
 
     bool operator!=(const basic_oscillator& o) const
@@ -38,7 +43,8 @@ public:
             o.amp_num != amp_num ||
             o.amp_denom != amp_denom ||
             o.period_num != period_num ||
-            o.period_denom != period_denom
+            o.period_denom != period_denom ||
+            o.phase_constant != phase_constant
         );
     }
 
@@ -52,9 +58,15 @@ public:
     void get_period(uint64_t& period_num, uint64_t& period_denom) const;
     void set_frequency(double freq, uint64_t samplerate);
 
+    void set_phase_constant(int64_t offset);
+    void set_phase_constant(double offset);
+    int64_t get_phase_constant() const;
+    double get_phase_constant_double() const;
+
 protected:
     int64_t amp_num, amp_denom;
     uint64_t period_num, period_denom;
+    int64_t phase_constant;
 };
 
 template<oscillator_type Type>
@@ -82,7 +94,7 @@ public:
         ctx.t = t;
         ctx.x = period_num * (t + ctx.time_offset)
             / period_denom + ctx.phase_offset;
-        int64_t x = ctx.x + phase_shift;
+        int64_t x = ctx.x + phase_shift + phase_constant;
 
         int64_t u;
         if constexpr(Type == OSC_SINE) u = i32sin(x);
@@ -149,35 +161,44 @@ public:
         uint64_t period_num,
         uint64_t period_denom
     ){
-        if(i == 0)
-        {
-            oscillator<Type>::set_period_fract(period_num, period_denom);
-        }
+        if(i == 0) oscillator<Type>::set_period_fract(period_num, period_denom);
         else modulators.set_period_fract(i-1, period_num, period_denom);
     }
 
     void set_period(unsigned i, double period, uint64_t denom=65536)
     {
-        if(i == 0)
-        {
-            oscillator<Type>::set_period(period, denom);
-        }
+        if(i == 0) oscillator<Type>::set_period(period, denom);
         else modulators.set_period(i-1, period, denom);
     }
 
     void set_frequency(unsigned i, double freq, int64_t samplerate)
     {
-        if(i == 0)
-        {
-            oscillator<Type>::set_frequency(freq, samplerate);
-        }
+        if(i == 0) oscillator<Type>::set_frequency(freq, samplerate);
         else modulators.set_frequency(i-1, freq, samplerate);
+    }
+
+    void set_phase_constant(unsigned i, int64_t offset)
+    {
+        if(i == 0) oscillator<Type>::set_phase_constant(offset);
+        else modulators.set_phase_constant(i-1, offset);
+    }
+
+    void set_phase_constant(unsigned i, double offset)
+    {
+        if(i == 0) oscillator<Type>::set_phase_constant(offset);
+        else modulators.set_phase_constant(i-1, offset);
     }
 
     void period_changed(context& ctx)
     {
         ctx.first.period_changed();
         modulators.period_changed(ctx.second);
+    }
+
+    void reset(context& ctx)
+    {
+        ctx.first.reset();
+        modulators.reset(ctx.second);
     }
 
     bool import_oscillators(
@@ -257,9 +278,24 @@ public:
         oscillator<Type>::set_frequency(freq, samplerate);
     }
 
+    void set_phase_constant(unsigned i, int64_t offset)
+    {
+        oscillator<Type>::set_phase_constant(offset);
+    }
+
+    void set_phase_constant(unsigned i, double offset)
+    {
+        oscillator<Type>::set_phase_constant(offset);
+    }
+
     void period_changed(context& ctx)
     {
         ctx.period_changed();
+    }
+
+    void reset(context& ctx)
+    {
+        ctx.reset();
     }
 
     bool import_oscillators(
@@ -301,7 +337,9 @@ public:
     void set_period_fract(...) {}
     void set_period(...) {}
     void set_frequency(...) {}
+    void set_phase_constant(...) {}
     void period_changed(...) {}
+    void reset(...) {}
     bool import_oscillators(...) { return false; }
     void export_oscillators(...) const {}
 };
@@ -325,6 +363,12 @@ public:
     {
         ctx.first.period_changed();
         modulators->period_changed(ctx.second);
+    }
+
+    void reset(context& ctx)
+    {
+        ctx.first.reset();
+        modulators->reset(ctx.second);
     }
 
     inline int64_t calc_sample(context& ctx, int64_t x)
@@ -356,6 +400,11 @@ public:
     void period_changed(context& ctx)
     {
         ctx.period_changed();
+    }
+
+    void reset(context& ctx)
+    {
+        ctx.reset();
     }
 
     inline int64_t calc_sample(context& ctx, int64_t x)
@@ -453,6 +502,12 @@ protected:
     {
         carriers[id].set_frequency(get_frequency(id), get_samplerate());
         carriers[id].period_changed(contexts[id]);
+    }
+
+    void reset_voice(voice_id id)
+    {
+        carriers[id].set_frequency(get_frequency(id), get_samplerate());
+        carriers[id].reset(contexts[id]);
     }
 
     void handle_polyphony(unsigned n) override

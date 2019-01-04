@@ -48,6 +48,19 @@ namespace
         }
     }
 
+    // Stupid hack to fix nuklear's rounding and decimals.
+    double fixed_propertyd(
+        struct nk_context *ctx, const char *name, double min,
+        double val, double max, double step, double inc_per_pixel,
+        double eps = 0.00001
+    ){
+        double mstep = std::min(step, inc_per_pixel);
+        double ret = nk_propertyd(
+            ctx, name, min+eps, val+eps, max+eps, step, inc_per_pixel
+        )-eps;
+        return round(ret/mstep)*mstep;
+    }
+
     void axis_widget(
         struct nk_context* ctx,
         double input_value,
@@ -701,32 +714,37 @@ unsigned cafefm::gui_modulator(
             nk_group_end(ctx);
         }
 
-        // Period controls
+        // Period & Phase controls
         if(nk_group_begin(
             ctx,
-            (name_table[index]+" Period").c_str(),
+            (name_table[index]+" Period & Phase").c_str(),
             NK_WINDOW_NO_SCROLLBAR
         )){
             nk_layout_row_dynamic(ctx, 30, 1);
-            nk_label(ctx, "Period:", NK_TEXT_LEFT);
-            nk_layout_row_template_begin(ctx, 30);
-            nk_layout_row_template_push_static(ctx, 30);
-            nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_end(ctx);
 
             uint64_t period_denom = 0, period_num = 0;
             osc.get_period(period_num, period_denom);
-            int new_period_denom = period_denom;
+            double period = period_denom/(double)period_num;
 
-            nk_labelf(
-                ctx, NK_TEXT_LEFT, "%.2f", period_denom/(double)period_num
+            period = fixed_propertyd(
+                ctx, "#Period:", 0.0, period, 32.0, 0.01, 0.01
             );
-            nk_slider_int(
-                ctx, 1, &new_period_denom, period_num*8, period_num/16
-            );
-            if((uint64_t)new_period_denom != period_denom)
+            uint64_t new_period_denom = round(period*period_num);
+
+            if(new_period_denom != period_denom)
             {
                 osc.set_period_fract(period_num, new_period_denom);
+                mask |= CHANGE_REQUIRE_IMPORT;
+            }
+
+            double phase = osc.get_phase_constant_double();
+            double new_phase = fixed_propertyd(
+                ctx, "#Phase:", 0.0, phase, 1.0, 0.01, 0.01
+            );
+            if(fabs(new_phase-phase)>1e-8)
+            {
+                printf("Phase change! %f => %f\n", phase, new_phase);
+                osc.set_phase_constant(new_phase);
                 mask |= CHANGE_REQUIRE_IMPORT;
             }
 
@@ -985,10 +1003,6 @@ void cafefm::gui_bind_action(bind& b)
         "Attack", "Decay", "Sustain", "Release"
     };
 
-    // Needed for stupid hacks to fix nuklear's rounding and decimals.
-    static constexpr double eps = 0.001;
-    static constexpr double step = 0.01;
-
     switch(b.action)
     {
     case bind::KEY:
@@ -1024,10 +1038,9 @@ void cafefm::gui_bind_action(bind& b)
         );
         break;
     case bind::VOLUME_MUL:
-        b.volume.max_mul = nk_propertyd(
-            ctx, "#Multiplier:", eps, b.volume.max_mul+eps, 2.0+eps, 0.05, step
-        )-eps;
-        b.volume.max_mul = round(b.volume.max_mul/step)*step;
+        b.volume.max_mul = fixed_propertyd(
+            ctx, "#Multiplier:", 0.0, b.volume.max_mul, 2.0, 0.05, 0.01
+        );
         break;
     case bind::PERIOD_EXPT:
         nk_combobox(
@@ -1045,11 +1058,9 @@ void cafefm::gui_bind_action(bind& b)
             sizeof(modulator_index_names)/sizeof(*modulator_index_names),
             (int*)&b.amplitude.modulator_index, 20, nk_vec2(60, 80)
         );
-        b.amplitude.max_mul = nk_propertyd(
-            ctx, "#Multiplier:", eps, b.amplitude.max_mul+eps,
-            8.0+eps, 0.05, step
-        )-eps;
-        b.amplitude.max_mul = round(b.amplitude.max_mul/step)*step;
+        b.amplitude.max_mul = fixed_propertyd(
+            ctx, "#Multiplier:", 0.0, b.amplitude.max_mul, 8.0, 0.05, 0.01
+        );
         break;
     case bind::ENVELOPE_ADJUST:
         nk_combobox(
@@ -1060,14 +1071,12 @@ void cafefm::gui_bind_action(bind& b)
         if(b.envelope.which == 2)
         {
             if(b.envelope.max_mul > 2.0) b.envelope.max_mul = 2.0;
-            b.envelope.max_mul = nk_propertyd(
-                ctx, "#Multiplier:", eps, b.envelope.max_mul+eps,
-                2.0+eps, 0.05, step
-            )-eps;
-            b.envelope.max_mul = round(b.envelope.max_mul/step)*step;
+            b.envelope.max_mul = fixed_propertyd(
+                ctx, "#Multiplier:", 0.0, b.envelope.max_mul, 2.0, 0.05, 0.01
+            );
         }
         else nk_property_double(
-            ctx, "#Multiplier:", eps, &b.envelope.max_mul, 128.0, 0.5, 0.25
+            ctx, "#Multiplier:", 0, &b.envelope.max_mul, 128.0, 0.5, 0.25
         );
         break;
     }

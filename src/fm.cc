@@ -12,10 +12,22 @@ void basic_oscillator::context::period_changed()
     phase_offset = x;
 }
 
-basic_oscillator::basic_oscillator(double period, double amplitude)
-: amp_num(1), amp_denom(1), period_num(1), period_denom(1) {
+void basic_oscillator::context::reset()
+{
+    time_offset = 0;
+    phase_offset = 0;
+    t = 0;
+    x = 0;
+}
+
+basic_oscillator::basic_oscillator(
+    double period,
+    double amplitude,
+    double phase_constant
+): amp_num(1), amp_denom(1), period_num(1), period_denom(1) {
     set_period(period);
     set_amplitude(amplitude);
+    set_phase_constant(phase_constant);
 }
 
 basic_oscillator::~basic_oscillator() {}
@@ -81,6 +93,26 @@ void basic_oscillator::set_frequency(double freq, uint64_t samplerate)
     period_denom = 1;
 }
 
+void basic_oscillator::set_phase_constant(int64_t offset)
+{
+    phase_constant = offset&0xFFFFFFFFlu;
+}
+
+void basic_oscillator::set_phase_constant(double offset)
+{
+    phase_constant = ((int64_t)round(offset*4294967296.0))&0xFFFFFFFFlu;
+}
+
+int64_t basic_oscillator::get_phase_constant() const
+{
+    return phase_constant;
+}
+
+double basic_oscillator::get_phase_constant_double() const
+{
+    return phase_constant/4294967296.0;
+}
+
 dynamic_oscillator::dynamic_oscillator(
     oscillator_type type,
     double period,
@@ -107,7 +139,7 @@ int64_t dynamic_oscillator::func(
     ctx.t = t;
     ctx.x = period_num * (t + ctx.time_offset)
         / period_denom + ctx.phase_offset;
-    int64_t x = ctx.x + phase_shift;
+    int64_t x = ctx.x + phase_shift + phase_constant;
 
     int64_t u = 0;
     switch(type)

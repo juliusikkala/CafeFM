@@ -85,6 +85,7 @@ protected:
     void step_voices();
 
     virtual void refresh_voice(voice_id id) = 0;
+    virtual void reset_voice(voice_id id) = 0;
     void refresh_all_voices();
     virtual void handle_polyphony(unsigned n) = 0;
 

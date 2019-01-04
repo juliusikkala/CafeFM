@@ -52,6 +52,7 @@ json synth_state::serialize(uint64_t samplerate) const
         m["amp_denom"] = amp_denom;
         m["period_num"] = period_num;
         m["period_denom"] = period_denom;
+        m["phase_constant"] = o.get_phase_constant();
 
         j["modulators"].push_back(m);
     }
@@ -102,6 +103,7 @@ bool synth_state::deserialize(const json& j, uint64_t samplerate)
             m.at("amp_denom").get_to(amp_denom);
             m.at("period_num").get_to(period_num);
             m.at("period_denom").get_to(period_denom);
+            osc.set_phase_constant(m.value("phase_constant", (int64_t)0));
 
             osc.set_amplitude(amp_num, amp_denom);
             osc.set_period_fract(period_num, period_denom);
