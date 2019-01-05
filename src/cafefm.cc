@@ -14,7 +14,6 @@
 #define MAX_VERTEX_MEMORY 512 * 1024
 #define MAX_ELEMENT_MEMORY 128 * 1024
 #define CARRIER_HEIGHT 120
-#define OSCILLATOR_HEIGHT 90
 #define INSTRUMENT_HEADER_HEIGHT 110
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
@@ -671,118 +670,75 @@ unsigned cafefm::gui_modulator(
     unsigned index,
     bool& erase
 ){
-    static std::string name_table[] = {
-        "First modulator",
-        "Second modulator",
-        "Third modulator"
-    };
     unsigned mask = CHANGE_NONE;
 
-    nk_layout_row_dynamic(ctx, OSCILLATOR_HEIGHT, 1);
+    nk_style_set_font(ctx, &small_font->handle);
     if(nk_group_begin(
         ctx,
-        (name_table[index]+" Group").c_str(),
-        NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
+        ("Modulator " + std::to_string(index)).c_str(),
+        NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|NK_WINDOW_TITLE
     )){
-        nk_layout_row_template_begin(ctx, OSCILLATOR_HEIGHT);
-        nk_layout_row_template_push_static(ctx, 200);
-        nk_layout_row_template_push_static(ctx, 200);
+        nk_layout_row_template_begin(ctx, 30);
+        nk_layout_row_template_push_static(ctx, 100);
         nk_layout_row_template_push_dynamic(ctx);
-        nk_layout_row_template_push_static(ctx, 48);
+        nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_push_static(ctx, 30);
         nk_layout_row_template_end(ctx);
 
         // Waveform type selection
         nk_style_set_font(ctx, &small_font->handle);
-        if(nk_group_begin(
-            ctx,
-            (name_table[index]+" Waveform").c_str(),
-            NK_WINDOW_NO_SCROLLBAR
-        )){
-            nk_layout_row_dynamic(ctx, 30, 1);
-            nk_label(ctx, "Waveform:", NK_TEXT_LEFT);
-            oscillator::func type = osc.get_type();
-            mask |= gui_oscillator_type(type, index < 2);
-            osc.set_type(type);
-
-            nk_group_end(ctx);
-        }
+        oscillator::func type = osc.get_type();
+        mask |= gui_oscillator_type(
+            type,
+            index + 2 < ins_state.synth.get_modulator_count()
+        );
+        osc.set_type(type);
 
         // Amplitude controls
-        if(nk_group_begin(
-            ctx,
-            (name_table[index]+" Amplitude").c_str(),
-            NK_WINDOW_NO_SCROLLBAR
-        )){
-            nk_layout_row_dynamic(ctx, 30, 1);
-            nk_label(ctx, "Amplitude:", NK_TEXT_LEFT);
-            nk_layout_row_template_begin(ctx, 30);
-            nk_layout_row_template_push_static(ctx, 30);
-            nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_end(ctx);
-
-            float old_amplitude = osc.get_amplitude();
-            float amplitude = old_amplitude;
-            nk_labelf(ctx, NK_TEXT_LEFT, "%.2f", old_amplitude);
-            nk_slider_float(ctx, 0, &amplitude, 2.0f, 0.05f);
-            if(amplitude != old_amplitude)
-            {
-                osc.set_amplitude(amplitude);
-                mask |= CHANGE_REQUIRE_IMPORT;
-            }
-
-            nk_group_end(ctx);
+        float old_amplitude = osc.get_amplitude();
+        float amplitude = fixed_propertyd(
+            ctx, "#Amplitude:", 0.0, old_amplitude, 16.0, 0.01, 0.01
+        );
+        if(amplitude != old_amplitude)
+        {
+            osc.set_amplitude(amplitude);
+            mask |= CHANGE_REQUIRE_IMPORT;
         }
 
-        // Period & Phase controls
-        if(nk_group_begin(
-            ctx,
-            (name_table[index]+" Period & Phase").c_str(),
-            NK_WINDOW_NO_SCROLLBAR
-        )){
-            nk_layout_row_dynamic(ctx, 30, 1);
+        // Period controls
+        uint64_t period_denom = 0, period_num = 0;
+        osc.get_period(period_num, period_denom);
+        double period = period_denom/(double)period_num;
 
-            uint64_t period_denom = 0, period_num = 0;
-            osc.get_period(period_num, period_denom);
-            double period = period_denom/(double)period_num;
+        period = fixed_propertyd(
+            ctx, "#Period:", 0.0, period, 1024.0, 0.01, 0.01
+        );
+        uint64_t new_period_denom = round(period*period_num);
 
-            period = fixed_propertyd(
-                ctx, "#Period:", 0.0, period, 1024.0, 0.01, 0.01
-            );
-            uint64_t new_period_denom = round(period*period_num);
+        if(new_period_denom != period_denom)
+        {
+            osc.set_period_fract(period_num, new_period_denom);
+            mask |= CHANGE_REQUIRE_IMPORT;
+        }
 
-            if(new_period_denom != period_denom)
-            {
-                osc.set_period_fract(period_num, new_period_denom);
-                mask |= CHANGE_REQUIRE_IMPORT;
-            }
-
-            double phase = osc.get_phase_constant_double();
-            double new_phase = fixed_propertyd(
-                ctx, "#Phase:", 0.0, phase, 1.0, 0.01, 0.01
-            );
-            if(fabs(new_phase-phase)>1e-8)
-            {
-                osc.set_phase_constant(new_phase);
-                mask |= CHANGE_REQUIRE_IMPORT;
-            }
-
-            nk_group_end(ctx);
+        // Phase controls
+        double phase = osc.get_phase_constant_double();
+        double new_phase = fixed_propertyd(
+            ctx, "#Phase:", 0.0, phase, 1.0, 0.01, 0.01
+        );
+        if(fabs(new_phase-phase)>1e-8)
+        {
+            osc.set_phase_constant(new_phase);
+            mask |= CHANGE_REQUIRE_IMPORT;
         }
         
         // Remove button
-        if(nk_group_begin(
-            ctx,
-            (name_table[index]+" Remove").c_str(),
-            NK_WINDOW_NO_SCROLLBAR
-        )){
-            nk_layout_row_static(ctx, 32, 32, 1);
-            nk_style_set_font(ctx, &huge_font->handle);
-            if(nk_button_symbol(ctx, NK_SYMBOL_X))
-            {
-                erase = true;
-                mask |= CHANGE_REQUIRE_RESET;
-            }
-            nk_group_end(ctx);
+        nk_style_set_font(ctx, &huge_font->handle);
+        if(nk_button_symbol(ctx, NK_SYMBOL_X))
+        {
+            erase = true;
+            mask |= CHANGE_REQUIRE_RESET;
         }
         nk_group_end(ctx);
     }
@@ -959,42 +915,48 @@ void cafefm::gui_instrument_editor()
     }
 
     nk_style_set_font(ctx, &small_font->handle);
+
     // Render carrier & ADSR
     oscillator::func carrier = ins_state.synth.get_carrier_type();
     mask |= gui_carrier(carrier);
     ins_state.synth.set_carrier_type(carrier);
 
-    // Render modulators
-    for(unsigned i = 0; i < ins_state.synth.get_modulator_count(); ++i)
+    nk_layout_row_dynamic(ctx, 280, 1);
+    if(nk_group_begin(ctx, "Synth Control", NK_WINDOW_BORDER))
     {
-        bool erase = false;
-        mask |= gui_modulator(ins_state.synth.get_modulator(i), i, erase);
-        if(erase)
-        {
-            ins_state.synth.erase_modulator(i);
-            --i;
-        }
-    }
 
-    // + button for modulators
-    nk_style_set_font(ctx, &huge_font->handle);
-    nk_layout_row_dynamic(ctx, OSCILLATOR_HEIGHT, 1);
-    if(
-        ins_state.synth.get_modulator_count() <= 2 &&
-        nk_button_symbol(ctx, NK_SYMBOL_PLUS)
-    ){
-        unsigned i = ins_state.synth.add_modulator(
-            {oscillator::SINE, 1.0, 0.5}
-        );
-        if(i > 0)
+        nk_layout_row_dynamic(ctx, 73, 1);
+        // Render modulators
+        for(unsigned i = 0; i < ins_state.synth.get_modulator_count(); ++i)
         {
-            ins_state.synth.get_modulator(i-1).get_modulators().push_back(i);
+            bool erase = false;
+            mask |= gui_modulator(ins_state.synth.get_modulator(i), i, erase);
+            if(erase)
+            {
+                ins_state.synth.erase_modulator(i);
+                --i;
+            }
         }
-        else
+
+        // + button for modulators
+        nk_style_set_font(ctx, &huge_font->handle);
+        if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
         {
-            ins_state.synth.get_carrier_modulators().push_back(i);
+            unsigned i = ins_state.synth.add_modulator(
+                {oscillator::SINE, 1.0, 0.5}
+            );
+            if(i > 0)
+            {
+                ins_state.synth.get_modulator(i-1).get_modulators().push_back(i);
+            }
+            else
+            {
+                ins_state.synth.get_carrier_modulators().push_back(i);
+            }
+            mask |= CHANGE_REQUIRE_RESET;
         }
-        mask |= CHANGE_REQUIRE_RESET;
+
+        nk_group_end(ctx);
     }
 
     // Do necessary updates
