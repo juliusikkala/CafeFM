@@ -1,7 +1,7 @@
 #include "io.hh"
 #include "bindings.hh"
 #include "options.hh"
-#include "synth_state.hh"
+#include "instrument_state.hh"
 #include "SDL.h"
 #include <cstdio>
 #include <algorithm>
@@ -76,9 +76,9 @@ fs::path get_writable_bindings_path()
     return path;
 }
 
-fs::path get_writable_synths_path()
+fs::path get_writable_instruments_path()
 {
-    fs::path path = get_writable_path()/"synths";
+    fs::path path = get_writable_path()/"instruments";
     if(!fs::exists(path)) fs::create_directory(path);
     return path;
 }
@@ -116,11 +116,11 @@ std::set<fs::path> get_readonly_bindings_paths()
     return bindings_paths;
 }
 
-std::set<fs::path> get_readonly_synths_paths()
+std::set<fs::path> get_readonly_instruments_paths()
 {
     std::set<fs::path> paths = get_readonly_paths();
     std::set<fs::path> bindings_paths;
-    for(const fs::path& path: paths) bindings_paths.insert(path/"synths");
+    for(const fs::path& path: paths) bindings_paths.insert(path/"instruments");
     return bindings_paths;
 }
 
@@ -155,9 +155,9 @@ void open_bindings_folder()
 #endif
 }
 
-void open_synths_folder()
+void open_instruments_folder()
 {
-    fs::path path = get_writable_synths_path();
+    fs::path path = get_writable_instruments_path();
 #ifdef USE_XDG
     system(("xdg-open "+path.string()).c_str());
 #else
@@ -243,38 +243,38 @@ std::vector<bindings> load_all_bindings()
     return binds;
 }
 
-void write_synth(uint64_t samplerate, synth_state& synth)
+void write_instrument(uint64_t samplerate, instrument_state& ins)
 {
-    json synth_json = synth.serialize(samplerate);
+    json ins_json = ins.serialize(samplerate);
     fs::path filename(
-        make_filename_safe(synth.name) + "_" + string_hash(synth.name) + ".syn"
+        make_filename_safe(ins.name) + "_" + string_hash(ins.name) + ".ins"
     );
-    fs::path path = get_writable_synths_path()/filename;
-    synth.path = path;
-    synth.write_lock = false;
+    fs::path path = get_writable_instruments_path()/filename;
+    ins.path = path;
+    ins.write_lock = false;
 
-    write_json_file(path, synth_json);
+    write_json_file(path, ins_json);
 }
 
-void remove_synth(const synth_state& synth)
+void remove_instrument(const instrument_state& ins)
 {
     // Safety checks, just in case something goes very wrong.
-    fs::path writable_path = get_writable_synths_path();
-    fs::path path = synth.path;
+    fs::path writable_path = get_writable_instruments_path();
+    fs::path path = ins.path;
     if(
-        path.extension() == ".syn" &&
+        path.extension() == ".ins" &&
         path.has_stem() &&
         path.parent_path() == writable_path
     ) fs::remove(path);
 }
 
-std::vector<synth_state> load_all_synths(uint64_t samplerate)
+std::vector<instrument_state> load_all_instruments(uint64_t samplerate)
 {
-    std::vector<synth_state> synths;
+    std::vector<instrument_state> instruments;
 
-    std::set<fs::path> ro_paths = get_readonly_synths_paths();
+    std::set<fs::path> ro_paths = get_readonly_instruments_paths();
     std::set<fs::path> paths = ro_paths;
-    paths.insert(get_writable_synths_path());
+    paths.insert(get_writable_instruments_path());
 
     for(const fs::path& p: paths)
     {
@@ -283,18 +283,18 @@ std::vector<synth_state> load_all_synths(uint64_t samplerate)
         {
             try
             {
-                synth_state synth;
-                synth.deserialize(read_json_file(x.path()), samplerate);
-                synth.path = x.path();
-                if(ro_paths.count(p)) synth.write_lock = true;
-                synths.push_back(synth);
+                instrument_state ins;
+                ins.deserialize(read_json_file(x.path()), samplerate);
+                ins.path = x.path();
+                if(ro_paths.count(p)) ins.write_lock = true;
+                instruments.push_back(ins);
             }
             // Quietly swallow failed files.
             catch(...) {}
         }
     }
 
-    return synths;
+    return instruments;
 }
 
 void write_options(const options& opts)

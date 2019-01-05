@@ -19,7 +19,7 @@
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 #define MAX_BINDING_NAME_LENGTH 128
-#define MAX_SYNTH_NAME_LENGTH 128
+#define MAX_INSTRUMENT_NAME_LENGTH 128
 
 using namespace std::string_literals;
 
@@ -138,7 +138,7 @@ namespace
 
 cafefm::cafefm()
 :   win(nullptr), bindings_delete_popup_open(false),
-    synth_delete_popup_open(false), selected_controller(nullptr),
+    instrument_delete_popup_open(false), selected_controller(nullptr),
     keyboard_grabbed(false), mouse_grabbed(false), master_volume(0.5)
 {
     SDL_GL_SetAttribute(
@@ -200,7 +200,7 @@ void cafefm::load()
     // Setup GUI state
     selected_tab = 0;
     selected_bindings_preset = -1;
-    selected_synth_preset = -1;
+    selected_instrument_preset = -1;
 
     // Determine data directories
     fs::path font_dir("data/fonts");
@@ -300,11 +300,11 @@ void cafefm::load()
     load_texture(yellow_warn_img, "yellow_warning.png");
     load_texture(gray_warn_img, "gray_warning.png");
 
-    // Load synth presets
+    // Load instrument presets
     load_options(opts);
 
-    update_all_synths();
-    create_new_synth();
+    update_all_instruments();
+    create_new_instrument();
 
     // Setup controllers
     available_controllers.emplace_back(new keyboard());
@@ -320,7 +320,7 @@ void cafefm::unload()
     compatible_bindings.clear();
 
     bindings_delete_popup_open = false;
-    synth_delete_popup_open = false;
+    instrument_delete_popup_open = false;
 
     nk_sdl_destroy_texture(yellow_warn_img.handle.id);
     nk_sdl_destroy_texture(gray_warn_img.handle.id);
@@ -419,7 +419,7 @@ bool cafefm::update(unsigned dt)
     }
 
     control.update(binds, dt);
-    control.apply(*fm_synth, master_volume, synth);
+    control.apply(*fm, master_volume, ins_state);
     return !quit;
 }
 
@@ -564,7 +564,7 @@ void cafefm::gui_draw_adsr(const envelope& adsr)
     nk_layout_space_end(ctx);
 }
 
-unsigned cafefm::gui_oscillator_type(oscillator_type& type, bool down)
+unsigned cafefm::gui_oscillator_type(oscillator::func& type, bool down)
 {
     static const char* oscillator_labels[] = {
         "Sine",
@@ -573,8 +573,8 @@ unsigned cafefm::gui_oscillator_type(oscillator_type& type, bool down)
         "Saw"
     };
 
-    oscillator_type old_type = type;
-    type = (oscillator_type)nk_combo(
+    oscillator::func old_type = type;
+    type = (oscillator::func)nk_combo(
         ctx,
         oscillator_labels,
         sizeof(oscillator_labels)/sizeof(const char*),
@@ -585,7 +585,7 @@ unsigned cafefm::gui_oscillator_type(oscillator_type& type, bool down)
     return old_type != type ? CHANGE_REQUIRE_RESET : CHANGE_NONE;
 }
 
-unsigned cafefm::gui_carrier(oscillator_type& type)
+unsigned cafefm::gui_carrier(oscillator::func& type)
 {
     unsigned mask = CHANGE_NONE;
 
@@ -620,35 +620,35 @@ unsigned cafefm::gui_carrier(oscillator_type& type)
             nk_layout_row_template_end(ctx);
             nk_label(ctx, "Sustain volume:", NK_TEXT_LEFT);
 
-            int sustain_vol = synth.adsr.sustain_volume_num;
-            nk_slider_int(ctx, 0, &sustain_vol, synth.adsr.volume_denom, 1);
-            synth.adsr.sustain_volume_num = sustain_vol;
+            int sustain_vol = ins_state.adsr.sustain_volume_num;
+            nk_slider_int(ctx, 0, &sustain_vol, ins_state.adsr.volume_denom, 1);
+            ins_state.adsr.sustain_volume_num = sustain_vol;
 
             static constexpr float expt = 4.0f;
 
-            float attack = synth.adsr.attack_length/(double)opts.samplerate;
+            float attack = ins_state.adsr.attack_length/(double)opts.samplerate;
             nk_labelf(ctx, NK_TEXT_LEFT, "Attack: %.2fs", attack);
             attack = pow(attack, 1.0/expt);
             nk_slider_float(
                 ctx, pow(0.001f, 1.0/expt), &attack, pow(4.0f, 1.0/expt), 0.01f
             );
-            synth.adsr.attack_length = pow(attack, expt)*opts.samplerate;
+            ins_state.adsr.attack_length = pow(attack, expt)*opts.samplerate;
 
-            float decay = synth.adsr.decay_length/(double)opts.samplerate;
+            float decay = ins_state.adsr.decay_length/(double)opts.samplerate;
             nk_labelf(ctx, NK_TEXT_LEFT, "Decay: %.2fs", decay);
             decay = pow(decay, 1.0/expt);
             nk_slider_float(
                 ctx, pow(0.001f, 1.0/expt), &decay, pow(4.0f, 1.0/expt), 0.01f
             );
-            synth.adsr.decay_length = pow(decay, expt)*opts.samplerate;
+            ins_state.adsr.decay_length = pow(decay, expt)*opts.samplerate;
 
-            float release = synth.adsr.release_length/(double)opts.samplerate;
+            float release = ins_state.adsr.release_length/(double)opts.samplerate;
             nk_labelf(ctx, NK_TEXT_LEFT, "Release: %.2fs", release);
             release = pow(release, 1.0/expt);
             nk_slider_float(
                 ctx, pow(0.001f, 1.0/expt), &release, pow(4.0f, 1.0/expt), 0.01f
             );
-            synth.adsr.release_length = pow(release, expt)*opts.samplerate;
+            ins_state.adsr.release_length = pow(release, expt)*opts.samplerate;
 
             nk_group_end(ctx);
         }
@@ -656,7 +656,7 @@ unsigned cafefm::gui_carrier(oscillator_type& type)
         // ADSR plot
         if(nk_group_begin(ctx, "Carrier ADSR Plot", NK_WINDOW_NO_SCROLLBAR))
         {
-            gui_draw_adsr(synth.adsr);
+            gui_draw_adsr(ins_state.adsr);
             nk_group_end(ctx);
         }
 
@@ -667,7 +667,7 @@ unsigned cafefm::gui_carrier(oscillator_type& type)
 }
 
 unsigned cafefm::gui_modulator(
-    dynamic_oscillator& osc,
+    oscillator& osc,
     unsigned index,
     bool& erase
 ){
@@ -700,7 +700,7 @@ unsigned cafefm::gui_modulator(
         )){
             nk_layout_row_dynamic(ctx, 30, 1);
             nk_label(ctx, "Waveform:", NK_TEXT_LEFT);
-            oscillator_type type = osc.get_type();
+            oscillator::func type = osc.get_type();
             mask |= gui_oscillator_type(type, index < 2);
             osc.set_type(type);
 
@@ -723,7 +723,7 @@ unsigned cafefm::gui_modulator(
             float old_amplitude = osc.get_amplitude();
             float amplitude = old_amplitude;
             nk_labelf(ctx, NK_TEXT_LEFT, "%.2f", old_amplitude);
-            nk_slider_float(ctx, 0, &amplitude, 4.0f, 0.05f);
+            nk_slider_float(ctx, 0, &amplitude, 2.0f, 0.05f);
             if(amplitude != old_amplitude)
             {
                 osc.set_amplitude(amplitude);
@@ -790,7 +790,7 @@ unsigned cafefm::gui_modulator(
     return mask;
 }
 
-void cafefm::gui_synth_editor()
+void cafefm::gui_instrument_editor()
 {
     unsigned mask = CHANGE_NONE;
 
@@ -800,9 +800,9 @@ void cafefm::gui_synth_editor()
 
     // Save, etc. controls at the top
     if(nk_group_begin(
-        ctx, "Synth Control", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
+        ctx, "Instrument Control", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
     )){
-        float max_safe_volume = 1.0/synth.polyphony;
+        float max_safe_volume = 1.0/ins_state.polyphony;
 
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 80);
@@ -814,15 +814,15 @@ void cafefm::gui_synth_editor()
         // Preset picker
         nk_label(ctx, "Preset:", NK_TEXT_LEFT);
         std::string combo_label = "(None)";
-        if(selected_synth_preset >= 0)
-            combo_label = all_synths[selected_synth_preset].name;
+        if(selected_instrument_preset >= 0)
+            combo_label = all_instruments[selected_instrument_preset].name;
 
         if(nk_combo_begin_label(ctx, combo_label.c_str(), nk_vec2(400,200)))
         {
             int new_selected_preset = -1;
-            for(unsigned i = 0; i < all_synths.size(); ++i)
+            for(unsigned i = 0; i < all_instruments.size(); ++i)
             {
-                const auto& s = all_synths[i];
+                const auto& s = all_instruments[i];
                 nk_layout_row_dynamic(ctx, 25, 1);
                 if(nk_combo_item_label(
                     ctx, s.name.c_str(), NK_TEXT_ALIGN_LEFT
@@ -830,13 +830,13 @@ void cafefm::gui_synth_editor()
             }
 
             if(new_selected_preset != -1)
-                select_synth(new_selected_preset);
+                select_instrument(new_selected_preset);
             nk_combo_end(ctx);
         }
 
         if(nk_button_label(ctx, "Reset"))
         {
-            fm_synth->release_all_voices();
+            fm->release_all_voices();
             control.reset();
         }
 
@@ -851,23 +851,32 @@ void cafefm::gui_synth_editor()
         nk_layout_row_template_end(ctx);
 
         // Name editor
-        char current_name[MAX_SYNTH_NAME_LENGTH+1] = {0};
-        int current_name_len = synth.name.size();
-        strncpy(current_name, synth.name.c_str(), MAX_SYNTH_NAME_LENGTH);
+        char current_name[MAX_INSTRUMENT_NAME_LENGTH+1] = {0};
+        int current_name_len = ins_state.name.size();
+        strncpy(
+            current_name,
+            ins_state.name.c_str(),
+            MAX_INSTRUMENT_NAME_LENGTH
+        );
         nk_edit_string(
             ctx, NK_EDIT_SIMPLE, current_name, &current_name_len,
-            MAX_SYNTH_NAME_LENGTH, nk_filter_default
+            MAX_INSTRUMENT_NAME_LENGTH, nk_filter_default
         );
-        synth.name = std::string(current_name, current_name_len);
+        ins_state.name = std::string(current_name, current_name_len);
 
         // Save, New and Delete buttons
-        auto name_match = all_synths.end();
-        for(auto it = all_synths.begin(); it != all_synths.end(); ++it)
-            if(it->name == synth.name) name_match = it;
+        auto name_match = all_instruments.end();
+        for(
+            auto it = all_instruments.begin();
+            it != all_instruments.end();
+            ++it
+        ){
+            if(it->name == ins_state.name) name_match = it;
+        }
         
         bool can_save = false;
         bool can_delete = false;
-        if(name_match == all_synths.end()) can_save = true;
+        if(name_match == all_instruments.end()) can_save = true;
         else
         {
             can_save = !name_match->write_lock;
@@ -875,16 +884,16 @@ void cafefm::gui_synth_editor()
         }
 
         if(button_label_active(ctx, "Save", can_save))
-            save_current_synth();
+            save_current_instrument();
 
         if(nk_button_label(ctx, "New"))
-            create_new_synth();
+            create_new_instrument();
 
         if(button_label_active(ctx, "Delete", can_delete))
-            synth_delete_popup_open = true;
+            instrument_delete_popup_open = true;
 
         // Handle delete popup
-        if(synth_delete_popup_open)
+        if(instrument_delete_popup_open)
         {
             struct nk_rect s = {0, 100, 300, 136};
             s.x = WINDOW_WIDTH/2-s.w/2;
@@ -894,24 +903,24 @@ void cafefm::gui_synth_editor()
             )){
                 std::string warning_text =
                     "Are you sure you want to delete preset \"";
-                warning_text += synth.name + "\"?";
+                warning_text += ins_state.name + "\"?";
                 nk_layout_row_dynamic(ctx, 50, 1);
                 nk_label_wrap(ctx, warning_text.c_str());
                 nk_layout_row_dynamic(ctx, 30, 2);
                 if (nk_button_label(ctx, "Delete"))
                 {
-                    synth_delete_popup_open = false;
-                    delete_current_synth();
+                    instrument_delete_popup_open = false;
+                    delete_current_instrument();
                     nk_popup_close(ctx);
                 }
                 if (nk_button_label(ctx, "Cancel"))
                 {
-                    synth_delete_popup_open = false;
+                    instrument_delete_popup_open = false;
                     nk_popup_close(ctx);
                 }
                 nk_popup_end(ctx);
             }
-            else synth_delete_popup_open = false;
+            else instrument_delete_popup_open = false;
         }
 
         nk_layout_row_template_begin(ctx, 30);
@@ -935,14 +944,14 @@ void cafefm::gui_synth_editor()
         nk_layout_row_template_push_static(ctx, 400);
         nk_layout_row_template_end(ctx);
 
-        nk_labelf(ctx, NK_TEXT_LEFT, "Polyphony: %d", synth.polyphony);
-        int new_polyphony = synth.polyphony;
+        nk_labelf(ctx, NK_TEXT_LEFT, "Polyphony: %d", ins_state.polyphony);
+        int new_polyphony = ins_state.polyphony;
         nk_slider_int(ctx, 1, &new_polyphony, 32, 1);
-        if((unsigned)new_polyphony != synth.polyphony)
+        if((unsigned)new_polyphony != ins_state.polyphony)
         {
             output->stop();
-            synth.polyphony = new_polyphony;
-            fm_synth->set_polyphony(synth.polyphony);
+            ins_state.polyphony = new_polyphony;
+            fm->set_polyphony(ins_state.polyphony);
             output->start();
         }
 
@@ -951,16 +960,18 @@ void cafefm::gui_synth_editor()
 
     nk_style_set_font(ctx, &small_font->handle);
     // Render carrier & ADSR
-    mask |= gui_carrier(synth.carrier);
+    oscillator::func carrier = ins_state.synth.get_carrier_type();
+    mask |= gui_carrier(carrier);
+    ins_state.synth.set_carrier_type(carrier);
 
     // Render modulators
-    for(unsigned i = 0; i < synth.modulators.size(); ++i)
+    for(unsigned i = 0; i < ins_state.synth.get_modulator_count(); ++i)
     {
         bool erase = false;
-        mask |= gui_modulator(synth.modulators[i], i, erase);
+        mask |= gui_modulator(ins_state.synth.get_modulator(i), i, erase);
         if(erase)
         {
-            synth.modulators.erase(synth.modulators.begin() + i);
+            ins_state.synth.erase_modulator(i);
             --i;
         }
     }
@@ -968,17 +979,29 @@ void cafefm::gui_synth_editor()
     // + button for modulators
     nk_style_set_font(ctx, &huge_font->handle);
     nk_layout_row_dynamic(ctx, OSCILLATOR_HEIGHT, 1);
-    if(synth.modulators.size() <= 2 && nk_button_symbol(ctx, NK_SYMBOL_PLUS))
-    {
-        synth.modulators.push_back({OSC_SINE, 1.0, 0.5});
+    if(
+        ins_state.synth.get_modulator_count() <= 2 &&
+        nk_button_symbol(ctx, NK_SYMBOL_PLUS)
+    ){
+        unsigned i = ins_state.synth.add_modulator(
+            {oscillator::SINE, 1.0, 0.5}
+        );
+        if(i > 0)
+        {
+            ins_state.synth.get_modulator(i-1).get_modulators().push_back(i);
+        }
+        else
+        {
+            ins_state.synth.get_carrier_modulators().push_back(i);
+        }
         mask |= CHANGE_REQUIRE_RESET;
     }
 
     // Do necessary updates
     if(mask & CHANGE_REQUIRE_RESET)
     {
-        reset_synth();
-        control.apply(*fm_synth, master_volume, synth);
+        reset_fm();
+        control.apply(*fm, master_volume, ins_state);
     }
 }
 
@@ -996,11 +1019,11 @@ void cafefm::gui_bind_action_template(bind& b)
         nk_layout_row_template_push_static(ctx, 150);
         break;
     case bind::PERIOD_EXPT:
-        nk_layout_row_template_push_static(ctx, 40);
+        nk_layout_row_template_push_static(ctx, 150);
         nk_layout_row_template_push_static(ctx, 150);
         break;
     case bind::AMPLITUDE_MUL:
-        nk_layout_row_template_push_static(ctx, 40);
+        nk_layout_row_template_push_static(ctx, 150);
         nk_layout_row_template_push_static(ctx, 150);
         break;
     case bind::ENVELOPE_ADJUST:
@@ -1016,7 +1039,6 @@ void cafefm::gui_bind_action(bind& b)
     static const std::vector<std::string> note_list =
         generate_note_list(min_semitone, min_semitone + 96);
 
-    static const char* modulator_index_names[] = {"1", "2", "3"};
     static const char* envelope_index_names[] = {
         "Attack", "Decay", "Sustain", "Release"
     };
@@ -1061,20 +1083,16 @@ void cafefm::gui_bind_action(bind& b)
         );
         break;
     case bind::PERIOD_EXPT:
-        nk_combobox(
-            ctx, modulator_index_names,
-            sizeof(modulator_index_names)/sizeof(*modulator_index_names),
-            (int*)&b.period.modulator_index, 20, nk_vec2(60, 80)
+        nk_property_int(
+            ctx, "#Modulator:", 0, (int*)&b.period.modulator_index, 128, 1, 1
         );
         nk_property_double(
             ctx, "#Offset:", -36.0f, &b.period.max_expt, 36.0f, 0.5f, 0.5f
         );
         break;
     case bind::AMPLITUDE_MUL:
-        nk_combobox(
-            ctx, modulator_index_names,
-            sizeof(modulator_index_names)/sizeof(*modulator_index_names),
-            (int*)&b.amplitude.modulator_index, 20, nk_vec2(60, 80)
+        nk_property_int(
+            ctx, "#Modulator:", 0, (int*)&b.amplitude.modulator_index, 128, 1, 1
         );
         b.amplitude.max_mul = fixed_propertyd(
             ctx, "#Multiplier:", 0.0, b.amplitude.max_mul, 8.0, 0.05, 0.01
@@ -1333,7 +1351,7 @@ int cafefm::gui_bind(bind& b, unsigned index)
     return ret;
 }
 
-void cafefm::gui_instrument_editor()
+void cafefm::gui_bindings_editor()
 {
     nk_style_set_font(ctx, &small_font->handle);
     nk_layout_row_dynamic(ctx, INSTRUMENT_HEADER_HEIGHT, 1);
@@ -1376,7 +1394,7 @@ void cafefm::gui_instrument_editor()
 
         if(nk_button_label(ctx, "Reset"))
         {
-            fm_synth->release_all_voices();
+            fm->release_all_voices();
             control.reset();
         }
         // Show manager (Grab Keyboard, etc.)
@@ -1666,8 +1684,8 @@ void cafefm::gui_options_editor()
         if(nk_button_label(ctx, "Open bindings folder"))
             open_bindings_folder();
 
-        if(nk_button_label(ctx, "Open synths folder"))
-            open_synths_folder();
+        if(nk_button_label(ctx, "Open instruments folder"))
+            open_instruments_folder();
 
         nk_layout_row_dynamic(ctx, 30, 1);
 
@@ -1682,12 +1700,12 @@ void cafefm::gui_options_editor()
                     break;
                 }
             }
-            update_all_synths();
-            for(unsigned i = 0; i < all_synths.size(); ++i)
+            update_all_instruments();
+            for(unsigned i = 0; i < all_instruments.size(); ++i)
             {
-                if(all_synths[i].name == synth.name)
+                if(all_instruments[i].name == ins_state.name)
                 {
-                    selected_synth_preset = i;
+                    selected_instrument_preset = i;
                     break;
                 }
             }
@@ -1753,7 +1771,7 @@ void cafefm::gui_options_editor()
                 }
                 nk_popup_end(ctx);
             }
-            else synth_delete_popup_open = false;
+            else instrument_delete_popup_open = false;
         }
 
         nk_group_end(ctx);
@@ -1781,8 +1799,8 @@ void cafefm::gui()
     SDL_GetWindowSize(win, &w, &h);
 
     const char* tabs[] = {
-        "Synth",
         "Instrument",
+        "Bindings",
         "Options"
     };
     unsigned tab_count = sizeof(tabs)/sizeof(*tabs);
@@ -1826,10 +1844,10 @@ void cafefm::gui()
         switch(selected_tab)
         {
         case 0:
-            gui_synth_editor();
+            gui_instrument_editor();
             break;
         case 1:
-            gui_instrument_editor();
+            gui_bindings_editor();
             break;
         case 2:
             gui_options_editor();
@@ -1850,7 +1868,7 @@ void cafefm::select_controller(controller* c)
 
     selected_controller = c;
 
-    fm_synth->release_all_voices();
+    fm->release_all_voices();
     control.reset();
     update_compatible_bindings();
     if(compatible_bindings.size() >= 1)
@@ -1867,7 +1885,7 @@ void cafefm::select_controller(controller* c)
 
 void cafefm::select_compatible_bindings(unsigned index)
 {
-    fm_synth->release_all_voices();
+    fm->release_all_voices();
     control.reset();
     if(compatible_bindings.size() == 0)
     {
@@ -1905,7 +1923,7 @@ void cafefm::save_current_bindings()
 
 void cafefm::create_new_bindings()
 {
-    fm_synth->release_all_voices();
+    fm->release_all_voices();
     control.reset();
     selected_bindings_preset = -1;
     binds.clear();
@@ -1971,52 +1989,55 @@ void cafefm::update_compatible_bindings()
         selected_bindings_preset = compatible_bindings.size() - 1;
 }
 
-void cafefm::select_synth(unsigned index)
+void cafefm::select_instrument(unsigned index)
 {
-    if(all_synths.size() == 0)
+    if(all_instruments.size() == 0)
     {
-        selected_synth_preset = -1;
-        create_new_synth();
+        selected_instrument_preset = -1;
+        create_new_instrument();
     }
     else
     {
-        selected_synth_preset = std::min(index, (unsigned)all_synths.size()-1);
-        synth = all_synths[selected_synth_preset];
-        reset_synth(false);
-        control.apply(*fm_synth, master_volume, synth);
+        selected_instrument_preset = std::min(
+            index,
+            (unsigned)all_instruments.size()-1
+        );
+        ins_state = all_instruments[selected_instrument_preset];
+        reset_fm(false);
+        control.apply(*fm, master_volume, ins_state);
     }
 }
 
-void cafefm::save_current_synth()
+void cafefm::save_current_instrument()
 {
-    synth.write_lock = false;
-    write_synth(opts.samplerate, synth);
-    update_all_synths();
+    ins_state.write_lock = false;
+    write_instrument(opts.samplerate, ins_state);
+    update_all_instruments();
 
-    for(unsigned i = 0; i < all_synths.size(); ++i)
+    for(unsigned i = 0; i < all_instruments.size(); ++i)
     {
-        if(all_synths[i].name == synth.name)
+        if(all_instruments[i].name == ins_state.name)
         {
-            selected_synth_preset = i;
+            selected_instrument_preset = i;
             break;
         }
     }
 }
 
-void cafefm::create_new_synth()
+void cafefm::create_new_instrument()
 {
-    selected_synth_preset = -1;
+    selected_instrument_preset = -1;
 
-    synth = synth_state(opts.samplerate);
+    ins_state = instrument_state(opts.samplerate);
 
-    std::string name = "New synth";
+    std::string name = "New instrument";
     std::string modified_name = name;
     for(unsigned i = 0; ; ++i)
     {
         modified_name = name;
         if(i > 0) modified_name += " #" + std::to_string(i+1);
         bool found = true;
-        for(auto& s: all_synths)
+        for(auto& s: all_instruments)
         {
             if(s.name == modified_name)
             {
@@ -2026,56 +2047,42 @@ void cafefm::create_new_synth()
         }
         if(found) break;
     }
-    synth.name = modified_name;
+    ins_state.name = modified_name;
 
-    reset_synth(false);
-    control.apply(*fm_synth, master_volume, synth);
+    reset_fm(false);
+    control.apply(*fm, master_volume, ins_state);
 }
 
-void cafefm::delete_current_synth()
+void cafefm::delete_current_instrument()
 {
-    remove_synth(synth);
-    update_all_synths();
-    select_synth(selected_synth_preset);
+    remove_instrument(ins_state);
+    update_all_instruments();
+    select_instrument(selected_instrument_preset);
 }
 
-void cafefm::update_all_synths()
+void cafefm::update_all_instruments()
 {
-    all_synths = load_all_synths(opts.samplerate);
+    all_instruments = load_all_instruments(opts.samplerate);
 }
 
-void cafefm::reset_synth(bool refresh_only)
+void cafefm::reset_fm(bool refresh_only)
 {
     if(output) output->stop();
     output.reset(nullptr);
 
-    std::unique_ptr<basic_fm_synth> new_synth;
+    std::unique_ptr<fm_instrument> new_fm;
     
-    if(refresh_only)
-    {
-        new_synth.reset(
-            create_fm_synth(
-                opts.samplerate,
-                synth.carrier,
-                synth.modulators
-            )
-        );
-        new_synth->set_polyphony(synth.polyphony);
-        new_synth->set_volume(master_volume);
-    }
-    else
-    {
-        new_synth.reset(synth.create_synth(opts.samplerate));
-        master_volume = 1.0/synth.polyphony;
-        new_synth->set_volume(master_volume);
-    }
+    new_fm.reset(ins_state.create_instrument(opts.samplerate));
 
-    if(fm_synth) new_synth->copy_state(*fm_synth);
+    if(!refresh_only) master_volume = 1.0/ins_state.polyphony;
+    new_fm->set_volume(master_volume);
 
-    fm_synth.swap(new_synth);
+    if(fm) new_fm->copy_state(*fm);
+
+    fm.swap(new_fm);
     output.reset(
         new audio_output(
-            *fm_synth,
+            *fm,
             opts.target_latency,
             opts.system_index,
             opts.device_index
@@ -2086,13 +2093,15 @@ void cafefm::reset_synth(bool refresh_only)
 
 void cafefm::apply_options(const options& new_opts)
 {
-    synth.adsr = synth.adsr.convert(opts.samplerate, new_opts.samplerate);
-    for(synth_state& state: all_synths)
+    ins_state.adsr = ins_state.adsr.convert(
+        opts.samplerate, new_opts.samplerate
+    );
+    for(instrument_state& state: all_instruments)
     {
         state.adsr = state.adsr.convert(opts.samplerate, new_opts.samplerate);
     }
 
     opts = new_opts;
-    reset_synth();
-    control.apply(*fm_synth, master_volume, synth);
+    reset_fm();
+    control.apply(*fm, master_volume, ins_state);
 }

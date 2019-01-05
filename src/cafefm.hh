@@ -3,7 +3,7 @@
 #include <GL/glew.h>
 #include "fm.hh"
 #include "control_state.hh"
-#include "synth_state.hh"
+#include "instrument_state.hh"
 #include "options.hh"
 #include "bindings.hh"
 #include "controller/controller.hh"
@@ -39,14 +39,14 @@ private:
     void gui_keyboard_grab();
     void gui_controller_manager();
     void gui_draw_adsr(const envelope& adsr);
-    unsigned gui_oscillator_type(oscillator_type& type, bool down = true);
-    unsigned gui_carrier(oscillator_type& type);
+    unsigned gui_oscillator_type(oscillator::func& type, bool down = true);
+    unsigned gui_carrier(oscillator::func& type);
     unsigned gui_modulator(
-        dynamic_oscillator& osc,
+        oscillator& osc,
         unsigned index,
         bool& erase
     );
-    void gui_synth_editor();
+    void gui_instrument_editor();
 
     void gui_bind_action_template(bind& b);
     void gui_bind_action(bind& b);
@@ -66,7 +66,7 @@ private:
     int gui_bind_control(bind& b, bool discrete_only = false);
     nk_color gui_bind_background_color(bind& b);
     int gui_bind(bind& b, unsigned index);
-    void gui_instrument_editor();
+    void gui_bindings_editor();
 
     void gui_options_editor();
 
@@ -80,13 +80,13 @@ private:
     void update_all_bindings();
     void update_compatible_bindings();
 
-    void select_synth(unsigned index);
-    void save_current_synth();
-    void create_new_synth();
-    void delete_current_synth();
-    void update_all_synths();
+    void select_instrument(unsigned index);
+    void save_current_instrument();
+    void create_new_instrument();
+    void delete_current_instrument();
+    void update_all_instruments();
 
-    void reset_synth(bool refresh_only = true);
+    void reset_fm(bool refresh_only = true);
 
     void apply_options(const options& new_opts);
 
@@ -102,9 +102,9 @@ private:
     struct nk_image yellow_warn_img, gray_warn_img; 
     unsigned selected_tab;
     int selected_bindings_preset;
-    int selected_synth_preset;
+    int selected_instrument_preset;
     bool bindings_delete_popup_open;
-    bool synth_delete_popup_open;
+    bool instrument_delete_popup_open;
     // Used for assigning binds
     int latest_input_button, latest_input_axis_1d, latest_input_axis_2d;
 
@@ -115,14 +115,14 @@ private:
     // grabbing/detaching them.
     bool keyboard_grabbed, mouse_grabbed;
 
-    std::unique_ptr<basic_fm_synth> fm_synth;
+    std::unique_ptr<fm_instrument> fm;
     std::unique_ptr<audio_output> output;
 
     float master_volume;
     control_state control;
 
-    std::vector<synth_state> all_synths;
-    synth_state synth;
+    std::vector<instrument_state> all_instruments;
+    instrument_state ins_state;
 
     options opts;
 

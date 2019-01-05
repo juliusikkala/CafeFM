@@ -68,10 +68,10 @@ void control_state::erase_action(action_id id)
     freq_expt.erase(id);
     volume_mul.erase(id);
 
-    for(unsigned i = 0; i < sizeof(osc)/sizeof(*osc); ++i)
+    for(auto& o: osc)
     {
-        osc[i].period_expt.erase(id);
-        osc[i].amplitude_mul.erase(id);
+        o.period_expt.erase(id);
+        o.amplitude_mul.erase(id);
     }
 
     for(unsigned i = 0; i < sizeof(env)/sizeof(*env); ++i)
@@ -124,12 +124,15 @@ bool control_state::get_volume_mul(action_id id, double& volume_mul) const
 void control_state::set_period_expt(
     unsigned modulator_index, action_id id, double period_expt
 ){
+    if(modulator_index >= osc.size())
+        osc.resize(modulator_index+1);
     osc[modulator_index].period_expt[id] = period_expt;
 }
 
 bool control_state::get_period_expt(
     unsigned modulator_index, action_id id, double& period_expt
 ) const {
+    if(modulator_index >= osc.size()) return false;
     auto it = osc[modulator_index].period_expt.find(id);
     if(it == osc[modulator_index].period_expt.end()) return false;
     period_expt = it->second;
@@ -139,12 +142,15 @@ bool control_state::get_period_expt(
 void control_state::set_amplitude_mul(
     unsigned modulator_index, action_id id, double amplitude_mul
 ) {
+    if(modulator_index >= osc.size())
+        osc.resize(modulator_index+1);
     osc[modulator_index].amplitude_mul[id] = amplitude_mul;
 }
 
 bool control_state::get_amplitude_mul(
     unsigned modulator_index, action_id id, double& amplitude_mul
 ) const {
+    if(modulator_index >= osc.size()) return false;
     auto it = osc[modulator_index].amplitude_mul.find(id);
     if(it == osc[modulator_index].amplitude_mul.end()) return false;
     amplitude_mul = it->second;
@@ -169,7 +175,6 @@ bool control_state::get_envelope_adjust(
 
 void control_state::reset()
 {
-    dst_modulators.clear();
     press_queue.clear();
     release_queue.clear();
     pressed_keys.clear();
@@ -179,10 +184,10 @@ void control_state::reset()
     freq_expt.clear();
     volume_mul.clear();
 
-    for(unsigned i = 0; i < sizeof(osc)/sizeof(*osc); ++i)
+    for(auto& o: osc)
     {
-        osc[i].period_expt.clear();
-        osc[i].amplitude_mul.clear();
+        o.period_expt.clear();
+        o.amplitude_mul.clear();
     }
 
     for(unsigned i = 0; i < sizeof(env)/sizeof(*env); ++i)
@@ -225,6 +230,8 @@ double control_state::total_volume_mul() const
 double control_state::total_period_mul(unsigned i) const
 {
     double expt = 0.0;
+    if(i >= osc.size()) return expt;
+
     for(auto& pair: osc[i].period_expt) expt += pair.second;
     return pow(2.0, expt/12.0);
 }
@@ -232,6 +239,8 @@ double control_state::total_period_mul(unsigned i) const
 double control_state::total_amp_mul(unsigned i) const
 {
     double mul = 1.0;
+    if(i >= osc.size()) return mul;
+
     for(auto& pair: osc[i].amplitude_mul) mul *= pair.second;
     return mul;
 }
@@ -244,43 +253,44 @@ double control_state::total_envelope_adjust(unsigned which) const
 }
 
 void control_state::apply(
-    basic_fm_synth& fm_synth,
+    fm_instrument& ins,
     double src_volume,
-    synth_state& synth
+    instrument_state& ins_state
 ){
-    dst_modulators = synth.modulators;
+    fm_synth dst = ins_state.synth;
 
     for(
         unsigned i = 0;
-        i < sizeof(osc)/sizeof(*osc) && i < dst_modulators.size();
+        i < osc.size() && i < dst.get_modulator_count();
         ++i
     ){
+        oscillator& mod = dst.get_modulator(i);
         int64_t amp_num, amp_denom;
         uint64_t period_num, period_denom;
-        dst_modulators[i].get_amplitude(amp_num, amp_denom);
-        dst_modulators[i].get_period(period_num, period_denom);
+        mod.get_amplitude(amp_num, amp_denom);
+        mod.get_period(period_num, period_denom);
 
         amp_num *= total_amp_mul(i);
         period_denom *= total_period_mul(i);
 
-        dst_modulators[i].set_amplitude(amp_num, amp_denom);
-        dst_modulators[i].set_period_fract(period_num, period_denom);
+        mod.set_amplitude(amp_num, amp_denom);
+        mod.set_period_fract(period_num, period_denom);
     }
 
-    fm_synth.set_tuning(total_freq_mul());
+    ins.set_tuning(total_freq_mul());
 
-    envelope adsr = synth.adsr;
+    envelope adsr = ins_state.adsr;
     adsr.attack_length *= total_envelope_adjust(0);
     adsr.decay_length *= total_envelope_adjust(1);
     adsr.sustain_volume_num *= total_envelope_adjust(2);
     adsr.release_length *= total_envelope_adjust(3);
 
-    fm_synth.set_envelope(adsr);
-    fm_synth.set_volume(src_volume*total_volume_mul());
-    fm_synth.import_modulators(dst_modulators);
+    ins.set_envelope(adsr);
+    ins.set_volume(src_volume*total_volume_mul());
+    ins.set_synth(dst);
 
     for(auto& pair: press_queue)
-        pressed_keys[fm_synth.press_voice(pair.second)] = pair.first;
+        pressed_keys[ins.press_voice(pair.second)] = pair.first;
 
     press_queue.clear();
 
@@ -291,7 +301,7 @@ void control_state::apply(
             auto old_it = it++;
             if(old_it->second == id)
             {
-                fm_synth.release_voice(old_it->first);
+                ins.release_voice(old_it->first);
                 pressed_keys.erase(old_it);
             }
         }

@@ -1,7 +1,7 @@
 #ifndef CAFEFM_CONTROL_CONTEXT_HH
 #define CAFEFM_CONTROL_CONTEXT_HH
 #include "fm.hh"
-#include "synth_state.hh"
+#include "instrument_state.hh"
 #include <set>
 #include <map>
 
@@ -65,15 +65,12 @@ public:
 
     // Applies alterations by actions to synth and modulators.
     void apply(
-        basic_fm_synth& fm_synth,
+        fm_instrument& ins,
         double src_volume,
-        synth_state& synth
+        instrument_state& ins_state
     );
 
 private:
-    // Stored here to avoid extra allocations
-    std::vector<dynamic_oscillator> dst_modulators;
-
     std::vector<std::pair<action_id, int /* semitone */>> press_queue;
     std::vector<action_id> release_queue;
 
@@ -95,7 +92,8 @@ private:
     {
         std::map<action_id, double> period_expt;
         std::map<action_id, double> amplitude_mul;
-    } osc[3];
+    };
+    std::vector<oscillator_mod> osc;
 
     struct envelope_mod
     {

@@ -1,21 +1,20 @@
-#ifndef CAFEFM_SYNTH_STATE_HH
-#define CAFEFM_SYNTH_STATE_HH
+#ifndef CAFEFM_INSTRUMENT_STATE_HH
+#define CAFEFM_INSTRUMENT_STATE_HH
 #include "fm.hh"
 #include "io.hh"
 
-struct synth_state
+struct instrument_state
 {
     std::string name;
     envelope adsr;
-    oscillator_type carrier;
     unsigned polyphony;
-    std::vector<dynamic_oscillator> modulators;
+    fm_synth synth;
     bool write_lock;
     fs::path path;
 
-    synth_state(uint64_t samplerate = 44100);
+    instrument_state(uint64_t samplerate = 44100);
 
-    basic_fm_synth* create_synth(uint64_t samplerate) const;
+    fm_instrument* create_instrument(uint64_t samplerate) const;
 
     // Samplerate is only used here for ADSR length conversions.
     json serialize(uint64_t samplerate) const;

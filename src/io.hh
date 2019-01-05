@@ -12,7 +12,7 @@ json read_json_file(const fs::path& path);
 class bindings;
 
 void open_bindings_folder();
-void open_synths_folder();
+void open_instruments_folder();
 
 std::string make_filename_safe(const std::string& name);
 
@@ -24,11 +24,11 @@ void write_bindings(bindings& b);
 void remove_bindings(const bindings& b);
 std::vector<bindings> load_all_bindings();
 
-class synth_state;
+class instrument_state;
 
-void write_synth(uint64_t samplerate, synth_state& synth);
-void remove_synth(const synth_state& synth);
-std::vector<synth_state> load_all_synths(uint64_t samplerate);
+void write_instrument(uint64_t samplerate, instrument_state& ins);
+void remove_instrument(const instrument_state& ins);
+std::vector<instrument_state> load_all_instruments(uint64_t samplerate);
 
 class options;
 
