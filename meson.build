@@ -13,6 +13,7 @@ src = [
   'src/controller/controller.cc',
   'src/controller/keyboard.cc',
   'src/controller/gamecontroller.cc',
+  'src/controller/joystick.cc',
   'src/fm.cc',
   'src/helpers.cc',
   'src/instrument.cc',

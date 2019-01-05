@@ -74,10 +74,7 @@ axis_1d gamecontroller::get_axis_1d_state(unsigned i) const
         break;
     }
 
-    res.value = std::max(
-        SDL_GameControllerGetAxis(gc, axis)/32767.0,
-        -1.0
-    );
+    res.value = std::max(SDL_GameControllerGetAxis(gc, axis)/32767.0, -1.0);
     return res;
 }
 

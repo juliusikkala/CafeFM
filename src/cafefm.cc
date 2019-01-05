@@ -1,6 +1,7 @@
 #include "cafefm.hh"
 #include "controller/keyboard.hh"
 #include "controller/gamecontroller.hh"
+#include "controller/joystick.hh"
 #include "io.hh"
 #include "helpers.hh"
 #include <stdexcept>
@@ -383,10 +384,19 @@ bool cafefm::update(unsigned dt)
         case SDL_MOUSEWHEEL:
             is_mouse_event = true;
             break;
-        case SDL_CONTROLLERDEVICEADDED:
-            available_controllers.emplace_back(
-                new gamecontroller(e.cdevice.which)
-            );
+        case SDL_JOYDEVICEADDED:
+            if(SDL_IsGameController(e.jdevice.which))
+            {
+                available_controllers.emplace_back(
+                    new gamecontroller(e.jdevice.which)
+                );
+            }
+            else
+            {
+                available_controllers.emplace_back(
+                    new joystick(e.jdevice.which)
+                );
+            }
             break;
         default:
             break;
@@ -1234,7 +1244,7 @@ void cafefm::gui_bind_control_template(bind& b)
         nk_layout_row_template_push_static(ctx, 100);
         break;
     }
-    nk_layout_row_template_push_static(ctx, 80);
+    nk_layout_row_template_push_static(ctx, 100);
     nk_layout_row_template_push_static(ctx, 25);
     nk_layout_row_template_push_static(ctx, 25);
     nk_layout_row_template_push_static(ctx, 25);
