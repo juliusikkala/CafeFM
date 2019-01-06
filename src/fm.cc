@@ -180,8 +180,6 @@ void oscillator::update(
     uint64_t period_denom
 ) const
 {
-    period_num *= this->period_num;
-    period_denom *= this->period_denom;
     s.t += period_num/period_denom;
     s.output = value(s.t);
 }
@@ -296,6 +294,36 @@ void fm_synth::finish_changes()
         for(unsigned& m: o.modulators) m = index_map[m];
 
     sort_oscillator_modulators();
+    update_period_lookup();
+}
+
+void fm_synth::update_period_lookup()
+{
+    period_lookup.resize(modulators.size());
+    std::fill(
+        period_lookup.begin(),
+        period_lookup.end(),
+        std::make_pair(1lu, 1lu)
+    );
+
+    for(unsigned i = 0; i < modulators.size(); ++i)
+    {
+        oscillator& o = modulators[i];
+        auto [period_num, period_denom] = period_lookup[i];
+        period_num *= o.period_num;
+        period_denom *= o.period_denom;
+        normalize_fract(period_num, period_denom);
+        period_lookup[i] = std::make_pair(period_num, period_denom);
+
+        for(unsigned& m: o.modulators)
+        {
+            auto [num, denom] = period_lookup[m];
+            num *= period_num;
+            denom *= period_denom;
+            normalize_fract(num, denom);
+            period_lookup[m] = std::make_pair(num, denom);
+        }
+    }
 }
 
 fm_synth::state fm_synth::start(
@@ -324,18 +352,23 @@ int64_t fm_synth::step(state& s) const
         int64_t x = 1u<<31;
         for(unsigned m: o.modulators) x += s.states[m+1].output;
 
-        uint64_t period_num = s.carrier.period_num;
-        uint64_t period_denom = s.carrier.period_denom;
+        auto [period_num, period_denom] = period_lookup[i-1];
+        period_num *= s.carrier.period_num;
+        period_denom *= s.carrier.period_denom;
+        normalize_fract(period_num, period_denom);
         period_num = period_num * x;
         period_denom <<= 31;
-        normalize_fract(period_num, period_denom);
         o.update(s.states[i], period_num, period_denom);
     }
 
     int64_t x = 1u<<31;
     for(unsigned m: carrier_modulators) x += s.states[m+1].output;
 
-    s.carrier.update(s.states[0], x, 1l<<31);
+    s.carrier.update(
+        s.states[0],
+        x*s.carrier.period_num,
+        s.carrier.period_denom<<31
+    );
 
     return s.states[0].output;
 }
@@ -418,8 +451,12 @@ bool fm_synth::deserialize(const json& j)
     }
     catch(...)
     {
+        modulators.clear();
+        carrier_modulators.clear();
         return false;
     }
+
+    finish_changes();
 
     return true;
 }
@@ -541,6 +578,12 @@ fm_instrument::fm_instrument(uint64_t samplerate)
 void fm_instrument::set_synth(const fm_synth& s)
 {
     bool compatible = synth.index_compatible(s);
+    // TODO: This might be unsafe, when the synth is compatible. That's because
+    // synthesize() might be called simultaneously while this is modified, and
+    // the vectors' internal pointers could possibly change in this call.
+    // It would be better to manually copy these. (If the synth isn't
+    // compatible, the audio output would be paused by the callee and
+    // synthesize() couldn't be running.)
     synth = s;
     if(compatible) return;
 

@@ -287,6 +287,7 @@ void control_state::apply(
 
     ins.set_envelope(adsr);
     ins.set_volume(src_volume*total_volume_mul());
+    dst.update_period_lookup();
     ins.set_synth(dst);
 
     for(auto& pair: press_queue)

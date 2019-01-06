@@ -106,9 +106,12 @@ public:
     // modulators. States are also invalid afterwards, so restart them.
     void erase_modulator(unsigned i);
     unsigned add_modulator(const oscillator& o);
-    // Cleans up modulators after changes, ensuring that they are properly
-    // formatted.
+    // Cleans up modulators after dependency changes, ensuring that they are
+    // properly formatted.
     void finish_changes();
+    // Call this after you are finished modifying the period of any oscillator
+    // (including carrier). finish_changes() also calls this.
+    void update_period_lookup();
 
     state start(
         double frequency = 440.0,
@@ -135,6 +138,7 @@ private:
     std::vector<oscillator> modulators;
     oscillator::func carrier_type;
     std::vector<unsigned> carrier_modulators;
+    std::vector<std::pair<uint64_t, uint64_t>> period_lookup;
 };
 
 class fm_instrument: public instrument

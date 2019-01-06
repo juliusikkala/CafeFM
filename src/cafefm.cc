@@ -966,6 +966,8 @@ void cafefm::gui_instrument_editor()
         reset_fm();
         control.apply(*fm, master_volume, ins_state);
     }
+    else if(mask & CHANGE_REQUIRE_IMPORT)
+        control.apply(*fm, master_volume, ins_state);
 }
 
 void cafefm::gui_bind_action_template(bind& b)
