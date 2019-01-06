@@ -962,6 +962,7 @@ void cafefm::gui_instrument_editor()
     // Do necessary updates
     if(mask & CHANGE_REQUIRE_RESET)
     {
+        ins_state.synth.finish_changes();
         reset_fm();
         control.apply(*fm, master_volume, ins_state);
     }

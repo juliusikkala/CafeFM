@@ -106,6 +106,9 @@ public:
     // modulators. States are also invalid afterwards, so restart them.
     void erase_modulator(unsigned i);
     unsigned add_modulator(const oscillator& o);
+    // Cleans up modulators after changes, ensuring that they are properly
+    // formatted.
+    void finish_changes();
 
     state start(
         double frequency = 440.0,
@@ -121,6 +124,14 @@ public:
     bool deserialize(const json& j);
 
 private:
+    using reference_vec = std::vector<std::vector<int>>;
+
+    void erase_invalid_indices();
+    reference_vec determine_references();
+    void erase_orphans(reference_vec& ref);
+    void erase_index(unsigned index, reference_vec* ref = nullptr);
+    void sort_oscillator_modulators();
+
     std::vector<oscillator> modulators;
     oscillator::func carrier_type;
     std::vector<unsigned> carrier_modulators;

@@ -236,43 +236,7 @@ const oscillator& fm_synth::get_modulator(unsigned i) const
 
 void fm_synth::erase_modulator(unsigned i)
 {
-    // Remove the modulators of this modulator
-    std::vector<unsigned> m = modulators[i].modulators;
-    std::sort(m.begin(), m.end());
-    // Reverse order to avoid messing earlier indices
-    for(auto it = m.rbegin(); it != m.rend(); ++it)
-    {
-        // This should never happen, but let's not take the chance.
-        if(*it <= i) continue;
-        erase_modulator(*it);
-    }
-
-    // Remove the modulator itself
-    modulators.erase(modulators.begin() + i);
-
-    // Fix indices
-    for(unsigned j = 0; j < carrier_modulators.size(); ++j)
-    {
-        if(carrier_modulators[j] == i)
-        {
-            carrier_modulators.erase(carrier_modulators.begin() + j);
-            j--;
-        }
-        else if(carrier_modulators[j] > i) carrier_modulators[j]--;
-    }
-
-    for(oscillator& o: modulators)
-    {
-        for(unsigned j = 0; j < o.modulators.size(); ++j)
-        {
-            if(o.modulators[j] == i)
-            {
-                o.modulators.erase(o.modulators.begin() + j);
-                j--;
-            }
-            else if(o.modulators[j] > i) o.modulators[j]--;
-        }
-    }
+    erase_index(i);
 }
 
 unsigned fm_synth::add_modulator(const oscillator& o)
@@ -280,6 +244,58 @@ unsigned fm_synth::add_modulator(const oscillator& o)
     modulators.push_back(o);
     modulators.back().modulators.clear();
     return modulators.size()-1;
+}
+
+void fm_synth::finish_changes()
+{
+    erase_invalid_indices();
+    reference_vec ref = determine_references();
+    erase_orphans(ref);
+
+    // Sort modulators
+    std::map<int, int> index_map;
+    std::vector<bool> handled_modulators(modulators.size(), false);
+    std::vector<oscillator> new_modulators;
+    for(unsigned handled = 0; handled < modulators.size(); ++handled)
+    {
+        int add_index = 0;
+        int min_max_ref = modulators.size();
+        for(unsigned i = 0; i < modulators.size(); ++i)
+        {
+            if(handled_modulators[i]) continue;
+            bool all_handled = true;
+            int max_ref = -1;
+            for(unsigned j = 0; j < ref[i].size(); ++j)
+            {
+                if(ref[i][j] == -1) continue;
+                if(!handled_modulators[ref[i][j]])
+                {
+                    all_handled = false;
+                    break;
+                }
+                else if(index_map[ref[i][j]] > max_ref)
+                    max_ref = index_map[ref[i][j]];
+            }
+            if(!all_handled) continue;
+            if(max_ref < min_max_ref)
+            {
+                add_index = i;
+                min_max_ref = max_ref;
+            }
+        }
+        index_map[add_index] = new_modulators.size();
+        handled_modulators[add_index] = true;
+        new_modulators.push_back(modulators[add_index]);
+    }
+
+    modulators = new_modulators;
+
+    // Apply new indices from index map
+    for(unsigned& m: carrier_modulators) m = index_map[m];
+    for(oscillator& o: modulators)
+        for(unsigned& m: o.modulators) m = index_map[m];
+
+    sort_oscillator_modulators();
 }
 
 fm_synth::state fm_synth::start(
@@ -406,6 +422,116 @@ bool fm_synth::deserialize(const json& j)
     }
 
     return true;
+}
+
+void fm_synth::erase_invalid_indices()
+{
+    for(unsigned j = 0; j < carrier_modulators.size(); ++j)
+    {
+        if(carrier_modulators[j] >= modulators.size())
+        {
+            carrier_modulators.erase(carrier_modulators.begin() + j);
+            j--;
+        }
+    }
+
+    for(oscillator& o: modulators)
+    {
+        for(unsigned j = 0; j < o.modulators.size(); ++j)
+        {
+            if(o.modulators[j] >= modulators.size())
+            {
+                o.modulators.erase(o.modulators.begin() + j);
+                j--;
+            }
+        }
+    }
+}
+
+fm_synth::reference_vec fm_synth::determine_references()
+{
+    reference_vec references(modulators.size());
+    for(unsigned m: carrier_modulators) references[m].push_back(-1);
+    for(unsigned i = 0; i < modulators.size(); ++i)
+    {
+        for(unsigned m: modulators[i].modulators)
+            references[m].push_back(i);
+    }
+    return references;
+}
+
+void fm_synth::erase_orphans(reference_vec& ref)
+{
+    bool deleted = false;
+    do
+    {
+        deleted = false;
+        for(unsigned i = 0; i < ref.size(); ++i)
+        {
+            if(ref[i].size() == 0)
+            {
+                deleted = true;
+                erase_index(i, &ref);
+                i--;
+            }
+        }
+    }
+    while(deleted);
+}
+
+void fm_synth::erase_index(unsigned i, reference_vec* ref)
+{
+    // Remove the modulator itself
+    modulators.erase(modulators.begin() + i);
+
+    // Fix indices
+    for(unsigned j = 0; j < carrier_modulators.size(); ++j)
+    {
+        if(carrier_modulators[j] == i)
+        {
+            carrier_modulators.erase(carrier_modulators.begin() + j);
+            j--;
+        }
+        else if(carrier_modulators[j] > i) carrier_modulators[j]--;
+    }
+
+    for(oscillator& o: modulators)
+    {
+        for(unsigned j = 0; j < o.modulators.size(); ++j)
+        {
+            if(o.modulators[j] == i)
+            {
+                o.modulators.erase(o.modulators.begin() + j);
+                j--;
+            }
+            else if(o.modulators[j] > i) o.modulators[j]--;
+        }
+    }
+
+    // Update references if applicable
+    if(ref)
+    {
+        ref->erase(ref->begin()+i);
+        for(std::vector<int>& r: *ref)
+        {
+            for(unsigned j = 0; j < r.size(); ++j)
+            {
+                if(r[j] == (int)i)
+                {
+                    r.erase(r.begin() + j);
+                    j--;
+                }
+                else if(r[j] > (int)i) r[j]--;
+            }
+        }
+    }
+}
+
+void fm_synth::sort_oscillator_modulators()
+{
+    std::sort(carrier_modulators.begin(), carrier_modulators.end());
+    for(oscillator& o: modulators)
+        std::sort(o.modulators.begin(), o.modulators.end());
 }
 
 fm_instrument::fm_instrument(uint64_t samplerate)
