@@ -668,7 +668,8 @@ unsigned cafefm::gui_carrier(oscillator::func& type)
 unsigned cafefm::gui_modulator(
     oscillator& osc,
     unsigned index,
-    bool& erase
+    bool& erase,
+    unsigned partition
 ){
     unsigned mask = CHANGE_NONE;
 
@@ -678,14 +679,22 @@ unsigned cafefm::gui_modulator(
         ("Modulator " + std::to_string(index)).c_str(),
         NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|NK_WINDOW_TITLE
     )){
-        nk_layout_row_template_begin(ctx, 30);
-        nk_layout_row_template_push_static(ctx, 100);
-        nk_layout_row_template_push_dynamic(ctx);
-        nk_layout_row_template_push_dynamic(ctx);
-        nk_layout_row_template_push_dynamic(ctx);
-        nk_layout_row_template_push_static(ctx, 30);
-        nk_layout_row_template_end(ctx);
-
+        switch(partition)
+        {
+        case 1:
+            nk_layout_row_template_begin(ctx, 30);
+            nk_layout_row_template_push_static(ctx, 100);
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_push_static(ctx, 30);
+            nk_layout_row_template_end(ctx);
+            break;
+        default:
+            throw std::runtime_error(
+                "Unimplemented partition " + std::to_string(partition)
+            );
+        }
         // Waveform type selection
         nk_style_set_font(ctx, &small_font->handle);
         oscillator::func type = osc.get_type();
@@ -930,7 +939,7 @@ void cafefm::gui_instrument_editor()
         for(unsigned i = 0; i < ins_state.synth.get_modulator_count(); ++i)
         {
             bool erase = false;
-            mask |= gui_modulator(ins_state.synth.get_modulator(i), i, erase);
+            mask |= gui_modulator(ins_state.synth.get_modulator(i), i, erase, 1);
             if(erase)
             {
                 ins_state.synth.erase_modulator(i);
@@ -964,7 +973,6 @@ void cafefm::gui_instrument_editor()
     {
         ins_state.synth.finish_changes();
         reset_fm();
-        control.apply(*fm, master_volume, ins_state);
     }
     else if(mask & CHANGE_REQUIRE_IMPORT)
         control.apply(*fm, master_volume, ins_state);
@@ -1969,7 +1977,6 @@ void cafefm::select_instrument(unsigned index)
         );
         ins_state = all_instruments[selected_instrument_preset];
         reset_fm(false);
-        control.apply(*fm, master_volume, ins_state);
     }
 }
 
@@ -2015,7 +2022,6 @@ void cafefm::create_new_instrument()
     ins_state.name = modified_name;
 
     reset_fm(false);
-    control.apply(*fm, master_volume, ins_state);
 }
 
 void cafefm::delete_current_instrument()
@@ -2043,16 +2049,15 @@ void cafefm::reset_fm(bool refresh_only)
     new_fm->set_volume(master_volume);
 
     if(fm) new_fm->copy_state(*fm);
-
     fm.swap(new_fm);
+    control.apply(*fm, master_volume, ins_state);
+
     output.reset(
         new audio_output(
-            *fm,
-            opts.target_latency,
-            opts.system_index,
-            opts.device_index
+            *fm, opts.target_latency, opts.system_index, opts.device_index
         )
     );
+
     output->start();
 }
 
@@ -2068,5 +2073,4 @@ void cafefm::apply_options(const options& new_opts)
 
     opts = new_opts;
     reset_fm();
-    control.apply(*fm, master_volume, ins_state);
 }

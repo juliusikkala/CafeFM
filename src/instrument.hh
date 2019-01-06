@@ -82,7 +82,7 @@ protected:
 
     double get_frequency(voice_id id) const;
     void get_voice_volume(voice_id id, int64_t& num, int64_t& denom);
-    void step_voices();
+    void step_voice(voice_id id);
 
     virtual void refresh_voice(voice_id id) = 0;
     virtual void reset_voice(voice_id id) = 0;

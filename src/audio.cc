@@ -123,7 +123,7 @@ void audio_output::start()
 
 void audio_output::stop()
 {
-    Pa_StopStream(stream);
+    Pa_AbortStream(stream);
 }
 
 unsigned audio_output::get_samplerate() const

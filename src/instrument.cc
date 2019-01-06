@@ -196,7 +196,9 @@ void instrument::copy_state(const instrument& other)
     base_frequency = other.base_frequency;
     volume = other.volume;
 
-    refresh_all_voices();
+    // Reset all voices
+    for(voice_id id = 0; id < voices.size(); ++id)
+        reset_voice(id);
 }
 
 double instrument::get_frequency(voice_id id) const
@@ -257,26 +259,24 @@ void instrument::update_voice_volume(voice& v)
     v.volume += skip_size;
 }
 
-void instrument::step_voices()
+void instrument::step_voice(voice_id id)
 {
-    for(voice& v: voices)
-    {
-        if(!v.enabled) continue;
+    voice& v = voices[id];
+    if(!v.enabled) return;
 
-        if(v.pressed)
-        {
-            if(v.press_timer) v.press_timer--;
-        }
-        else
-        {
-            if(v.release_timer)
-            {
-                v.release_timer--;
-                if(v.release_timer == 0) v.enabled = false;
-            }
-        }
-        update_voice_volume(v);
+    if(v.pressed)
+    {
+        if(v.press_timer) v.press_timer--;
     }
+    else
+    {
+        if(v.release_timer)
+        {
+            v.release_timer--;
+            if(v.release_timer == 0) v.enabled = false;
+        }
+    }
+    update_voice_volume(v);
 }
 
 void instrument::refresh_all_voices()

@@ -353,6 +353,43 @@ void fm_synth::update_period_lookup()
     }
 }
 
+fm_synth::layout fm_synth::generate_layout()
+{
+    reference_vec ref = determine_references();
+
+    layout l;
+    std::map<int /* parent */, unsigned /* layer */> layer_map;
+    layer_map[-1] = 0;
+
+    // Since the parent should always be before in the array, a single pass
+    // like this is enough.
+    for(unsigned i = 0; i < modulators.size(); ++i)
+    {
+        int parent = ref[i].front();
+        unsigned layer = layer_map[parent] + 1;
+        layer_map[i] = layer;
+
+        if(layer >= l.layers.size())
+            l.layers.resize(layer+1);
+
+        // Find group with the same parent or create it.
+        bool found = false;
+        for(layout::group& g: l.layers[layer])
+        {
+            if(g.parent == parent)
+            {
+                g.modulators.push_back(i);
+                found = true;
+                break;
+            }
+        }
+        if(!found)
+            l.layers[layer].push_back({parent, {i}});
+    }
+
+    return l;
+}
+
 fm_synth::state fm_synth::start(
     double frequency, double volume, uint64_t samplerate
 ) const
@@ -628,20 +665,18 @@ const fm_synth& fm_instrument::get_synth()
 
 void fm_instrument::synthesize(int32_t* samples, unsigned sample_count) 
 {
-    // TODO: Consider making the inner loop outer for cache reasons.
-    // Doing that requires changing step_voices to step_voice.
-    for(unsigned i = 0; i < sample_count; ++i)
+    for(voice_id j = 0; j < states.size(); ++j)
     {
-        for(voice_id j = 0; j < states.size(); ++j)
+        for(unsigned i = 0; i < sample_count; ++i)
         {
-            int64_t volume_num, volume_denom;
+            step_voice(j);
+            int64_t volume_num = 0, volume_denom;
             get_voice_volume(j, volume_num, volume_denom);
             if(volume_num == 0) continue;
 
             synth.set_volume(states[j], volume_num, volume_denom);
             samples[i] += synth.step(states[j]);
         }
-        step_voices();
     }
 }
 

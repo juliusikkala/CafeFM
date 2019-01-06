@@ -113,6 +113,19 @@ public:
     // (including carrier). finish_changes() also calls this.
     void update_period_lookup();
 
+    struct layout
+    {
+        struct group
+        {
+            int parent;
+            std::vector<unsigned> modulators;
+        };
+        using layer = std::vector<group>;
+        std::vector<layer> layers;
+    };
+
+    layout generate_layout();
+
     state start(
         double frequency = 440.0,
         double volume = 0.5,

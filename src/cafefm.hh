@@ -44,7 +44,8 @@ private:
     unsigned gui_modulator(
         oscillator& osc,
         unsigned index,
-        bool& erase
+        bool& erase,
+        unsigned partition
     );
     void gui_instrument_editor();
 

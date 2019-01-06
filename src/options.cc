@@ -24,7 +24,7 @@ bool options::deserialize(const json& j)
     system_index = -1;
     device_index = -1;
     samplerate = 44100;
-    target_latency = 0.025;
+    target_latency = 0.030;
 
     try
     {

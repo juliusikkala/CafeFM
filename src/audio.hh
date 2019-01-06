@@ -13,7 +13,7 @@ public:
     template<typename Synth>
     audio_output(
         Synth& s,
-        double target_latency = 0.025,
+        double target_latency = 0.030,
         int system_index = -1,
         int device_index = -1
     ): samplerate(s.get_samplerate())
@@ -39,7 +39,7 @@ public:
         int system_index
     );
     static std::vector<uint64_t> get_available_samplerates(
-        int system_index, int device_index, double target_latency = 0.025
+        int system_index, int device_index, double target_latency = 0.030
     );
 
 private:
@@ -64,6 +64,7 @@ private:
         int32_t* o = static_cast<int32_t*>(output);
         memset(o, 0, framecount * sizeof(*o));
         synth->synthesize(o, framecount);
+
         return 0;
     }
 
