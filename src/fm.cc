@@ -234,6 +234,33 @@ const oscillator& fm_synth::get_modulator(unsigned i) const
 
 void fm_synth::erase_modulator(unsigned i)
 {
+    // Link succeeding modulators to preceding.
+    auto& mod = modulators[i].modulators;
+    for(unsigned m: carrier_modulators)
+    {
+        if(m == i)
+        {
+            carrier_modulators.insert(
+                carrier_modulators.end(), mod.begin(), mod.end()
+            );
+            break;
+        }
+    }
+    for(oscillator& o: modulators)
+    {
+        for(unsigned m: o.modulators)
+        {
+            if(m == i)
+            {
+                o.modulators.insert(o.modulators.end(), mod.begin(), mod.end());
+                break;
+            }
+        }
+    }
+
+    // Actually remove the modulator. finish_changes() would reap orphans after
+    // this, but since we linked succeeding modulators, there should be no
+    // orphans.
     erase_index(i);
 }
 
