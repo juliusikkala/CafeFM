@@ -669,16 +669,26 @@ unsigned cafefm::gui_modulator(
     oscillator& osc,
     unsigned index,
     bool& erase,
-    unsigned partition
+    unsigned partition,
+    bool down
 ){
     unsigned mask = CHANGE_NONE;
 
     nk_style_set_font(ctx, &small_font->handle);
-    if(nk_group_begin(
-        ctx,
-        ("Modulator " + std::to_string(index)).c_str(),
-        NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|NK_WINDOW_TITLE
-    )){
+    std::string title = "Modulator " + std::to_string(index);
+    nk_window_show(ctx, title.c_str(), NK_SHOWN);
+    int res = nk_group_begin(
+        ctx, title.c_str(),
+        NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|
+        NK_WINDOW_TITLE|NK_WINDOW_CLOSABLE
+    );
+    if(res == NK_WINDOW_HIDDEN)
+    {
+        erase = true;
+        mask |= CHANGE_REQUIRE_RESET;
+    }
+    else if(res)
+    {
         switch(partition)
         {
         case 1:
@@ -687,8 +697,19 @@ unsigned cafefm::gui_modulator(
             nk_layout_row_template_push_dynamic(ctx);
             nk_layout_row_template_push_dynamic(ctx);
             nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_push_static(ctx, 30);
             nk_layout_row_template_end(ctx);
+            break;
+        case 2:
+            nk_layout_row_template_begin(ctx, 30);
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_end(ctx);
+            break;
+        case 3:
+        case 4:
+        case 5:
+        case 6:
+            nk_layout_row_dynamic(ctx, 30, 1);
             break;
         default:
             throw std::runtime_error(
@@ -698,10 +719,7 @@ unsigned cafefm::gui_modulator(
         // Waveform type selection
         nk_style_set_font(ctx, &small_font->handle);
         oscillator::func type = osc.get_type();
-        mask |= gui_oscillator_type(
-            type,
-            index + 2 < ins_state.synth.get_modulator_count()
-        );
+        mask |= gui_oscillator_type(type, down);
         osc.set_type(type);
 
         // Amplitude controls
@@ -742,13 +760,6 @@ unsigned cafefm::gui_modulator(
             mask |= CHANGE_REQUIRE_IMPORT;
         }
         
-        // Remove button
-        nk_style_set_font(ctx, &huge_font->handle);
-        if(nk_button_symbol(ctx, NK_SYMBOL_X))
-        {
-            erase = true;
-            mask |= CHANGE_REQUIRE_RESET;
-        }
         nk_group_end(ctx);
     }
 
@@ -931,32 +942,83 @@ void cafefm::gui_instrument_editor()
     ins_state.synth.set_carrier_type(carrier);
 
     nk_layout_row_dynamic(ctx, 280, 1);
+    struct nk_rect empty_space;
     if(nk_group_begin(ctx, "Synth Control", NK_WINDOW_BORDER))
     {
+        fm_synth::layout layout = ins_state.synth.generate_layout();
 
-        nk_layout_row_dynamic(ctx, 73, 1);
-        // Render modulators
-        for(unsigned i = 0; i < ins_state.synth.get_modulator_count(); ++i)
+        int erase_index = -1;
+        int add_parent = -2;
+
+        // TODO: The main course, horizontal +-buttons.
+        for(fm_synth::layout::layer& layer: layout.layers)
         {
-            bool erase = false;
-            mask |= gui_modulator(ins_state.synth.get_modulator(i), i, erase, 1);
-            if(erase)
+            unsigned max_partition = 0;
+            unsigned row_elements = 0;
+            for(fm_synth::layout::group& group: layer)
             {
-                ins_state.synth.erase_modulator(i);
-                --i;
+                if(group.partition > max_partition)
+                    max_partition = group.partition;
+                // Add room for each modulator
+                row_elements += group.modulators.size();
+                // Add room for +-buttons (vertical)
+                if(group.modulators.size() == 0)
+                    row_elements++;
             }
+            if(max_partition == 0) continue;
+            // Determine layer height based on max partition.
+            constexpr unsigned partition_height[] = {
+                73, 100, 150
+            };
+            unsigned height = partition_height[std::min(max_partition-1, 2u)];
+
+            nk_layout_row_begin(ctx, NK_DYNAMIC, height, row_elements);
+            for(fm_synth::layout::group& group: layer)
+            {
+                if(group.modulators.size() == 0)
+                {
+                    nk_layout_row_push(ctx, 1.0/group.partition);
+                    if(group.parent < -1) nk_widget(&empty_space, ctx);
+                    else
+                    {
+                        nk_style_set_font(ctx, &huge_font->handle);
+                        if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
+                        {
+                            add_parent = group.parent;
+                        }
+                        nk_style_set_font(ctx, &small_font->handle);
+                    }
+                }
+                else
+                {
+                    for(unsigned m: group.modulators)
+                    {
+                        nk_layout_row_push(ctx, 1.0/group.partition);
+                        bool erase = false;
+                        mask |= gui_modulator(
+                            ins_state.synth.get_modulator(m),
+                            m,
+                            erase,
+                            group.partition,
+                            true
+                        );
+                        if(erase) erase_index = m;
+                    }
+                }
+            }
+            nk_layout_row_end(ctx);
         }
 
-        // + button for modulators
-        nk_style_set_font(ctx, &huge_font->handle);
-        if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
+        // Do add & erase here to avoid meddling with layouts and such.
+        if(add_parent >= -1)
         {
             unsigned i = ins_state.synth.add_modulator(
                 {oscillator::SINE, 1.0, 0.5}
             );
-            if(i > 0)
+            if(add_parent >= 0)
             {
-                ins_state.synth.get_modulator(i-1).get_modulators().push_back(i);
+                ins_state.synth.get_modulator(add_parent)
+                    .get_modulators().push_back(i);
             }
             else
             {
@@ -964,6 +1026,8 @@ void cafefm::gui_instrument_editor()
             }
             mask |= CHANGE_REQUIRE_RESET;
         }
+
+        if(erase_index >= 0) ins_state.synth.erase_modulator(erase_index);
 
         nk_group_end(ctx);
     }

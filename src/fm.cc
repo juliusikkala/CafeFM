@@ -358,8 +358,8 @@ fm_synth::layout fm_synth::generate_layout()
     reference_vec ref = determine_references();
 
     layout l;
-    std::map<int /* parent */, unsigned /* layer */> layer_map;
-    layer_map[-1] = 0;
+    std::map<int /* parent */, int /* layer */> layer_map;
+    layer_map[-1] = -1;
 
     // Since the parent should always be before in the array, a single pass
     // like this is enough.
@@ -374,8 +374,9 @@ fm_synth::layout fm_synth::generate_layout()
 
         // Find group with the same parent or create it.
         bool found = false;
-        for(layout::group& g: l.layers[layer])
+        for(unsigned j = 0; j < l.layers[layer].size(); ++j)
         {
+            layout::group& g = l.layers[layer][j];
             if(g.parent == parent)
             {
                 g.modulators.push_back(i);
@@ -383,9 +384,80 @@ fm_synth::layout fm_synth::generate_layout()
                 break;
             }
         }
-        if(!found)
-            l.layers[layer].push_back({parent, {i}});
+        if(!found) l.layers[layer].push_back({parent, 1, {i}});
     }
+
+    // Now, the array has all modulator groups, but is unaligned and missing
+    // +-buttons.
+
+    // Set initial layer partition
+    if(l.layers.size() > 0)
+        l.layers[0][0].partition = l.layers[0][0].modulators.size();
+
+    // Since the first layer can't be unaligned, we don't have to care about it.
+    for(unsigned i = 1; i < l.layers.size(); ++i)
+    {
+        layout::layer& prev_layer = l.layers[i-1];
+        layout::layer& cur_layer = l.layers[i];
+        layout::layer new_layer;
+
+        // For every modulator _or_ filler on previous layer 
+        for(unsigned j = 0; j < prev_layer.size(); ++j)
+        {
+            // Valid modulators go here
+            if(prev_layer[j].modulators.size())
+            {
+                for(unsigned k = 0; k < prev_layer[j].modulators.size(); ++k)
+                {
+                    bool found = false;
+                    unsigned& parent = prev_layer[j].modulators[k];
+                    // Find matching child group on current layer.
+                    for(unsigned l = 0; l < cur_layer.size(); ++l)
+                    {
+                        if(cur_layer[l].parent == parent)
+                        {
+                            new_layer.push_back(cur_layer[l]);
+                            found = true;
+                            break;
+                        }
+                    }
+                    // Add +-button if there was no child group,
+                    if(!found)
+                    {
+                        new_layer.push_back({
+                            parent, prev_layer[j].partition, {}
+                        });
+                    }
+                }
+            }
+            else // Fillers or +-buttons go here. They are followed by filler.
+                new_layer.push_back({-2, prev_layer[j].partition, {}});
+        }
+        cur_layer = new_layer;
+    }
+
+    // Add last layer of +-buttons and fillers.
+    if(l.layers.size() > 0)
+    {
+        layout::layer& prev_layer = l.layers.back();
+        layout::layer new_layer;
+        // For every modulator _or_ filler on previous layer 
+        for(unsigned j = 0; j < prev_layer.size(); ++j)
+        {
+            // Valid modulators go here
+            if(prev_layer[j].modulators.size())
+            {
+                for(unsigned k = 0; k < prev_layer[j].modulators.size(); ++k)
+                {
+                    unsigned& parent = prev_layer[j].modulators[k];
+                    new_layer.push_back({parent, prev_layer[j].partition, {}});
+                }
+            }
+            else new_layer.push_back({-2, prev_layer[j].partition, {}});
+        }
+        l.layers.push_back(new_layer);
+    }
+    else l.layers.push_back({{-1, 1, {}}});
 
     return l;
 }

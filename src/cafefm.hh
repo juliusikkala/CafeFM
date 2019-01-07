@@ -45,7 +45,8 @@ private:
         oscillator& osc,
         unsigned index,
         bool& erase,
-        unsigned partition
+        unsigned partition,
+        bool down
     );
     void gui_instrument_editor();
 

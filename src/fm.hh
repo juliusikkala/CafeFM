@@ -117,7 +117,12 @@ public:
     {
         struct group
         {
+            // If parent < -1, this group is simply filler used to align
+            // groups.
             int parent;
+            unsigned partition;
+            // If modulators is empty, this group exists as a +-button for the
+            // parent.
             std::vector<unsigned> modulators;
         };
         using layer = std::vector<group>;

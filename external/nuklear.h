@@ -18597,7 +18597,8 @@ nk_group_scrolled_offset_begin(struct nk_context *ctx,
 
     ctx->current = win;
     if ((panel.layout->flags & NK_WINDOW_CLOSED) ||
-        (panel.layout->flags & NK_WINDOW_MINIMIZED))
+        (panel.layout->flags & NK_WINDOW_MINIMIZED) ||
+        (panel.layout->flags & NK_WINDOW_HIDDEN))
     {
         nk_flags f = panel.layout->flags;
         nk_group_scrolled_end(ctx);
@@ -18605,6 +18606,8 @@ nk_group_scrolled_offset_begin(struct nk_context *ctx,
             return NK_WINDOW_CLOSED;
         if (f & NK_WINDOW_MINIMIZED)
             return NK_WINDOW_MINIMIZED;
+        if (f & NK_WINDOW_HIDDEN)
+            return NK_WINDOW_HIDDEN;
     }
     return 1;
 }
