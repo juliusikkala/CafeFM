@@ -19,6 +19,9 @@
 #ifndef CAFEFM_FUNC_HH
 #define CAFEFM_FUNC_HH
 #include <stdint.h>
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
 
 inline int32_t i32sin(int32_t x)
 {
@@ -59,7 +62,12 @@ inline void normalize_fract(uint64_t& num, uint64_t& denom)
 {
     int64_t mask = num|denom;
 #if defined(__GNUC__) || defined(__clang__)
-    int of = 32 - __builtin_clzl(mask|1);
+    int of = 32 - __builtin_clzl(mask | 1);
+#elif  defined(_MSC_VER)
+    int of = 32 - __lzcnt64(mask | 1);
+#else
+#error "CLZ not yet implemented for compilers other than GCC or Clang!"
+#endif
     if(of > 0)
     {
         num >>= of;
@@ -67,9 +75,6 @@ inline void normalize_fract(uint64_t& num, uint64_t& denom)
         // Prevent division by zero
         denom |= !denom;
     }
-#else
-#error "CLZ not yet implemented for compilers other than GCC or Clang!"
-#endif
 }
 
 inline int64_t lerp(

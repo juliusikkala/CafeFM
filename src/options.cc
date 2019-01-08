@@ -20,7 +20,7 @@
 #include "audio.hh"
 
 options::options()
-: system_index(-1), device_index(-1), samplerate(44100), target_latency(0.025)
+: system_index(-1), device_index(-1), samplerate(44100), target_latency(0.030)
 {}
 
 json options::serialize() const

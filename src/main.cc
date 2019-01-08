@@ -52,8 +52,10 @@ void deinit()
     SDL_Quit();
 }
 
-int main()
+int main(int argc, char** argv)
 {
+    (void)argc;
+    (void)argv;
     srand(time(nullptr));
     try
     {

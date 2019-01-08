@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{F4077655-7C2D-41A8-8A60-3F8BE74C0B1F}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MaxSpeed</Optimization>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>D:\WindowsLibraries\glew-2.1.0\include;D:\WindowsLibraries\portaudio\include;D:\WindowsLibraries\SDL2-2.0.9\include;C:\Users\juliu\Ohjelmointi\CafeFM\external;D:\WindowsLibraries\boost_1_69_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalLibraryDirectories>D:\WindowsLibraries\glew-2.1.0\lib\Release\x64;D:\WindowsLibraries\portaudio\Release;D:\WindowsLibraries\SDL2-2.0.9\lib\x64;D:\WindowsLibraries\boost_1_69_0\stage_x64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;SDLmain.lib;portaudio_static_x64.lib;glew32s.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>D:\WindowsLibraries\glew-2.1.0\include;D:\WindowsLibraries\portaudio\include;D:\WindowsLibraries\SDL2-2.0.9\include;C:\Users\juliu\Ohjelmointi\CafeFM\external;D:\WindowsLibraries\boost_1_69_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalLibraryDirectories>D:\WindowsLibraries\glew-2.1.0\lib\Release\x64;D:\WindowsLibraries\portaudio\Release;D:\WindowsLibraries\SDL2-2.0.9\lib\x64;D:\WindowsLibraries\boost_1_69_0\stage_x64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;SDLmain.lib;portaudio_static_x64.lib;glew32s.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>D:\WindowsLibraries\SDL2_image-2.0.4\include;D:\WindowsLibraries\glew-2.1.0\include;D:\WindowsLibraries\portaudio\include;D:\WindowsLibraries\SDL2-2.0.9\include;C:\Users\juliu\Ohjelmointi\CafeFM\external;D:\WindowsLibraries\boost_1_69_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalLibraryDirectories>D:\WindowsLibraries\SDL2_image-2.0.4\lib\x64;D:\WindowsLibraries\glew-2.1.0\lib\Release\x64;D:\WindowsLibraries\portaudio\Release;D:\WindowsLibraries\SDL2-2.0.9\lib\x64;D:\WindowsLibraries\boost_1_69_0\stage_x64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;portaudio_static_x64.lib;glew32.lib;opengl32.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>D:\WindowsLibraries\SDL2_image-2.0.4\include;D:\WindowsLibraries\glew-2.1.0\include;D:\WindowsLibraries\portaudio\include;D:\WindowsLibraries\SDL2-2.0.9\include;C:\Users\juliu\Ohjelmointi\CafeFM\external;D:\WindowsLibraries\boost_1_69_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalLibraryDirectories>D:\WindowsLibraries\SDL2_image-2.0.4\lib\x64;D:\WindowsLibraries\glew-2.1.0\lib\Release\x64;D:\WindowsLibraries\portaudio\Release;D:\WindowsLibraries\SDL2-2.0.9\lib\x64;D:\WindowsLibraries\boost_1_69_0\stage_x64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;portaudio_static_x64.lib;glew32.lib;opengl32.lib;SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="external\nuklear.cc" />
+    <ClCompile Include="src\audio.cc" />
+    <ClCompile Include="src\bindings.cc" />
+    <ClCompile Include="src\cafefm.cc" />
+    <ClCompile Include="src\controller\controller.cc" />
+    <ClCompile Include="src\controller\gamecontroller.cc" />
+    <ClCompile Include="src\controller\joystick.cc" />
+    <ClCompile Include="src\controller\keyboard.cc" />
+    <ClCompile Include="src\control_state.cc" />
+    <ClCompile Include="src\fm.cc" />
+    <ClCompile Include="src\helpers.cc" />
+    <ClCompile Include="src\instrument.cc" />
+    <ClCompile Include="src\instrument_state.cc" />
+    <ClCompile Include="src\io.cc" />
+    <ClCompile Include="src\main.cc" />
+    <ClCompile Include="src\options.cc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="external\json.hpp" />
+    <ClInclude Include="external\nuklear.h" />
+    <ClInclude Include="external\nuklear.hh" />
+    <ClInclude Include="external\nuklear_sdl_gl3.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="src\audio.hh" />
+    <ClInclude Include="src\bindings.hh" />
+    <ClInclude Include="src\cafefm.hh" />
+    <ClInclude Include="src\controller\controller.hh" />
+    <ClInclude Include="src\controller\gamecontroller.hh" />
+    <ClInclude Include="src\controller\joystick.hh" />
+    <ClInclude Include="src\controller\keyboard.hh" />
+    <ClInclude Include="src\control_state.hh" />
+    <ClInclude Include="src\fm.hh" />
+    <ClInclude Include="src\func.hh" />
+    <ClInclude Include="src\helpers.hh" />
+    <ClInclude Include="src\instrument.hh" />
+    <ClInclude Include="src\instrument_state.hh" />
+    <ClInclude Include="src\io.hh" />
+    <ClInclude Include="src\options.hh" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="cafefm.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="data\icon\16.ico" />
+    <Image Include="data\icon\16.png" />
+    <Image Include="data\icon\256.ico" />
+    <Image Include="data\icon\256.png" />
+    <Image Include="data\icon\32.ico" />
+    <Image Include="data\icon\32.png" />
+    <Image Include="data\icon\48.ico" />
+    <Image Include="data\icon\48.png" />
+    <Image Include="icon1.ico" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

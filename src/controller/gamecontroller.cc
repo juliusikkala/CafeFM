@@ -17,6 +17,7 @@
     along with CafeFM.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "gamecontroller.hh"
+#include <algorithm>
 
 gamecontroller::gamecontroller(int device_index)
 {

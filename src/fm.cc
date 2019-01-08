@@ -504,7 +504,8 @@ int64_t fm_synth::step_frequency(state& s) const
         int64_t x = 1u<<31;
         for(unsigned m: o.modulators) x += s.states[m+1].output;
 
-        auto [period_num, period_denom] = period_lookup[i-1];
+        uint64_t period_num = period_lookup[i - 1].first;
+        uint64_t period_denom = period_lookup[i - 1].second;
         period_num *= s.carrier.period_num;
         period_denom *= s.carrier.period_denom;
         normalize_fract(period_num, period_denom);
@@ -533,7 +534,8 @@ int64_t fm_synth::step_phase(state& s) const
         int64_t x = 0;
         for(unsigned m: o.modulators) x += s.states[m+1].output;
 
-        auto [period_num, period_denom] = period_lookup[i-1];
+        uint64_t period_num = period_lookup[i - 1].first;
+        uint64_t period_denom = period_lookup[i - 1].second;
         period_num *= s.carrier.period_num;
         period_denom *= s.carrier.period_denom;
         o.update(s.states[i], period_num, period_denom, x);

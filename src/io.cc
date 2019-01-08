@@ -165,21 +165,23 @@ json read_json_file(const fs::path& path)
 
 void open_bindings_folder()
 {
+    // TODO: Make this safer than relying on system()
     fs::path path = get_writable_bindings_path();
 #ifdef USE_XDG
     system(("xdg-open "+path.string()).c_str());
 #else
-#error "Unimplented!"
+    system(("explorer "+path.string()).c_str());
 #endif
 }
 
 void open_instruments_folder()
 {
+    // TODO: Make this safer than relying on system()
     fs::path path = get_writable_instruments_path();
 #ifdef USE_XDG
     system(("xdg-open "+path.string()).c_str());
 #else
-#error "Unimplented!"
+    system(("explorer "+path.string()).c_str());
 #endif
 }
 

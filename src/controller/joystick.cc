@@ -17,6 +17,7 @@
     along with CafeFM.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "joystick.hh"
+#include <algorithm>
 
 joystick::joystick(int device_index)
 {

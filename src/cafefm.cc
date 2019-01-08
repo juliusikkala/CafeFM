@@ -339,9 +339,11 @@ void cafefm::load()
     }
 #endif
 
-    // Load icon first, to display it ASAP.
+    // Load icon first, to display it ASAP. Don't load it on Windows, it's not necessary there.
+#if !defined(_WIN32) && !defined(WIN32) 
     icon = IMG_Load((icon_dir/"128.png").string().c_str());
     if(icon) SDL_SetWindowIcon(win, icon);
+#endif
 
     // Load fonts
     static const nk_rune nk_font_glyph_ranges[] = {
