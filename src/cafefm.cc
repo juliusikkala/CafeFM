@@ -66,18 +66,19 @@ namespace
         struct nk_context* ctx,
         double input_value,
         bool is_signed,
-        double* threshold
+        double* threshold,
+        double* origin
     ){
         struct nk_rect bounds;
         nk_widget_layout_states state;
         state = nk_widget(&bounds, ctx);
-        if (!state) return;
+        if(!state) return;
 
         struct nk_command_buffer *out = &ctx->current->buffer;
         struct nk_style_progress* style = &ctx->style.progress;
         struct nk_style_item* background = &style->normal;
 
-        nk_input* in = threshold ? &ctx->input : nullptr;
+        nk_input* in = &ctx->input;
 
         struct nk_rect click_area = bounds;
         struct nk_rect cursor = bounds;
@@ -89,10 +90,14 @@ namespace
                 in, NK_BUTTON_LEFT, click_area, nk_true
             )
         ){
-            double new_threshold = (in->mouse.pos.x - cursor.x) / cursor.w;
-            new_threshold = std::min(new_threshold, 1.0);
-            new_threshold = std::max(new_threshold, 0.0);
-            *threshold = is_signed ?  new_threshold * 2.0 - 1.0 : new_threshold;
+            double click_x = (in->mouse.pos.x - cursor.x) / cursor.w;
+            double click_y = (in->mouse.pos.y - cursor.y) / cursor.h;
+            click_x = std::min(click_x, 1.0);
+            click_x = std::max(click_x, 0.0);
+            click_x = is_signed ?  click_x * 2.0 - 1.0 : click_x;
+            if(origin == nullptr) *threshold = click_x;
+            else if(click_y > 0.5) *origin = click_x;
+            else *threshold = fabs(*origin-click_x);
         }
 
         double normalized_input =
@@ -102,9 +107,16 @@ namespace
         // Draw
 
         struct nk_color line_color = nk_rgb(240, 0, 0);
+        struct nk_color deadzone_color = nk_rgb(0, 0, 240);
         struct nk_color bar_color = style->cursor_normal.data.color;
 
-        if(threshold && *threshold < input_value) bar_color = nk_rgb(175,0,0);
+        if(origin == nullptr)
+        {
+            if(*threshold < input_value)
+                bar_color = nk_rgb(175,0,0);
+        }
+        else if(fabs(*origin-input_value) < *threshold)
+            bar_color = nk_rgb(0,0,175);
 
         // Background
         nk_fill_rect(out, bounds, style->rounding, background->data.color);
@@ -119,7 +131,7 @@ namespace
         );
 
         // Threshold marker
-        if(threshold)
+        if(origin == nullptr)
         {
             double threshold_x = is_signed ?  *threshold*0.5 + 0.5 : *threshold;
             threshold_x = threshold_x * bounds.w + cursor.x;
@@ -132,7 +144,43 @@ namespace
                 line_color
             );
         }
+        else
+        {
+            double deadzone_low = *origin - *threshold;
+            double deadzone_high = *origin + *threshold;
+            double origin_x = *origin;
+            if(is_signed)
+            {
+                deadzone_low = deadzone_low*0.5 + 0.5;
+                deadzone_high = deadzone_high*0.5 + 0.5;
+                origin_x = origin_x*0.5 + 0.5;
+            }
+            deadzone_low = deadzone_low * bounds.w + cursor.x;
+            deadzone_high = deadzone_high * bounds.w + cursor.x;
+            origin_x = origin_x * bounds.w + cursor.x;
 
+            if(deadzone_low >= cursor.x && deadzone_low <= cursor.x+bounds.w)
+            {
+                nk_stroke_line(
+                    out,
+                    deadzone_low, cursor.y, deadzone_low, cursor.y+cursor.h/2,
+                    2.0f, deadzone_color
+                );
+            }
+            if(deadzone_high >= cursor.x && deadzone_high <= cursor.x+bounds.w)
+            {
+                nk_stroke_line(
+                    out,
+                    deadzone_high, cursor.y, deadzone_high, cursor.y+cursor.h/2,
+                    2.0f, deadzone_color
+                );
+            }
+            nk_stroke_line(
+                out,
+                origin_x, cursor.y+cursor.h/2, origin_x, cursor.y+cursor.h,
+                2.0f, line_color
+            );
+        }
     }
 
     constexpr const char* const protips[] = {
@@ -171,7 +219,10 @@ namespace
         "button.",
         "Adjust the threshold of an axis binding by dragging the red line.",
         "Adjust the offset of a continuous axis binding by dragging the blue "
-        "line. The deadzone can be adjusted by dragging the red lines.",
+        "line. The deadzone can then be adjusted by dragging the red lines.",
+        "Controller axis slightly off-center? No worries, just move the red "
+        "origin marker to the real center point and adjust the blue markers "
+        "above it to set the deadzone.",
         "To share instruments and bindings with others, press the \"Open "
         "folder\" buttons above and pick the ones you want to share. Send "
         "those files to them, and instruct them to open the same folder and "
@@ -1296,9 +1347,23 @@ void cafefm::gui_bind_modifiers(
     if(allow_threshold)
     {
         bool has_threshold = b.control == bind::AXIS_1D_THRESHOLD;
+        bool old_threshold = has_threshold;
         has_threshold = !nk_check_label(ctx, "Threshold", !has_threshold);
-        if(has_threshold) b.control = bind::AXIS_1D_THRESHOLD;
-        else b.control = bind::AXIS_1D_CONTINUOUS;
+        if(has_threshold)
+        {
+            b.control = bind::AXIS_1D_THRESHOLD;
+            if(old_threshold != has_threshold)
+                b.axis_1d.threshold = 0.5;
+        }
+        else
+        {
+            b.control = bind::AXIS_1D_CONTINUOUS;
+            if(old_threshold != has_threshold)
+            {
+                b.axis_1d.threshold = 0.0;
+                b.axis_1d.origin = 0.0;
+            }
+        }
     }
 
     if(allow_stacking)
@@ -1312,7 +1377,20 @@ void cafefm::gui_bind_modifiers(
     }
 
     if(allow_invert)
+    {
+        bool old_invert = b.axis_1d.invert;
         b.axis_1d.invert = !nk_check_label(ctx, "Invert", !b.axis_1d.invert);
+        if(old_invert != b.axis_1d.invert)
+        {
+            if(b.control == bind::AXIS_1D_CONTINUOUS)
+            {
+                bool is_signed;
+                b.input_value(selected_controller, &is_signed);
+                b.axis_1d.origin =
+                    is_signed ? -b.axis_1d.origin : 1 - b.axis_1d.origin;
+            }
+        }
+    }
 
     if(multiple) nk_combo_end(ctx);
 }
@@ -1365,7 +1443,9 @@ void cafefm::gui_bind_button(bind& b, bool discrete_only)
                 bind::AXIS_1D_THRESHOLD : bind::AXIS_1D_CONTINUOUS;
             b.axis_1d.index = latest_input_axis_1d;
             b.axis_1d.invert = false;
-            b.axis_1d.threshold = 0.5;
+            b.axis_1d.threshold =
+                b.control == bind::AXIS_1D_THRESHOLD ? 0.5 : 0.0;
+            b.axis_1d.origin = 0.0;
             b.wait_assign = false;
         }
         else
@@ -1417,8 +1497,9 @@ int cafefm::gui_bind_control(bind& b, bool discrete_only)
             ctx,
             input_value,
             is_signed,
+            &b.axis_1d.threshold,
             b.control == bind::AXIS_1D_CONTINUOUS ?
-                nullptr : &b.axis_1d.threshold
+                &b.axis_1d.origin : nullptr
         );
     }
 

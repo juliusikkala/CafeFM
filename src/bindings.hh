@@ -49,7 +49,8 @@ struct bind
         {
             int index;
             bool invert;
-            double threshold; // unused for continuous
+            double threshold; // deadzone from offset for continuous
+            double origin; // Continuous only: point considered as zero.
         } axis_1d;
     };
 

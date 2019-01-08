@@ -4,15 +4,27 @@
 #include <stdexcept>
 #include <cstring>
 #include <algorithm>
+namespace
+{
+    const char* const control_strings[] = {
+        "UNBOUND", "BUTTON_PRESS", "AXIS_1D_CONTINUOUS", "AXIS_1D_THRESHOLD"
+    };
 
-static const char* const control_strings[] = {
-    "UNBOUND", "BUTTON_PRESS", "AXIS_1D_CONTINUOUS", "AXIS_1D_THRESHOLD"
-};
+    const char* const action_strings[] = {
+        "KEY", "FREQUENCY_EXPT", "VOLUME_MUL", "PERIOD_EXPT", "AMPLITUDE_MUL",
+        "ENVELOPE_ADJUST"
+    };
 
-static const char* const action_strings[] = {
-    "KEY", "FREQUENCY_EXPT", "VOLUME_MUL", "PERIOD_EXPT", "AMPLITUDE_MUL",
-    "ENVELOPE_ADJUST"
-};
+    double compute_deadzone(double v, double origin, double threshold)
+    {
+        if(fabs(v-origin) < threshold) return origin;
+        double offset = v-origin;
+        if(offset < 0) offset += threshold;
+        else offset -= threshold;
+        offset /= std::max(1.0-threshold, 0.5);
+        return origin + offset;
+    }
+}
 
 bind::bind(enum action a)
 :   id(0), wait_assign(false), control(UNBOUND), toggle(false),
@@ -60,6 +72,7 @@ json bind::serialize() const
         j["control"]["index"] = axis_1d.index;
         j["control"]["invert"] = axis_1d.invert;
         j["control"]["threshold"] = axis_1d.threshold;
+        j["control"]["origin"] = axis_1d.origin;
         break;
     default:
         break;
@@ -124,6 +137,7 @@ bool bind::deserialize(const json& j)
             j.at("control").at("index").get_to(axis_1d.index);
             j.at("control").at("invert").get_to(axis_1d.invert);
             j.at("control").at("threshold").get_to(axis_1d.threshold);
+            axis_1d.origin = j.at("control").value("origin", 0.0);
             break;
         default:
             break;
@@ -236,8 +250,16 @@ double bind::input_value(const controller* c, bool* is_signed) const
 
 double bind::get_value(const control_state& state, const controller* c) const
 {
-    double v = input_value(c);
+    bool is_signed;
+    double v = input_value(c, &is_signed);
     if(control == AXIS_1D_THRESHOLD) v = v > axis_1d.threshold ? 1.0 : 0.0;
+    else if(control == AXIS_1D_CONTINUOUS)
+    {
+        v = compute_deadzone(v, axis_1d.origin, axis_1d.threshold);
+        double origin = axis_1d.origin;
+        if(axis_1d.invert) origin = is_signed ? -origin : 1-origin;
+        v -= origin;
+    }
 
     if(stacking)
     {
@@ -265,8 +287,16 @@ bool bind::update_value(
     const controller* c,
     double& v
 ) const {
-    v = input_value(c);
+    bool is_signed;
+    v = input_value(c, &is_signed);
     if(control == AXIS_1D_THRESHOLD) v = v > axis_1d.threshold ? 1.0 : 0.0;
+    else if(control == AXIS_1D_CONTINUOUS)
+    {
+        v = compute_deadzone(v, axis_1d.origin, axis_1d.threshold);
+        double origin = axis_1d.origin;
+        if(axis_1d.invert) origin = is_signed ? -origin : 1-origin;
+        v -= origin;
+    }
 
     if(stacking)
     {
