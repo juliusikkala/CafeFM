@@ -117,9 +117,8 @@ public:
     {
         struct group
         {
-            // If parent < -1, this group is simply filler used to align
-            // groups.
             int parent;
+            bool empty; // If true, render as empty space with parent width.
             unsigned partition;
             // If modulators is empty, this group exists as a +-button for the
             // parent.

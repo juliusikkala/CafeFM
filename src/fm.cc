@@ -234,33 +234,6 @@ const oscillator& fm_synth::get_modulator(unsigned i) const
 
 void fm_synth::erase_modulator(unsigned i)
 {
-    // Link succeeding modulators to preceding.
-    auto& mod = modulators[i].modulators;
-    for(unsigned m: carrier_modulators)
-    {
-        if(m == i)
-        {
-            carrier_modulators.insert(
-                carrier_modulators.end(), mod.begin(), mod.end()
-            );
-            break;
-        }
-    }
-    for(oscillator& o: modulators)
-    {
-        for(unsigned m: o.modulators)
-        {
-            if(m == i)
-            {
-                o.modulators.insert(o.modulators.end(), mod.begin(), mod.end());
-                break;
-            }
-        }
-    }
-
-    // Actually remove the modulator. finish_changes() would reap orphans after
-    // this, but since we linked succeeding modulators, there should be no
-    // orphans.
     erase_index(i);
 }
 
@@ -384,7 +357,7 @@ fm_synth::layout fm_synth::generate_layout()
                 break;
             }
         }
-        if(!found) l.layers[layer].push_back({parent, 1, {i}});
+        if(!found) l.layers[layer].push_back({parent, false, 1, {i}});
     }
 
     // Now, the array has all modulator groups, but is unaligned and missing
@@ -416,6 +389,9 @@ fm_synth::layout fm_synth::generate_layout()
                     {
                         if(cur_layer[l].parent == parent)
                         {
+                            cur_layer[l].partition =
+                                cur_layer[l].modulators.size() *
+                                prev_layer[j].partition;
                             new_layer.push_back(cur_layer[l]);
                             found = true;
                             break;
@@ -425,13 +401,15 @@ fm_synth::layout fm_synth::generate_layout()
                     if(!found)
                     {
                         new_layer.push_back({
-                            parent, prev_layer[j].partition, {}
+                            parent, false, prev_layer[j].partition, {}
                         });
                     }
                 }
             }
             else // Fillers or +-buttons go here. They are followed by filler.
-                new_layer.push_back({-2, prev_layer[j].partition, {}});
+                new_layer.push_back({
+                    prev_layer[j].parent, true, prev_layer[j].partition, {}
+                });
         }
         cur_layer = new_layer;
     }
@@ -450,14 +428,19 @@ fm_synth::layout fm_synth::generate_layout()
                 for(unsigned k = 0; k < prev_layer[j].modulators.size(); ++k)
                 {
                     unsigned& parent = prev_layer[j].modulators[k];
-                    new_layer.push_back({parent, prev_layer[j].partition, {}});
+                    new_layer.push_back({
+                        parent, false, prev_layer[j].partition, {}
+                    });
                 }
             }
-            else new_layer.push_back({-2, prev_layer[j].partition, {}});
+            else new_layer.push_back({
+                prev_layer[j].parent, true, prev_layer[j].partition, {}
+            });
         }
         l.layers.push_back(new_layer);
     }
-    else l.layers.push_back({{-1, 1, {}}});
+    // No modulators, so add lone +-button referencing carrier.
+    else l.layers.push_back({{-1, false, 1, {}}});
 
     return l;
 }

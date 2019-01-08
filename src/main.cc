@@ -2,6 +2,8 @@
 #include "SDL.h"
 #include <stdexcept>
 #include <cmath>
+#include <ctime>
+#include <cstdlib>
 #include <string>
 #include <thread>
 #include <memory>
@@ -34,6 +36,7 @@ void deinit()
 
 int main()
 {
+    srand(time(nullptr));
     try
     {
         init();

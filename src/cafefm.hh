@@ -88,6 +88,8 @@ private:
     void delete_current_instrument();
     void update_all_instruments();
 
+    void next_protip();
+
     void reset_fm(bool refresh_only = true);
 
     void apply_options(const options& new_opts);
@@ -109,6 +111,7 @@ private:
     bool instrument_delete_popup_open;
     // Used for assigning binds
     int latest_input_button, latest_input_axis_1d, latest_input_axis_2d;
+    unsigned protip_index;
 
     std::vector<std::unique_ptr<controller>> available_controllers;
     controller* selected_controller;

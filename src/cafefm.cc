@@ -19,6 +19,7 @@
 #define WINDOW_HEIGHT 600
 #define MAX_BINDING_NAME_LENGTH 128
 #define MAX_INSTRUMENT_NAME_LENGTH 128
+#define SIDE_PLUS_SIZE 0.05
 
 using namespace std::string_literals;
 
@@ -133,6 +134,55 @@ namespace
         }
 
     }
+
+    constexpr const char* const protips[] = {
+        "The modulator indices are only useful in bindings. They may change "
+        "when you make modifications, so the same modulator may have a "
+        "different index if you change the synth.",
+        "Pick as small value for polyphony as you can; especially for "
+        "keyboards, which often allow only few simultaneous keypresses. This "
+        "often lets you set latency a bit lower than high polyphony.",
+        "Remember to save often, this program is extremely dangerous and may "
+        "crash at any time.",
+        "Do or do not, there is no undo.",
+        "If you hear clicks or static, first check that the master volume "
+        "isn't warning about peaking. If it isn't that, try picking a higher "
+        "latency.",
+        "Have multiple cores? Sorry, this program isn't using them.",
+        "44100 is almost always enough. However, if you do hear artifacts with "
+        "high frequency noises, lifting the samplerate could help.",
+        "The bit depth outputted by this program is 32 bits and cannot be "
+        "changed.",
+        "Looking for documentation? You're looking at it right now.",
+        "Read the protips, they can often be useful.",
+        "Some audio subsystems and devices may have special requirements and "
+        "not work on your system or this program.",
+        "Modulators shown horizontally are summed to each other, and in "
+        "vertical configurations the one below is modulating the one above.",
+        "Phase often has minimal effect on the sound, but may sometimes "
+        "affect the perceived pitch and timbre slightly.",
+        "Looking for keyboard shortcuts? Exhaustive list: Alt + F4.",
+        "Setting amplitude above 1 generally breaks things if you have more "
+        "than one modulator. Also, try to keep the total amplitude of summed "
+        "modulators less than or equal to 1.",
+        "If you have issues with some cumulative or stacking bindings going "
+        "too far, either click the reset button at the top of the screen or "
+        "add an opposite cumulative or stacking binding to another axis or "
+        "button.",
+        "Adjust the threshold of an axis binding by dragging the red line.",
+        "Adjust the offset of a continuous axis binding by dragging the blue "
+        "line. The deadzone can be adjusted by dragging the red lines.",
+        "To share instruments and bindings with others, press the \"Open "
+        "folder\" buttons above and pick the ones you want to share. Send "
+        "those files to them, and instruct them to open the same folder and "
+        "put the files there.",
+        "There is no record button, so either learn to use Audacity capture or "
+        "stick to live performances.",
+        "Delete a modulator by clicking the [x] button on its title bar. "
+        "Notice that this will also delete its modulators as well, and may "
+        "shuffle some indices of other modulators.",
+        "The help button doesn't like being pressed, so leave it in peace."
+    };
 };
 
 cafefm::cafefm()
@@ -200,6 +250,7 @@ void cafefm::load()
     selected_tab = 0;
     selected_bindings_preset = -1;
     selected_instrument_preset = -1;
+    protip_index = 0;
 
     // Determine data directories
     fs::path font_dir("data/fonts");
@@ -935,22 +986,22 @@ void cafefm::gui_instrument_editor()
     }
 
     nk_style_set_font(ctx, &small_font->handle);
-
-    // Render carrier & ADSR
-    oscillator::func carrier = ins_state.synth.get_carrier_type();
-    mask |= gui_carrier(carrier);
-    ins_state.synth.set_carrier_type(carrier);
-
-    nk_layout_row_dynamic(ctx, 280, 1);
+    nk_layout_row_dynamic(ctx, 400, 1);
     struct nk_rect empty_space;
     if(nk_group_begin(ctx, "Synth Control", NK_WINDOW_BORDER))
     {
+        // Render carrier & ADSR
+        oscillator::func carrier = ins_state.synth.get_carrier_type();
+        mask |= gui_carrier(carrier);
+        ins_state.synth.set_carrier_type(carrier);
+
         fm_synth::layout layout = ins_state.synth.generate_layout();
 
         int erase_index = -1;
         int add_parent = -2;
+        std::map<int, double> modulator_width;
+        modulator_width[-1] = 1.0;
 
-        // TODO: The main course, horizontal +-buttons.
         for(fm_synth::layout::layer& layer: layout.layers)
         {
             unsigned max_partition = 0;
@@ -961,14 +1012,16 @@ void cafefm::gui_instrument_editor()
                     max_partition = group.partition;
                 // Add room for each modulator
                 row_elements += group.modulators.size();
-                // Add room for +-buttons (vertical)
-                if(group.modulators.size() == 0)
-                    row_elements++;
+                // Add room for +-buttons
+                if(
+                    group.modulators.size() == 0 ||
+                    group.partition < 4
+                ) row_elements++;
             }
             if(max_partition == 0) continue;
             // Determine layer height based on max partition.
             constexpr unsigned partition_height[] = {
-                73, 100, 150
+                73, 108, 175
             };
             unsigned height = partition_height[std::min(max_partition-1, 2u)];
 
@@ -977,8 +1030,9 @@ void cafefm::gui_instrument_editor()
             {
                 if(group.modulators.size() == 0)
                 {
-                    nk_layout_row_push(ctx, 1.0/group.partition);
-                    if(group.parent < -1) nk_widget(&empty_space, ctx);
+                    // Compute width from parent width.
+                    nk_layout_row_push(ctx, modulator_width[group.parent]);
+                    if(group.empty) nk_widget(&empty_space, ctx);
                     else
                     {
                         nk_style_set_font(ctx, &huge_font->handle);
@@ -991,9 +1045,13 @@ void cafefm::gui_instrument_editor()
                 }
                 else
                 {
+                    double width = modulator_width[group.parent];
+                    if(group.partition < 4) width -= SIDE_PLUS_SIZE;
+                    width /= group.modulators.size();
                     for(unsigned m: group.modulators)
                     {
-                        nk_layout_row_push(ctx, 1.0/group.partition);
+                        modulator_width[m] = width;
+                        nk_layout_row_push(ctx, width);
                         bool erase = false;
                         mask |= gui_modulator(
                             ins_state.synth.get_modulator(m),
@@ -1003,6 +1061,20 @@ void cafefm::gui_instrument_editor()
                             true
                         );
                         if(erase) erase_index = m;
+                    }
+                    if(group.partition < 4)
+                    {
+                        if(group.modulators.size() > 0)
+                        {
+                            modulator_width[group.modulators.back()] += SIDE_PLUS_SIZE;
+                        }
+                        nk_layout_row_push(ctx, SIDE_PLUS_SIZE);
+                        nk_style_set_font(ctx, &huge_font->handle);
+                        if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
+                        {
+                            add_parent = group.parent;
+                        }
+                        nk_style_set_font(ctx, &small_font->handle);
                     }
                 }
             }
@@ -1640,7 +1712,7 @@ void cafefm::gui_options_editor()
 {
     nk_layout_row_template_begin(ctx, 535);
     nk_layout_row_template_push_dynamic(ctx);
-    nk_layout_row_template_push_static(ctx, 400);
+    nk_layout_row_template_push_static(ctx, 600);
     nk_layout_row_template_push_dynamic(ctx);
     nk_layout_row_template_end(ctx);
 
@@ -1667,7 +1739,7 @@ void cafefm::gui_options_editor()
 
         new_opts.system_index = nk_combo(
             ctx, systems.data(), systems.size(),
-            opts.system_index+1, 25, nk_vec2(260, 200)
+            opts.system_index+1, 25, nk_vec2(460, 200)
         )-1;
 
         nk_label(ctx, "Output device: ", NK_TEXT_LEFT);
@@ -1677,7 +1749,7 @@ void cafefm::gui_options_editor()
 
         new_opts.device_index = nk_combo(
             ctx, devices.data(), devices.size(),
-            opts.device_index < 0 ? 0 : opts.device_index, 25, nk_vec2(260, 200)
+            opts.device_index < 0 ? 0 : opts.device_index, 25, nk_vec2(460, 200)
         );
 
         nk_label(ctx, "Samplerate: ", NK_TEXT_LEFT);
@@ -1698,7 +1770,7 @@ void cafefm::gui_options_editor()
 
         new_opts.samplerate = samplerates[nk_combo(
             ctx, samplerates_cstr.data(), samplerates_cstr.size(),
-            samplerate_index, 25, nk_vec2(260, 200)
+            samplerate_index, 25, nk_vec2(460, 200)
         )];
 
         nk_label(ctx, "Target latency: ", NK_TEXT_LEFT);
@@ -1754,7 +1826,7 @@ void cafefm::gui_options_editor()
         if(help_state)
         {
             struct nk_rect s = {0, 100, 300, 136};
-            s.x = 200-s.w/2;
+            s.x = 300-s.w/2;
             const char* help_titles[] = {
                 "There is no help.",
                 "Press OK.",
@@ -1811,6 +1883,19 @@ void cafefm::gui_options_editor()
             else instrument_delete_popup_open = false;
         }
 
+        nk_layout_row_dynamic(ctx, 150, 1);
+        if(nk_group_begin(
+            ctx,
+            "Protip",
+            NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_TITLE|NK_WINDOW_BORDER
+        )){
+            nk_layout_row_dynamic(ctx, 70, 1);
+            nk_label_wrap(ctx, protips[protip_index]);
+            nk_layout_row_dynamic(ctx, 30, 1);
+            if(nk_button_label(ctx, "Next")) next_protip();
+            nk_group_end(ctx);
+        }
+
         nk_group_end(ctx);
     }
 
@@ -1852,6 +1937,8 @@ void cafefm::gui()
         nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0,0));
         nk_style_push_float(ctx, &ctx->style.button.rounding, 0);
         nk_layout_row_begin(ctx, NK_STATIC, 30, 3);
+
+        unsigned prev_tab = selected_tab;
         for(unsigned i = 0; i < tab_count; ++i)
         {
             const struct nk_user_font *f = &medium_font->handle;
@@ -1872,6 +1959,12 @@ void cafefm::gui()
                 selected_tab = nk_button_label(ctx, tabs[i]) ? i: selected_tab;
             }
         }
+        if(prev_tab != selected_tab && selected_tab == 2)
+        {
+            // If the user switched to options page, get a new pro tip.
+            next_protip();
+        }
+
         nk_layout_row_end(ctx);
         nk_style_pop_float(ctx);
         nk_style_pop_vec2(ctx);
@@ -2098,6 +2191,13 @@ void cafefm::delete_current_instrument()
 void cafefm::update_all_instruments()
 {
     all_instruments = load_all_instruments(opts.samplerate);
+}
+
+void cafefm::next_protip()
+{
+    unsigned prev_protip = protip_index;
+    while(protip_index == prev_protip)
+        protip_index = rand()%(sizeof(protips)/sizeof(*protips));
 }
 
 void cafefm::reset_fm(bool refresh_only)
