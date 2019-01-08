@@ -632,7 +632,27 @@ unsigned cafefm::gui_oscillator_type(oscillator::func& type, bool down)
         20,
         nk_vec2(180, down?200:-200)
     );
-    return old_type != type ? CHANGE_REQUIRE_RESET : CHANGE_NONE;
+    return old_type != type ? CHANGE_REQUIRE_IMPORT : CHANGE_NONE;
+}
+
+unsigned cafefm::gui_modulation_mode()
+{
+    static const char* mode_labels[] = {
+        "Frequency", "Phase"
+    };
+
+    fm_synth::modulation_mode mode = ins_state.synth.get_modulation_mode();
+    fm_synth::modulation_mode old_mode = mode;
+    mode = (fm_synth::modulation_mode)nk_combo(
+        ctx,
+        mode_labels,
+        sizeof(mode_labels)/sizeof(const char*),
+        old_mode,
+        20,
+        nk_vec2(180, 200)
+    );
+    ins_state.synth.set_modulation_mode(mode);
+    return old_mode != mode ? CHANGE_REQUIRE_IMPORT : CHANGE_NONE;
 }
 
 unsigned cafefm::gui_carrier(oscillator::func& type)
@@ -646,18 +666,23 @@ unsigned cafefm::gui_carrier(oscillator::func& type)
         NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
     )){
         nk_layout_row_template_begin(ctx, CARRIER_HEIGHT-10);
-        nk_layout_row_template_push_static(ctx, 200);
+        nk_layout_row_template_push_static(ctx, 230);
         nk_layout_row_template_push_dynamic(ctx);
-        nk_layout_row_template_push_static(ctx, 250);
+        nk_layout_row_template_push_static(ctx, 200);
         nk_layout_row_template_end(ctx);
 
         // Waveform type selection
         nk_style_set_font(ctx, &small_font->handle);
         if(nk_group_begin(ctx, "Carrier Waveform", NK_WINDOW_NO_SCROLLBAR))
         {
-            nk_layout_row_dynamic(ctx, 30, 1);
+            nk_layout_row_template_begin(ctx, 30);
+            nk_layout_row_template_push_static(ctx, 90);
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_end(ctx);
             nk_label(ctx, "Waveform:", NK_TEXT_LEFT);
             mask |= gui_oscillator_type(type);
+            nk_label(ctx, "Modulation:", NK_TEXT_LEFT);
+            mask |= gui_modulation_mode();
             nk_group_end(ctx);
         }
 
@@ -1111,7 +1136,10 @@ void cafefm::gui_instrument_editor()
         reset_fm();
     }
     else if(mask & CHANGE_REQUIRE_IMPORT)
+    {
         control.apply(*fm, master_volume, ins_state);
+        fm->refresh_all_voices();
+    }
 }
 
 void cafefm::gui_bind_action_template(bind& b)

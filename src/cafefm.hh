@@ -40,6 +40,7 @@ private:
     void gui_controller_manager();
     void gui_draw_adsr(const envelope& adsr);
     unsigned gui_oscillator_type(oscillator::func& type, bool down = true);
+    unsigned gui_modulation_mode();
     unsigned gui_carrier(oscillator::func& type);
     unsigned gui_modulator(
         oscillator& osc,

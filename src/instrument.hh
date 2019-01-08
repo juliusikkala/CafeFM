@@ -51,6 +51,8 @@ public:
     void press_voice(voice_id id, int semitone);
     void release_voice(voice_id id);
     void release_all_voices();
+    // Makes sure all updates are applied to voices.
+    void refresh_all_voices();
 
     void set_polyphony(unsigned n = 16);
     unsigned get_polyphony() const;
@@ -86,7 +88,6 @@ protected:
 
     virtual void refresh_voice(voice_id id) = 0;
     virtual void reset_voice(voice_id id) = 0;
-    void refresh_all_voices();
     virtual void handle_polyphony(unsigned n) = 0;
 
 private:

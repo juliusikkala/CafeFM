@@ -2,6 +2,10 @@
 #include "helpers.hh"
 #include <stdexcept>
 
+static const char* const mode_strings[] = {
+    "FREQUENCY", "PHASE"
+};
+
 static const char* const osc_strings[] = {
     "SINE", "SQUARE", "TRIANGLE", "SAW"
 };
@@ -177,15 +181,16 @@ void oscillator::reset(state& s) const
 void oscillator::update(
     state& s,
     uint64_t period_num,
-    uint64_t period_denom
+    uint64_t period_denom,
+    uint64_t phase_offset
 ) const
 {
     s.t += period_num/period_denom;
-    s.output = value(s.t);
+    s.output = value(s.t + phase_offset);
 }
 
 fm_synth::fm_synth()
-: carrier_type(oscillator::SINE) {}
+: mode(FREQUENCY), carrier_type(oscillator::SINE) {}
 
 bool fm_synth::index_compatible(const fm_synth& other) const
 {
@@ -200,6 +205,16 @@ bool fm_synth::index_compatible(const fm_synth& other) const
             return false;
     }
     return true;
+}
+
+void fm_synth::set_modulation_mode(modulation_mode mode)
+{
+    this->mode = mode;
+}
+
+fm_synth::modulation_mode fm_synth::get_modulation_mode() const
+{
+    return mode;
 }
 
 void fm_synth::set_carrier_type(oscillator::func carrier_type)
@@ -383,7 +398,7 @@ fm_synth::layout fm_synth::generate_layout()
                 for(unsigned k = 0; k < prev_layer[j].modulators.size(); ++k)
                 {
                     bool found = false;
-                    unsigned& parent = prev_layer[j].modulators[k];
+                    int parent = prev_layer[j].modulators[k];
                     // Find matching child group on current layer.
                     for(unsigned l = 0; l < cur_layer.size(); ++l)
                     {
@@ -427,7 +442,7 @@ fm_synth::layout fm_synth::generate_layout()
             {
                 for(unsigned k = 0; k < prev_layer[j].modulators.size(); ++k)
                 {
-                    unsigned& parent = prev_layer[j].modulators[k];
+                    int parent = prev_layer[j].modulators[k];
                     new_layer.push_back({
                         parent, false, prev_layer[j].partition, {}
                     });
@@ -463,7 +478,7 @@ void fm_synth::reset(state& s) const
         modulators[i].reset(s.states[i+1]);
 }
 
-int64_t fm_synth::step(state& s) const
+int64_t fm_synth::step_frequency(state& s) const
 {
     for(unsigned i = modulators.size(); i > 0; --i)
     {
@@ -492,6 +507,33 @@ int64_t fm_synth::step(state& s) const
     return s.states[0].output;
 }
 
+int64_t fm_synth::step_phase(state& s) const
+{
+    for(unsigned i = modulators.size(); i > 0; --i)
+    {
+        const oscillator& o = modulators[i-1];
+        int64_t x = 0;
+        for(unsigned m: o.modulators) x += s.states[m+1].output;
+
+        auto [period_num, period_denom] = period_lookup[i-1];
+        period_num *= s.carrier.period_num;
+        period_denom *= s.carrier.period_denom;
+        o.update(s.states[i], period_num, period_denom, x);
+    }
+
+    int64_t x = 0;
+    for(unsigned m: carrier_modulators) x += s.states[m+1].output;
+
+    s.carrier.update(
+        s.states[0],
+        s.carrier.period_num,
+        s.carrier.period_denom,
+        x
+    );
+
+    return s.states[0].output;
+}
+
 void fm_synth::set_frequency(
     state& s, double frequency, uint64_t samplerate
 ) const
@@ -509,6 +551,7 @@ void fm_synth::set_volume(
 json fm_synth::serialize() const
 {
     json j;
+    j["mode"] = mode_strings[(unsigned)mode];
     j["carrier"] = {
         {"type", osc_strings[(unsigned)carrier_type]},
         {"modulators", carrier_modulators}
@@ -545,6 +588,12 @@ bool fm_synth::deserialize(const json& j)
             sizeof(osc_strings)/sizeof(*osc_strings));
         if(carrier_i < 0) return false;
         carrier_type = (oscillator::func)carrier_i;
+
+        std::string mode_str = j.at("mode").get<std::string>();
+        int mode_i = find_string_arg(mode_str.c_str(), mode_strings,
+            sizeof(mode_strings)/sizeof(*mode_strings));
+        if(mode_i < 0) return false;
+        mode = (modulation_mode)mode_i;
 
         j.at("carrier").at("modulators").get_to(carrier_modulators);
 
@@ -720,29 +769,43 @@ const fm_synth& fm_instrument::get_synth()
 
 void fm_instrument::synthesize(int32_t* samples, unsigned sample_count) 
 {
-    for(voice_id j = 0; j < states.size(); ++j)
-    {
-        for(unsigned i = 0; i < sample_count; ++i)
-        {
-            step_voice(j);
-            int64_t volume_num = 0, volume_denom;
-            get_voice_volume(j, volume_num, volume_denom);
-            if(volume_num == 0) continue;
-
-            synth.set_volume(states[j], volume_num, volume_denom);
-            samples[i] += synth.step(states[j]);
-        }
+    // This is done by duplication to avoid testing mode in inner loops.
+#define generate_samples(step_func) \
+    for(voice_id j = 0; j < states.size(); ++j) \
+    { \
+        for(unsigned i = 0; i < sample_count; ++i) \
+        { \
+            step_voice(j); \
+            int64_t volume_num = 0, volume_denom; \
+            get_voice_volume(j, volume_num, volume_denom); \
+            if(volume_num == 0) continue; \
+            synth.set_volume(states[j], volume_num, volume_denom); \
+            samples[i] += synth. step_func (states[j]); \
+        } \
     }
+
+    switch(synth.get_modulation_mode())
+    {
+    case fm_synth::FREQUENCY:
+        generate_samples(step_frequency)
+        break;
+    case fm_synth::PHASE:
+        generate_samples(step_phase)
+        break;
+    }
+#undef generate_samples
 }
 
 void fm_instrument::refresh_voice(voice_id id)
 {
     synth.set_frequency(states[id], get_frequency(id), get_samplerate());
+    states[id].carrier.set_type(synth.get_carrier_type());
 }
 
 void fm_instrument::reset_voice(voice_id id)
 {
     synth.set_frequency(states[id], get_frequency(id), get_samplerate());
+    states[id].carrier.set_type(synth.get_carrier_type());
     synth.reset(states[id]);
 }
 

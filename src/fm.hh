@@ -69,7 +69,12 @@ public:
 
     int64_t value(int64_t t) const;
     void reset(state& s) const;
-    void update(state& s, uint64_t period_num, uint64_t period_denom) const;
+    void update(
+        state& s,
+        uint64_t period_num,
+        uint64_t period_denom,
+        uint64_t phase_offset = 0
+    ) const;
 
 protected:
     func type;
@@ -89,9 +94,18 @@ public:
         std::vector<oscillator::state> states;
     };
 
+    enum modulation_mode
+    {
+        FREQUENCY = 0,
+        PHASE
+    };
+
     fm_synth();
 
     bool index_compatible(const fm_synth& other) const;
+
+    void set_modulation_mode(modulation_mode mode);
+    modulation_mode get_modulation_mode() const;
 
     void set_carrier_type(oscillator::func carrier_type);
     oscillator::func get_carrier_type() const;
@@ -136,7 +150,10 @@ public:
         uint64_t samplerate = 44100
     ) const;
     void reset(state& s) const;
-    int64_t step(state& s) const;
+    // Call this if mode == PHASE
+    int64_t step_phase(state& s) const;
+    // Call this if mode == FREQUENCY
+    int64_t step_frequency(state& s) const;
     void set_frequency(state& s, double frequency, uint64_t samplerate) const;
     void set_volume(state& s, int64_t volume_num, int64_t volume_denom) const;
 
@@ -152,6 +169,7 @@ private:
     void erase_index(unsigned index, reference_vec* ref = nullptr);
     void sort_oscillator_modulators();
 
+    modulation_mode mode;
     std::vector<oscillator> modulators;
     oscillator::func carrier_type;
     std::vector<unsigned> carrier_modulators;
