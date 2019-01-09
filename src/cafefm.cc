@@ -852,16 +852,9 @@ unsigned cafefm::gui_modulator(
             nk_layout_row_template_push_dynamic(ctx);
             nk_layout_row_template_end(ctx);
             break;
-        case 3:
-        case 4:
-        case 5:
-        case 6:
+        default:
             nk_layout_row_dynamic(ctx, 30, 1);
             break;
-        default:
-            throw std::runtime_error(
-                "Unimplemented partition " + std::to_string(partition)
-            );
         }
         // Waveform type selection
         nk_style_set_font(ctx, &small_font->handle);
