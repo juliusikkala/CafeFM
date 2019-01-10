@@ -25,7 +25,7 @@ static const char* const mode_strings[] = {
 };
 
 static const char* const osc_strings[] = {
-    "SINE", "SQUARE", "TRIANGLE", "SAW"
+    "SINE", "SQUARE", "TRIANGLE", "SAW", "NOISE"
 };
 
 oscillator::state::state()
@@ -185,6 +185,9 @@ int64_t oscillator::value(int64_t t) const
         break;
     case SAW:
         u = i32saw(t);
+        break;
+    case NOISE:
+        u = i32noise(t);
         break;
     }
     return amp_num*u/amp_denom;

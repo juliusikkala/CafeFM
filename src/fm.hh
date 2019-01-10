@@ -36,7 +36,8 @@ public:
         SINE = 0,
         SQUARE,
         TRIANGLE,
-        SAW
+        SAW,
+        NOISE
     };
 
     struct state

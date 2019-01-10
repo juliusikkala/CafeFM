@@ -691,7 +691,8 @@ unsigned cafefm::gui_oscillator_type(oscillator::func& type, bool down)
         "Sine",
         "Square",
         "Triangle",
-        "Saw"
+        "Saw",
+        "Noise"
     };
 
     oscillator::func old_type = type;

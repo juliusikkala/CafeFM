@@ -57,6 +57,13 @@ inline int32_t i32saw(int32_t x)
     return x;
 }
 
+// http://libnoise.sourceforge.net/noisegen/#coherentnoise
+inline int32_t i32noise(int32_t x)
+{
+    x = (x >> 13) ^ x;
+    return (x * (x * x * 60493 + 19990303) + 1376312589);
+}
+
 // This function makes sure the fraction components fit in 32 bits.
 inline void normalize_fract(uint64_t& num, uint64_t& denom)
 {
