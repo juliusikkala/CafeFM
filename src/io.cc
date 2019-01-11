@@ -27,6 +27,7 @@
 #include <iomanip>
 #include <regex>
 #include <set>
+#include <ctime>
 #include <unordered_set>
 #include <boost/algorithm/string.hpp>
 
@@ -101,6 +102,13 @@ fs::path get_writable_instruments_path()
     return path;
 }
 
+fs::path get_writable_recordings_path()
+{
+    fs::path path = get_writable_path()/"recordings";
+    if(!fs::exists(path)) fs::create_directory(path);
+    return path;
+}
+
 std::set<fs::path> get_readonly_paths()
 {
     static bool has_path = false;
@@ -151,6 +159,15 @@ std::string string_hash(const std::string& str)
     return ss.str();
 }
 
+std::string get_timestamp()
+{
+    time_t now = time(0);
+    char buf[80];
+    strftime(buf, sizeof(buf), "%F-%T", localtime(&now));
+
+    return buf;
+}
+
 }
 
 void write_json_file(const fs::path& path, const json& j)
@@ -178,6 +195,17 @@ void open_instruments_folder()
 {
     // TODO: Make this safer than relying on system()
     fs::path path = get_writable_instruments_path();
+#ifdef USE_XDG
+    system(("xdg-open "+path.string()).c_str());
+#else
+    system(("explorer "+path.string()).c_str());
+#endif
+}
+
+void open_recordings_folder()
+{
+    // TODO: Make this safer than relying on system()
+    fs::path path = get_writable_recordings_path();
 #ifdef USE_XDG
     system(("xdg-open "+path.string()).c_str());
 #else
@@ -315,6 +343,18 @@ std::vector<instrument_state> load_all_instruments(uint64_t samplerate)
     }
 
     return instruments;
+}
+
+void write_recording(
+    uint64_t samplerate,
+    const std::vector<int32_t>& recording,
+    recording_format fmt,
+    double quality
+){
+    static const char* extension[] = { ".wav", ".mp3", ".flac" };
+    fs::path filename(get_timestamp() + extension[(int)fmt]);
+    fs::path path = get_writable_recordings_path()/filename;
+    printf("Should write to path %s\n", path.string().c_str());
 }
 
 void write_options(const options& opts)

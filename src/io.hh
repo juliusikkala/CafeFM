@@ -31,6 +31,7 @@ class bindings;
 
 void open_bindings_folder();
 void open_instruments_folder();
+void open_recordings_folder();
 
 std::string make_filename_safe(const std::string& name);
 
@@ -47,6 +48,21 @@ class instrument_state;
 void write_instrument(uint64_t samplerate, instrument_state& ins);
 void remove_instrument(const instrument_state& ins);
 std::vector<instrument_state> load_all_instruments(uint64_t samplerate);
+
+
+enum recording_format
+{
+    RECORDING_WAV = 0,
+    RECORDING_MP3,
+    RECORDING_FLAC
+};
+
+void write_recording(
+    uint64_t samplerate,
+    const std::vector<int32_t>& recording,
+    recording_format fmt = RECORDING_WAV,
+    double quality = 90
+);
 
 class options;
 

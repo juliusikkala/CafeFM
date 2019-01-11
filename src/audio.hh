@@ -19,36 +19,40 @@
 #ifndef CAFE_AUDIO_HH
 #define CAFE_AUDIO_HH
 #include "portaudio.h"
+#include "instrument.hh"
 #include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <vector>
 #include <cstring>
+#include <atomic>
+#include <condition_variable>
+#include <thread>
 
 class audio_output
 {
 public:
-    template<typename Synth>
     audio_output(
-        Synth& s,
+        instrument& i,
         double target_latency = 0.030,
         int system_index = -1,
         int device_index = -1
-    ): samplerate(s.get_samplerate())
-    {
-        open_stream(
-            target_latency,
-            system_index,
-            device_index,
-            stream_callback<Synth>,
-            &s
-        );
-    }
+    );
 
     ~audio_output();
 
     void start();
     void stop();
+
+    void start_recording();
+    void start_recording(
+        size_t ring_buffer_samples,
+        size_t max_recording_samples
+    );
+    void stop_recording();
+    bool is_recording() const;
+    // Never call this when recording is running!
+    const std::vector<int32_t>& get_recording_data() const;
 
     unsigned get_samplerate() const;
 
@@ -69,7 +73,8 @@ private:
         void* userdata
     );
 
-    template<typename Synth>
+    void handle_recording();
+
     static int stream_callback(
         const void* input,
         void* output,
@@ -77,17 +82,25 @@ private:
         const PaStreamCallbackTimeInfo* time_info,
         PaStreamCallbackFlags flags,
         void* data
-    ){
-        Synth* synth = static_cast<Synth*>(data);
-        int32_t* o = static_cast<int32_t*>(output);
-        memset(o, 0, framecount * sizeof(*o));
-        synth->synthesize(o, framecount);
+    );
 
-        return 0;
-    }
-
-    unsigned samplerate;
+    instrument* ins;
     PaStream *stream;
+
+    std::atomic_bool record;
+
+    struct
+    {
+        std::vector<int32_t> data;
+        std::atomic_uint64_t head;
+        uint64_t tail; // Tail is only used in one thread, so no atomic needed.
+        std::condition_variable content_cv;
+        std::mutex content_mutex;
+    } ring_buffer;
+
+    std::vector<int32_t> recording;
+    size_t max_recording_samples;
+    std::unique_ptr<std::thread> recording_thread;
 };
 
 #endif

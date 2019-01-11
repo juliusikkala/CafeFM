@@ -442,6 +442,7 @@ void cafefm::unload()
 
     bindings_delete_popup_open = false;
     instrument_delete_popup_open = false;
+    save_recording_popup_open = false;
 
     nk_sdl_destroy_texture(yellow_warn_img.handle.id);
     nk_sdl_destroy_texture(gray_warn_img.handle.id);
@@ -911,7 +912,7 @@ void cafefm::gui_instrument_editor()
 {
     unsigned mask = CHANGE_NONE;
 
-    nk_layout_row_dynamic(ctx, 155, 1);
+    nk_layout_row_dynamic(ctx, 140, 1);
 
     nk_style_set_font(ctx, &small_font->handle);
 
@@ -1042,7 +1043,7 @@ void cafefm::gui_instrument_editor()
 
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 140);
-        nk_layout_row_template_push_static(ctx, 400);
+        nk_layout_row_template_push_static(ctx, 340);
         nk_layout_row_template_push_static(ctx, 30);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
@@ -1058,7 +1059,8 @@ void cafefm::gui_instrument_editor()
 
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 140);
-        nk_layout_row_template_push_static(ctx, 400);
+        nk_layout_row_template_push_static(ctx, 340);
+        nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
 
         nk_labelf(ctx, NK_TEXT_LEFT, "Polyphony: %d", ins_state.polyphony);
@@ -1072,11 +1074,53 @@ void cafefm::gui_instrument_editor()
             output->start();
         }
 
+        if(output->is_recording() && nk_button_label(ctx, "Finish recording"))
+        {
+            output->stop_recording();
+            save_recording_popup_open = true;
+        }
+        else if(nk_button_label(ctx, "Start recording"))
+        {
+            save_recording_popup_open = false;
+            output->start_recording();
+        }
+
+        if(save_recording_popup_open)
+        {
+            struct nk_rect s = {0, 100, 300, 136};
+            s.x = WINDOW_WIDTH/2-s.w/2;
+            if(nk_popup_begin(
+                ctx, NK_POPUP_STATIC, "Save recording?",
+                NK_WINDOW_BORDER|NK_WINDOW_TITLE, s
+            )){
+                std::string save_text = "Do you want to save the previous recording?";
+                nk_layout_row_dynamic(ctx, 50, 1);
+                nk_label_wrap(ctx, save_text.c_str());
+                nk_layout_row_dynamic(ctx, 30, 2);
+                if (nk_button_label(ctx, "Save"))
+                {
+                    save_recording_popup_open = false;
+                    write_recording(
+                        output->get_samplerate(),
+                        output->get_recording_data()
+                    );
+                    nk_popup_close(ctx);
+                }
+                if (nk_button_label(ctx, "Cancel"))
+                {
+                    save_recording_popup_open = false;
+                    nk_popup_close(ctx);
+                }
+                nk_popup_end(ctx);
+            }
+            else save_recording_popup_open = false;
+        }
+
         nk_group_end(ctx);
     }
 
     nk_style_set_font(ctx, &small_font->handle);
-    nk_layout_row_dynamic(ctx, 400, 1);
+    nk_layout_row_dynamic(ctx, 415, 1);
     struct nk_rect empty_space;
     if(nk_group_begin(ctx, "Synth Control", NK_WINDOW_BORDER))
     {
@@ -1913,11 +1957,16 @@ void cafefm::gui_options_editor()
         if(nk_button_label(ctx, "Reset settings"))
             apply_options(options());
 
+        nk_layout_row_dynamic(ctx, 30, 3);
+
         if(nk_button_label(ctx, "Open bindings folder"))
             open_bindings_folder();
 
         if(nk_button_label(ctx, "Open instruments folder"))
             open_instruments_folder();
+
+        if(nk_button_label(ctx, "Open recordings folder"))
+            open_recordings_folder();
 
         nk_layout_row_dynamic(ctx, 30, 1);
 
@@ -2032,7 +2081,7 @@ void cafefm::gui_options_editor()
         ctx, "Copyright 2018-2019 Julius Ikkala", NK_TEXT_LEFT, fade_color
     );
     nk_label_colored(
-        ctx, "0.1.0 Moldy Bread edition", NK_TEXT_RIGHT, fade_color
+        ctx, "0.1.1 Bold Yoghurt edition", NK_TEXT_RIGHT, fade_color
     );
 }
 

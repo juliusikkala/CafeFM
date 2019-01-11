@@ -17,6 +17,7 @@
     along with CafeFM.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "audio.hh"
+#include "SDL.h"
 #include <map>
 
 namespace
@@ -129,8 +130,25 @@ std::vector<uint64_t> get_samplerates(
 
 }
 
+audio_output::audio_output(
+    instrument& i,
+    double target_latency,
+    int system_index,
+    int device_index
+): ins(&i), record(false)
+{
+    open_stream(
+        target_latency,
+        system_index,
+        device_index,
+        stream_callback,
+        this
+    );
+}
+
 audio_output::~audio_output()
 {
+    stop_recording();
     Pa_CloseStream(stream);
 }
 
@@ -144,9 +162,61 @@ void audio_output::stop()
     Pa_AbortStream(stream);
 }
 
+void audio_output::start_recording()
+{
+    uint64_t samplerate = ins->get_samplerate();
+    start_recording(
+        samplerate*10, // 10 second ring buffer, 7.3 MB @ 192kHz
+        samplerate*60*30 // 30 minute max recording length, 1.3 GB @ 192kHz
+    );
+}
+
+void audio_output::start_recording(
+    size_t ring_buffer_samples,
+    size_t max_recording_samples
+){
+    ring_buffer.data.resize(ring_buffer_samples);
+    ring_buffer.tail = 0;
+    ring_buffer.head = 0;
+    recording.clear();
+    recording.shrink_to_fit();
+    this->max_recording_samples = max_recording_samples;
+
+    record = true;
+    // Recording is done on a different thread so that reallocating the
+    // recording vector doesn't ruin the realtime operation of the audio
+    // callback.
+    recording_thread.reset(
+        new std::thread(&audio_output::handle_recording, this)
+    );
+}
+
+void audio_output::stop_recording()
+{
+    record = false;
+
+    if(recording_thread)
+    {
+        // Wake up the recording thread and let it notice that record == false.
+        ring_buffer.content_cv.notify_one();
+        recording_thread->join();
+        recording_thread.reset();
+    }
+}
+
+bool audio_output::is_recording() const
+{
+    return record;
+}
+
+const std::vector<int32_t>& audio_output::get_recording_data() const
+{
+    return recording;
+}
+
 unsigned audio_output::get_samplerate() const
 {
-    return samplerate;
+    return ins->get_samplerate();
 }
 
 std::vector<const char*> audio_output::get_available_systems()
@@ -220,7 +290,7 @@ void audio_output::open_stream(
         &stream,
         nullptr,
         &params,
-        samplerate,
+        ins->get_samplerate(),
         paFramesPerBufferUnspecified,
         paNoFlag,
         callback,
@@ -230,4 +300,92 @@ void audio_output::open_stream(
         throw std::runtime_error(
             "Unable to open stream: " + std::string(Pa_GetErrorText(err))
         );
+}
+
+void audio_output::handle_recording()
+{
+    while(record)
+    {
+        uint64_t cur_head = ring_buffer.head;
+
+        size_t old_size = recording.size();
+
+        if(cur_head > ring_buffer.tail)
+        {
+            size_t size = cur_head - ring_buffer.tail;
+            recording.resize(std::min(old_size + size, max_recording_samples));
+            memcpy(
+                recording.data() + old_size,
+                ring_buffer.data.data() + ring_buffer.tail,
+                size * sizeof(int32_t)
+            );
+        }
+        else if(cur_head < ring_buffer.tail)
+        {
+            size_t end_size = ring_buffer.data.size() - ring_buffer.tail; 
+            size_t size = end_size + ring_buffer.head;
+            recording.resize(std::min(old_size + size, max_recording_samples));
+            memcpy(
+                recording.data() + old_size,
+                ring_buffer.data.data() + ring_buffer.tail,
+                end_size * sizeof(int32_t)
+            );
+            memcpy(
+                recording.data() + old_size + end_size,
+                ring_buffer.data.data(),
+                ring_buffer.head * sizeof(int32_t)
+            );
+        }
+        ring_buffer.tail = cur_head;
+
+        if(recording.size() == max_recording_samples)
+        {
+            record = false;
+            break;
+        }
+
+        std::unique_lock<std::mutex> lock(ring_buffer.content_mutex);
+        ring_buffer.content_cv.wait(lock);
+    }
+}
+
+int audio_output::stream_callback(
+    const void*,
+    void* output,
+    unsigned long framecount,
+    const PaStreamCallbackTimeInfo*,
+    PaStreamCallbackFlags,
+    void* data
+){
+    audio_output* self = static_cast<audio_output*>(data);
+    int32_t* o = static_cast<int32_t*>(output);
+    size_t sz = framecount * sizeof(*o);
+    memset(o, 0, sz);
+    self->ins->synthesize(o, framecount);
+
+    if(self->record)
+    {
+        int32_t* d = self->ring_buffer.data.data();
+        size_t ds = self->ring_buffer.data.size();
+        uint64_t head = self->ring_buffer.head;
+        
+        // Assume ring buffer is large enough that it cannot be wrapped twice.
+        if (head + framecount >= ds)
+        {
+            size_t part1 = ds - head;
+            size_t part1_sz = part1 * sizeof(*o);
+            memcpy(d + head, o, part1_sz);
+            memcpy(d, o + part1, sz - part1_sz);
+            head = head + framecount - ds;
+        }
+        else
+        {
+            memcpy(d + head, o, sz);
+            head += framecount;
+        }
+        self->ring_buffer.head = head;
+        self->ring_buffer.content_cv.notify_one();
+    }
+
+    return 0;
 }
