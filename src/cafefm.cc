@@ -245,8 +245,8 @@ namespace
         "folder\" buttons above and pick the ones you want to share. Send "
         "those files to them, and instruct them to open the same folder and "
         "put the files there.",
-        "There is no record button, so either learn to use Audacity capture or "
-        "stick to live performances.",
+        "To find your recordings, click the \"Open recordings folder\" button "
+        "above.",
         "Delete a modulator by clicking the [x] button on its title bar. "
         "Notice that this will also delete its modulators as well, and may "
         "shuffle some indices of other modulators.",
