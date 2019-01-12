@@ -448,7 +448,9 @@ void cafefm::unload()
     nk_sdl_destroy_texture(yellow_warn_img.handle.id);
     nk_sdl_destroy_texture(gray_warn_img.handle.id);
 
+#if !defined(_WIN32) && !defined(WIN32) 
     SDL_FreeSurface(icon);
+#endif
 }
 
 void cafefm::render()

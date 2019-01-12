@@ -172,7 +172,7 @@ std::string get_timestamp()
 {
     time_t now = time(0);
     char buf[80];
-    strftime(buf, sizeof(buf), "%F-%T", localtime(&now));
+    strftime(buf, sizeof(buf), "%F-%H.%M.%S", localtime(&now));
 
     return buf;
 }

@@ -20,6 +20,7 @@
 #include "SDL.h"
 #include <sndfile.h>
 #include <map>
+#include <algorithm>
 
 namespace
 {
