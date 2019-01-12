@@ -18,6 +18,7 @@
 */
 #include "audio.hh"
 #include "SDL.h"
+#include <sndfile.h>
 #include <map>
 
 namespace
@@ -148,7 +149,7 @@ audio_output::audio_output(
 
 audio_output::~audio_output()
 {
-    stop_recording();
+    abort_encoding();
     Pa_CloseStream(stream);
 }
 
@@ -162,27 +163,27 @@ void audio_output::stop()
     Pa_AbortStream(stream);
 }
 
-void audio_output::start_recording()
-{
-    uint64_t samplerate = ins->get_samplerate();
-    start_recording(
-        samplerate*10, // 10 second ring buffer, 7.3 MB @ 192kHz
-        samplerate*60*30 // 30 minute max recording length, 1.3 GB @ 192kHz
-    );
-}
-
 void audio_output::start_recording(
-    size_t ring_buffer_samples,
-    size_t max_recording_samples
+    encoder::format fmt,
+    double quality,
+    double max_recording_length
 ){
-    ring_buffer.data.resize(ring_buffer_samples);
+    abort_encoding();
+
+    uint64_t samplerate = ins->get_samplerate();
+    // 10 second ring buffer should be enough, and uses 7.3 MB @ 192kHz.
+    ring_buffer.data.resize(10*samplerate);
     ring_buffer.tail = 0;
     ring_buffer.head = 0;
-    recording.clear();
-    recording.shrink_to_fit();
-    this->max_recording_samples = max_recording_samples;
+    raw_recording.clear();
+    raw_recording.shrink_to_fit();
+    encode_head = 0;
+    total_recorded_samples = 0;
+    max_recording_samples = max_recording_length*samplerate;
 
     record = true;
+    encode = true;
+    enc.reset(new encoder(samplerate, fmt, quality));
     // Recording is done on a different thread so that reallocating the
     // recording vector doesn't ruin the realtime operation of the audio
     // callback.
@@ -193,12 +194,29 @@ void audio_output::start_recording(
 
 void audio_output::stop_recording()
 {
-    record = false;
+    {
+        std::unique_lock<std::mutex> lock(recording_mutex);
+        record = false;
+    }
 
     if(recording_thread)
     {
         // Wake up the recording thread and let it notice that record == false.
-        ring_buffer.content_cv.notify_one();
+        recording_cv.notify_one();
+    }
+}
+
+void audio_output::abort_encoding()
+{
+    {
+        std::unique_lock<std::mutex> lock(recording_mutex);
+        record = false;
+        encode = false;
+    }
+
+    if(recording_thread)
+    {
+        recording_cv.notify_one();
         recording_thread->join();
         recording_thread.reset();
     }
@@ -209,9 +227,23 @@ bool audio_output::is_recording() const
     return record;
 }
 
-const std::vector<int32_t>& audio_output::get_recording_data() const
+bool audio_output::is_encoding() const
 {
-    return recording;
+    return encode;
+}
+
+void audio_output::get_encoding_progress(uint64_t& num, uint64_t& denom) const
+{
+    std::unique_lock<std::mutex> lock(recording_mutex);
+    num = total_recorded_samples - raw_recording.size() + encode_head;
+    denom = total_recorded_samples;
+}
+
+const encoder& audio_output::get_encoder() const
+{
+    if(!enc)
+        throw std::runtime_error("Can't get encoder, nothing has been encoded");
+    return *enc;
 }
 
 unsigned audio_output::get_samplerate() const
@@ -306,46 +338,97 @@ void audio_output::handle_recording()
 {
     while(record)
     {
-        uint64_t cur_head = ring_buffer.head;
-
-        size_t old_size = recording.size();
-
-        if(cur_head > ring_buffer.tail)
+        // First, place new samples from ring buffer to raw recording buffer
         {
-            size_t size = cur_head - ring_buffer.tail;
-            recording.resize(std::min(old_size + size, max_recording_samples));
-            memcpy(
-                recording.data() + old_size,
-                ring_buffer.data.data() + ring_buffer.tail,
-                size * sizeof(int32_t)
-            );
-        }
-        else if(cur_head < ring_buffer.tail)
-        {
-            size_t end_size = ring_buffer.data.size() - ring_buffer.tail; 
-            size_t size = end_size + ring_buffer.head;
-            recording.resize(std::min(old_size + size, max_recording_samples));
-            memcpy(
-                recording.data() + old_size,
-                ring_buffer.data.data() + ring_buffer.tail,
-                end_size * sizeof(int32_t)
-            );
-            memcpy(
-                recording.data() + old_size + end_size,
-                ring_buffer.data.data(),
-                ring_buffer.head * sizeof(int32_t)
-            );
-        }
-        ring_buffer.tail = cur_head;
+            std::unique_lock<std::mutex> lock(recording_mutex);
+            uint64_t cur_head = ring_buffer.head;
 
-        if(recording.size() == max_recording_samples)
-        {
-            record = false;
-            break;
+            size_t old_size = raw_recording.size();
+
+            if(cur_head > ring_buffer.tail)
+            {
+                size_t size = cur_head - ring_buffer.tail;
+                total_recorded_samples += size;
+                raw_recording.resize(old_size + size);
+                memcpy(
+                    raw_recording.data() + old_size,
+                    ring_buffer.data.data() + ring_buffer.tail,
+                    size * sizeof(int32_t)
+                );
+            }
+            else if(cur_head < ring_buffer.tail)
+            {
+                size_t end_size = ring_buffer.data.size() - ring_buffer.tail; 
+                size_t size = end_size + ring_buffer.head;
+                total_recorded_samples += size;
+                raw_recording.resize(old_size + size);
+                memcpy(
+                    raw_recording.data() + old_size,
+                    ring_buffer.data.data() + ring_buffer.tail,
+                    end_size * sizeof(int32_t)
+                );
+                memcpy(
+                    raw_recording.data() + old_size + end_size,
+                    ring_buffer.data.data(),
+                    ring_buffer.head * sizeof(int32_t)
+                );
+            }
+            ring_buffer.tail = cur_head;
+
+            if(total_recorded_samples >= max_recording_samples)
+            {
+                record = false;
+                break;
+            }
         }
 
-        std::unique_lock<std::mutex> lock(ring_buffer.content_mutex);
-        ring_buffer.content_cv.wait(lock);
+        // Encode if we have nothing better to do.
+        handle_encoding();
+
+        // Finally, wait until there's content to handle.
+        {
+            std::unique_lock<std::mutex> lock(recording_mutex);
+            if(record) recording_cv.wait(lock);
+        }
+    }
+
+    handle_encoding();
+}
+
+void audio_output::handle_encoding()
+{
+    constexpr size_t block_size = 4096;
+    constexpr size_t recording_resize_threshold = 1<<20;
+
+    while((ring_buffer.head == ring_buffer.tail || !record) && encode)
+    {
+        {
+            std::unique_lock<std::mutex> lock(recording_mutex);
+            size_t size = std::min(
+                block_size,
+                raw_recording.size() - encode_head
+            );
+            if(raw_recording.size() <= encode_head) break;
+            encode_head += enc->write(raw_recording.data() + encode_head, size);
+            if(encode_head >= recording_resize_threshold)
+            {
+                encode_head -= recording_resize_threshold;
+                raw_recording.erase(
+                    raw_recording.begin(),
+                    raw_recording.begin() + recording_resize_threshold
+                );
+            }
+        }
+        std::this_thread::yield();
+    }
+
+    {
+        std::unique_lock<std::mutex> lock(recording_mutex);
+        if(!record && encode)
+        {
+            enc->finish();
+            encode = false;
+        }
     }
 }
 
@@ -384,7 +467,7 @@ int audio_output::stream_callback(
             head += framecount;
         }
         self->ring_buffer.head = head;
-        self->ring_buffer.content_cv.notify_one();
+        self->recording_cv.notify_one();
     }
 
     return 0;

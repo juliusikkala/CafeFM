@@ -256,8 +256,9 @@ namespace
 
 cafefm::cafefm()
 :   win(nullptr), bindings_delete_popup_open(false),
-    instrument_delete_popup_open(false), selected_controller(nullptr),
-    keyboard_grabbed(false), mouse_grabbed(false), master_volume(0.5)
+    instrument_delete_popup_open(false), save_recording_state(0),
+    selected_controller(nullptr), keyboard_grabbed(false), mouse_grabbed(false),
+    master_volume(0.5)
 {
     SDL_GL_SetAttribute(
         SDL_GL_CONTEXT_FLAGS,
@@ -442,7 +443,7 @@ void cafefm::unload()
 
     bindings_delete_popup_open = false;
     instrument_delete_popup_open = false;
-    save_recording_popup_open = false;
+    save_recording_state = 0;
 
     nk_sdl_destroy_texture(yellow_warn_img.handle.id);
     nk_sdl_destroy_texture(gray_warn_img.handle.id);
@@ -912,7 +913,7 @@ void cafefm::gui_instrument_editor()
 {
     unsigned mask = CHANGE_NONE;
 
-    nk_layout_row_dynamic(ctx, 140, 1);
+    nk_layout_row_dynamic(ctx, 142, 1);
 
     nk_style_set_font(ctx, &small_font->handle);
 
@@ -1074,18 +1075,24 @@ void cafefm::gui_instrument_editor()
             output->start();
         }
 
-        if(output->is_recording() && nk_button_label(ctx, "Finish recording"))
-        {
+        if(
+            save_recording_state == 1 &&
+            (nk_button_label(ctx, "Finish recording") ||
+             !output->is_recording())
+        ){
             output->stop_recording();
-            save_recording_popup_open = true;
+            save_recording_state = 2;
         }
         else if(nk_button_label(ctx, "Start recording"))
         {
-            save_recording_popup_open = false;
-            output->start_recording();
+            save_recording_state = 1;
+            output->start_recording(
+                opts.recording_format,
+                opts.recording_quality
+            );
         }
 
-        if(save_recording_popup_open)
+        if(save_recording_state >= 2)
         {
             struct nk_rect s = {0, 100, 300, 136};
             s.x = WINDOW_WIDTH/2-s.w/2;
@@ -1093,34 +1100,56 @@ void cafefm::gui_instrument_editor()
                 ctx, NK_POPUP_STATIC, "Save recording?",
                 NK_WINDOW_BORDER|NK_WINDOW_TITLE, s
             )){
-                std::string save_text = "Do you want to save the previous recording?";
-                nk_layout_row_dynamic(ctx, 50, 1);
-                nk_label_wrap(ctx, save_text.c_str());
-                nk_layout_row_dynamic(ctx, 30, 2);
-                if (nk_button_label(ctx, "Save"))
+                if(save_recording_state == 2)
                 {
-                    save_recording_popup_open = false;
-                    write_recording(
-                        output->get_samplerate(),
-                        output->get_recording_data()
-                    );
-                    nk_popup_close(ctx);
+                    std::string save_text =
+                        "Do you want to save the previous recording?";
+                    nk_layout_row_dynamic(ctx, 50, 1);
+                    nk_label_wrap(ctx, save_text.c_str());
+                    nk_layout_row_dynamic(ctx, 30, 2);
+                    if (nk_button_label(ctx, "Save"))
+                    {
+
+                        if(!output->is_encoding())
+                        {
+                            save_recording_state = 0;
+                            write_recording(output->get_encoder());
+                        }
+                        else save_recording_state = 3;
+                        nk_popup_close(ctx);
+                    }
+                    if (nk_button_label(ctx, "Cancel"))
+                    {
+                        output->abort_encoding();
+                        save_recording_state = 0;
+                        nk_popup_close(ctx);
+                    }
                 }
-                if (nk_button_label(ctx, "Cancel"))
+                else if(save_recording_state == 3)
                 {
-                    save_recording_popup_open = false;
-                    nk_popup_close(ctx);
+                    std::string save_text = "Please wait, encoding...";
+                    nk_layout_row_dynamic(ctx, 50, 1);
+                    nk_label_wrap(ctx, save_text.c_str());
+                    nk_layout_row_dynamic(ctx, 30, 1);
+                    uint64_t num, denom;
+                    output->get_encoding_progress(num, denom);
+                    nk_progress(ctx, &num, denom, NK_FIXED);
+                    if(!output->is_encoding())
+                    {
+                        save_recording_state = 0;
+                        write_recording(output->get_encoder());
+                    }
                 }
                 nk_popup_end(ctx);
             }
-            else save_recording_popup_open = false;
+            else save_recording_state = 0;
         }
 
         nk_group_end(ctx);
     }
 
     nk_style_set_font(ctx, &small_font->handle);
-    nk_layout_row_dynamic(ctx, 415, 1);
+    nk_layout_row_dynamic(ctx, 413, 1);
     struct nk_rect empty_space;
     if(nk_group_begin(ctx, "Synth Control", NK_WINDOW_BORDER))
     {
@@ -1894,11 +1923,11 @@ void cafefm::gui_options_editor()
         options new_opts(opts);
 
         nk_layout_row_template_begin(ctx, 30);
-        nk_layout_row_template_push_static(ctx, 120);
+        nk_layout_row_template_push_static(ctx, 140);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
 
-        nk_label(ctx, "Audio system: ", NK_TEXT_LEFT);
+        nk_label(ctx, "Audio system:", NK_TEXT_LEFT);
 
         std::vector<const char*> systems =
             audio_output::get_available_systems();
@@ -1906,20 +1935,20 @@ void cafefm::gui_options_editor()
 
         new_opts.system_index = nk_combo(
             ctx, systems.data(), systems.size(),
-            opts.system_index+1, 25, nk_vec2(460, 200)
+            opts.system_index+1, 25, nk_vec2(440, 200)
         )-1;
 
-        nk_label(ctx, "Output device: ", NK_TEXT_LEFT);
+        nk_label(ctx, "Output device:", NK_TEXT_LEFT);
 
         std::vector<const char*> devices =
             audio_output::get_available_devices(new_opts.system_index);
 
         new_opts.device_index = nk_combo(
             ctx, devices.data(), devices.size(),
-            opts.device_index < 0 ? 0 : opts.device_index, 25, nk_vec2(460, 200)
+            opts.device_index < 0 ? 0 : opts.device_index, 25, nk_vec2(440, 200)
         );
 
-        nk_label(ctx, "Samplerate: ", NK_TEXT_LEFT);
+        nk_label(ctx, "Samplerate:", NK_TEXT_LEFT);
 
         std::vector<uint64_t> samplerates =
             audio_output::get_available_samplerates(-1, -1);
@@ -1937,14 +1966,29 @@ void cafefm::gui_options_editor()
 
         new_opts.samplerate = samplerates[nk_combo(
             ctx, samplerates_cstr.data(), samplerates_cstr.size(),
-            samplerate_index, 25, nk_vec2(460, 200)
+            samplerate_index, 25, nk_vec2(440, 200)
         )];
 
-        nk_label(ctx, "Target latency: ", NK_TEXT_LEFT);
+        nk_label(ctx, "Target latency:", NK_TEXT_LEFT);
 
         int milliseconds = round(opts.target_latency*1000.0);
         nk_property_int(ctx, "#Milliseconds:", 0, &milliseconds, 1000, 1, 1);
         new_opts.target_latency = milliseconds/1000.0;
+
+        nk_label(ctx, "Recording format:", NK_TEXT_LEFT);
+
+        new_opts.recording_format = (encoder::format)nk_combo(
+            ctx, encoder::format_strings,
+            sizeof(encoder::format_strings)/sizeof(*encoder::format_strings),
+            (int)opts.recording_format, 25, nk_vec2(440, 200)
+        );
+
+        nk_label(ctx, "Recording quality:", NK_TEXT_LEFT);
+        float quality = opts.recording_quality;
+        float old_quality = quality;
+        nk_slider_float(ctx, 0, &quality, 100.0f, 1.00f);
+        if(quality != old_quality)
+            new_opts.recording_quality = quality;
 
         if(new_opts != opts)
             apply_options(new_opts);

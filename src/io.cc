@@ -20,6 +20,7 @@
 #include "bindings.hh"
 #include "options.hh"
 #include "instrument_state.hh"
+#include "encoder.hh"
 #include "SDL.h"
 #include <cstdio>
 #include <algorithm>
@@ -58,18 +59,26 @@ std::string read_text_file(const std::string& path)
     return ret;
 }
 
-void write_text_file(const std::string& path, const std::string& content)
-{
+void write_binary_file(
+    const std::string& path,
+    const uint8_t* data,
+    size_t size
+){
     FILE* f = fopen(path.c_str(), "wb");
 
     if(!f) throw std::runtime_error("Unable to open " + path);
 
-    if(fwrite(content.c_str(), 1, content.size(), f) != content.size())
+    if(fwrite(data, 1, size, f) != size)
     {
         fclose(f);
         throw std::runtime_error("Unable to write " + path);
     }
     fclose(f);
+}
+
+void write_text_file(const std::string& path, const std::string& content)
+{
+    write_binary_file(path, (uint8_t*)content.c_str(), content.size());
 }
 
 fs::path get_writable_path()
@@ -345,16 +354,12 @@ std::vector<instrument_state> load_all_instruments(uint64_t samplerate)
     return instruments;
 }
 
-void write_recording(
-    uint64_t samplerate,
-    const std::vector<int32_t>& recording,
-    recording_format fmt,
-    double quality
-){
-    static const char* extension[] = { ".wav", ".mp3", ".flac" };
-    fs::path filename(get_timestamp() + extension[(int)fmt]);
+void write_recording(const encoder& enc)
+{
+    static const char* extension[] = { ".wav", ".ogg", ".flac" };
+    fs::path filename(get_timestamp() + extension[(int)enc.get_format()]);
     fs::path path = get_writable_recordings_path()/filename;
-    printf("Should write to path %s\n", path.string().c_str());
+    write_binary_file(path.string(), enc.get_data(), enc.get_data_size());
 }
 
 void write_options(const options& opts)

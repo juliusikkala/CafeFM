@@ -20,6 +20,7 @@
 #define CAFE_AUDIO_HH
 #include "portaudio.h"
 #include "instrument.hh"
+#include "encoder.hh"
 #include <cstdint>
 #include <stdexcept>
 #include <string>
@@ -44,15 +45,18 @@ public:
     void start();
     void stop();
 
-    void start_recording();
     void start_recording(
-        size_t ring_buffer_samples,
-        size_t max_recording_samples
+        encoder::format fmt = encoder::WAV,
+        double quality = 90,
+        double max_recording_length = 30*60 // In seconds
     );
     void stop_recording();
+    void abort_encoding();
     bool is_recording() const;
-    // Never call this when recording is running!
-    const std::vector<int32_t>& get_recording_data() const;
+    bool is_encoding() const;
+    void get_encoding_progress(uint64_t& num, uint64_t& denom) const;
+    // This will throw if encoding hasn't run or was aborted.
+    const encoder& get_encoder() const;
 
     unsigned get_samplerate() const;
 
@@ -65,6 +69,8 @@ public:
     );
 
 private:
+    friend class encoder;
+
     void open_stream(
         double target_latency,
         int system_index,
@@ -74,6 +80,7 @@ private:
     );
 
     void handle_recording();
+    void handle_encoding();
 
     static int stream_callback(
         const void* input,
@@ -87,19 +94,24 @@ private:
     instrument* ins;
     PaStream *stream;
 
-    std::atomic_bool record;
+    std::atomic_bool record, encode;
 
     struct
     {
         std::vector<int32_t> data;
         std::atomic_uint64_t head;
         uint64_t tail; // Tail is only used in one thread, so no atomic needed.
-        std::condition_variable content_cv;
-        std::mutex content_mutex;
     } ring_buffer;
 
-    std::vector<int32_t> recording;
+    mutable std::mutex recording_mutex;
+    std::condition_variable recording_cv;
+
+    std::vector<int32_t> raw_recording;
+    unsigned encode_head;
+    size_t total_recorded_samples;
     size_t max_recording_samples;
+
+    std::unique_ptr<encoder> enc;
     std::unique_ptr<std::thread> recording_thread;
 };
 

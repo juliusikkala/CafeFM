@@ -128,7 +128,7 @@ private:
     int selected_instrument_preset;
     bool bindings_delete_popup_open;
     bool instrument_delete_popup_open;
-    bool save_recording_popup_open;
+    int save_recording_state;
     // Used for assigning binds
     int latest_input_button, latest_input_axis_1d, latest_input_axis_2d;
     unsigned protip_index;

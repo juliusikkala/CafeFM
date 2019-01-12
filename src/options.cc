@@ -18,9 +18,11 @@
 */
 #include "options.hh"
 #include "audio.hh"
+#include "helpers.hh"
 
 options::options()
-: system_index(-1), device_index(-1), samplerate(44100), target_latency(0.030)
+: system_index(-1), device_index(-1), samplerate(44100), target_latency(0.030),
+  recording_format(encoder::WAV), recording_quality(90)
 {}
 
 json options::serialize() const
@@ -34,6 +36,8 @@ json options::serialize() const
         audio_output::get_available_devices(system_index)[device_index];
     j["samplerate"] = samplerate;
     j["target_latency"] = target_latency;
+    j["recording_format"] = encoder::format_strings[(int)recording_format];
+    j["recording_quality"] = recording_quality;
     return j;
 }
 
@@ -43,6 +47,8 @@ bool options::deserialize(const json& j)
     device_index = -1;
     samplerate = 44100;
     target_latency = 0.030;
+    recording_format = encoder::WAV;
+    recording_quality = 90;
 
     try
     {
@@ -73,6 +79,14 @@ bool options::deserialize(const json& j)
 
         j.at("samplerate").get_to(samplerate);
         j.at("target_latency").get_to(target_latency);
+        recording_quality = j.value("recording_quality", 90.0);
+
+        std::string format_str = j.value("recording_format", "WAV");
+        int format_i = find_string_arg(
+            format_str.c_str(), encoder::format_strings,
+            sizeof(encoder::format_strings)/sizeof(*encoder::format_strings));
+        if(format_i < 0) return false;
+        recording_format = (encoder::format)format_i;
     }
     catch(...)
     {

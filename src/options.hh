@@ -20,6 +20,7 @@
 #define CAFEFM_OPTIONS_HH
 #include "fm.hh"
 #include "io.hh"
+#include "encoder.hh"
 
 struct options
 {
@@ -29,6 +30,8 @@ struct options
     int device_index;
     uint64_t samplerate;
     double target_latency;
+    encoder::format recording_format;
+    double recording_quality;
 
     json serialize() const;
     bool deserialize(const json& j);
