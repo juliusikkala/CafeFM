@@ -27,6 +27,7 @@ struct instrument_state
     envelope adsr;
     unsigned polyphony;
     fm_synth synth;
+    double tuning_frequency;
     bool write_lock;
     fs::path path;
 

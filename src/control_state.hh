@@ -75,7 +75,7 @@ public:
     void reset();
     void update(bindings& b, unsigned dt);
 
-    double total_freq_mul() const;
+    double total_freq_mul(double base_freq = 440.0) const;
     double total_volume_mul() const;
     double total_period_mul(unsigned oscillator_index) const;
     double total_amp_mul(unsigned oscillator_index) const;

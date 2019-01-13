@@ -20,7 +20,7 @@
 #include "helpers.hh"
 
 instrument_state::instrument_state(uint64_t samplerate)
-: name("New synth"), polyphony(6), write_lock(false)
+: name("New synth"), polyphony(6), tuning_frequency(440.0), write_lock(false)
 {
     adsr.set_volume(1.0f, 0.5f);
     adsr.set_curve(0.07f, 0.2f, 0.05f, samplerate);
@@ -42,6 +42,7 @@ json instrument_state::serialize(uint64_t samplerate) const
     j["name"] = name;
     j["polyphony"] = polyphony;
     j["synth"] = synth.serialize();
+    j["tuning_frequency"] = tuning_frequency;
 
     json e;
     e["peak_volume_num"] = adsr.peak_volume_num;
@@ -62,8 +63,9 @@ bool instrument_state::deserialize(const json& j, uint64_t samplerate)
     {
         j.at("name").get_to(name);
         j.at("polyphony").get_to(polyphony);
-
         synth.deserialize(j.at("synth"));
+        tuning_frequency = j.value("tuning_frequency", 440.0);
+
         json e = j.at("envelope");
         e.at("peak_volume_num").get_to(adsr.peak_volume_num);
         e.at("sustain_volume_num").get_to(adsr.sustain_volume_num);

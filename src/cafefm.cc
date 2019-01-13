@@ -776,6 +776,16 @@ unsigned cafefm::gui_carrier(oscillator::func& type)
             mask |= gui_oscillator_type(type);
             nk_label(ctx, "Modulation:", NK_TEXT_LEFT);
             mask |= gui_modulation_mode();
+
+            nk_layout_row_dynamic(ctx, 30, 1);
+            nk_property_double(
+                ctx,
+                "#Tuning (Hz)",
+                220.0f,
+                &ins_state.tuning_frequency,
+                880.0f, 0.5f, 0.5f
+            );
+
             nk_group_end(ctx);
         }
 

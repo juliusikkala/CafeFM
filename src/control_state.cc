@@ -231,11 +231,11 @@ void control_state::update(bindings& b, unsigned dt)
         b.cumulative_update(*this);
 }
 
-double control_state::total_freq_mul() const
+double control_state::total_freq_mul(double base_freq) const
 {
     double expt = 0.0;
     for(auto& pair: freq_expt) expt += pair.second;
-    return 440.0*pow(2.0, expt/12.0);
+    return base_freq*pow(2.0, expt/12.0);
 }
 
 double control_state::total_volume_mul() const
@@ -295,7 +295,7 @@ void control_state::apply(
         mod.set_period_fract(period_num, period_denom);
     }
 
-    ins.set_tuning(total_freq_mul());
+    ins.set_tuning(total_freq_mul(ins_state.tuning_frequency));
 
     envelope adsr = ins_state.adsr;
     adsr.attack_length *= total_envelope_adjust(0);
