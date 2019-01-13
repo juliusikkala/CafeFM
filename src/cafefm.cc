@@ -33,8 +33,8 @@
 #define MAX_ELEMENT_MEMORY 128 * 1024
 #define CARRIER_HEIGHT 120
 #define INSTRUMENT_HEADER_HEIGHT 110
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 600
+#define MIN_WINDOW_WIDTH 800
+#define MIN_WINDOW_HEIGHT 600
 #define MAX_BINDING_NAME_LENGTH 128
 #define MAX_INSTRUMENT_NAME_LENGTH 128
 #define SIDE_PLUS_SIZE 0.05
@@ -276,10 +276,14 @@ cafefm::cafefm()
         "CafeFM",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT,
-        SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|SDL_WINDOW_ALLOW_HIGHDPI
+        MIN_WINDOW_WIDTH,
+        MIN_WINDOW_HEIGHT,
+        SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|SDL_WINDOW_ALLOW_HIGHDPI|
+        SDL_WINDOW_RESIZABLE
     );
+    SDL_SetWindowMinimumSize(win, MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT);
+    ww = MIN_WINDOW_WIDTH;
+    wh = MIN_WINDOW_HEIGHT;
 
     if(!win)
         throw std::runtime_error("Unable to open window: "s + SDL_GetError());
@@ -424,6 +428,11 @@ void cafefm::load()
 
     // Load instrument presets
     load_options(opts);
+    SDL_SetWindowSize(
+        win,
+        ww = opts.initial_window_width,
+        wh = opts.initial_window_height
+    );
 
     update_all_instruments();
     create_new_instrument();
@@ -455,11 +464,11 @@ void cafefm::unload()
 
 void cafefm::render()
 {
+    SDL_GetWindowSize(win, &ww, &wh);
+
     gui();
 
-    int w, h;
-    SDL_GetWindowSize(win, &w, &h);
-    glViewport(0, 0, w, h);
+    glViewport(0, 0, ww, wh);
     glClearColor(0,0,0,0);
     glClear(GL_COLOR_BUFFER_BIT);
     nk_sdl_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY);
@@ -496,6 +505,14 @@ bool cafefm::update(unsigned dt)
         case SDL_QUIT:
             handled = true;
             quit = true;
+            break;
+        case SDL_WINDOWEVENT:
+            if(e.window.event == SDL_WINDOWEVENT_RESIZED)
+            {
+                render();
+                opts.initial_window_width = ww;
+                opts.initial_window_height = wh;
+            }
             break;
         case SDL_KEYDOWN:
         case SDL_KEYUP:
@@ -744,7 +761,7 @@ unsigned cafefm::gui_carrier(oscillator::func& type)
         nk_layout_row_template_begin(ctx, CARRIER_HEIGHT-10);
         nk_layout_row_template_push_static(ctx, 230);
         nk_layout_row_template_push_dynamic(ctx);
-        nk_layout_row_template_push_static(ctx, 200);
+        nk_layout_row_template_push_static(ctx, ww/4);
         nk_layout_row_template_end(ctx);
 
         // Waveform type selection
@@ -927,7 +944,7 @@ void cafefm::gui_instrument_editor()
 
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 80);
-        nk_layout_row_template_push_static(ctx, 400);
+        nk_layout_row_template_push_static(ctx, ww-400);
         nk_layout_row_template_push_static(ctx, 90);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
@@ -938,7 +955,7 @@ void cafefm::gui_instrument_editor()
         if(selected_instrument_preset >= 0)
             combo_label = all_instruments[selected_instrument_preset].name;
 
-        if(nk_combo_begin_label(ctx, combo_label.c_str(), nk_vec2(400,200)))
+        if(nk_combo_begin_label(ctx, combo_label.c_str(), nk_vec2(ww-400,200)))
         {
             int new_selected_preset = -1;
             for(unsigned i = 0; i < all_instruments.size(); ++i)
@@ -965,7 +982,7 @@ void cafefm::gui_instrument_editor()
         nk_style_set_font(ctx, &small_font->handle);
 
         nk_layout_row_template_begin(ctx, 30);
-        nk_layout_row_template_push_static(ctx, 484);
+        nk_layout_row_template_push_static(ctx, ww-316);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_push_dynamic(ctx);
@@ -1017,7 +1034,7 @@ void cafefm::gui_instrument_editor()
         if(instrument_delete_popup_open)
         {
             struct nk_rect s = {0, 100, 300, 136};
-            s.x = WINDOW_WIDTH/2-s.w/2;
+            s.x = ww/2-s.w/2;
             if(nk_popup_begin(
                 ctx, NK_POPUP_STATIC, "Delete?",
                 NK_WINDOW_BORDER|NK_WINDOW_TITLE, s
@@ -1046,7 +1063,7 @@ void cafefm::gui_instrument_editor()
 
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 140);
-        nk_layout_row_template_push_static(ctx, 340);
+        nk_layout_row_template_push_static(ctx, ww-460);
         nk_layout_row_template_push_static(ctx, 30);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
@@ -1062,7 +1079,7 @@ void cafefm::gui_instrument_editor()
 
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 140);
-        nk_layout_row_template_push_static(ctx, 340);
+        nk_layout_row_template_push_static(ctx, ww-460);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
 
@@ -1097,7 +1114,7 @@ void cafefm::gui_instrument_editor()
         if(save_recording_state >= 2)
         {
             struct nk_rect s = {0, 100, 300, 136};
-            s.x = WINDOW_WIDTH/2-s.w/2;
+            s.x = ww/2-s.w/2;
             if(nk_popup_begin(
                 ctx, NK_POPUP_STATIC, "Save recording?",
                 NK_WINDOW_BORDER|NK_WINDOW_TITLE, s
@@ -1151,7 +1168,10 @@ void cafefm::gui_instrument_editor()
     }
 
     nk_style_set_font(ctx, &small_font->handle);
-    nk_layout_row_dynamic(ctx, 413, 1);
+
+    float control_height =
+        wh-nk_widget_position(ctx).y-ctx->style.window.group_padding.y*2;
+    nk_layout_row_dynamic(ctx, control_height, 1);
     struct nk_rect empty_space;
     if(nk_group_begin(ctx, "Synth Control", NK_WINDOW_BORDER))
     {
@@ -1669,7 +1689,7 @@ void cafefm::gui_bindings_editor()
     )){
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 80);
-        nk_layout_row_template_push_static(ctx, 400);
+        nk_layout_row_template_push_static(ctx, ww-400);
         nk_layout_row_template_push_static(ctx, 90);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
@@ -1694,7 +1714,7 @@ void cafefm::gui_bindings_editor()
 
         unsigned new_selected_index = nk_combo(
             ctx, label_cstrings.data(), label_cstrings.size(),
-            selected_index, 25, nk_vec2(400, 200)
+            selected_index, 25, nk_vec2(ww-400, 200)
         );
         if(new_selected_index != selected_index)
             select_controller(available_controllers[new_selected_index].get());
@@ -1710,7 +1730,7 @@ void cafefm::gui_bindings_editor()
 
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 80);
-        nk_layout_row_template_push_static(ctx, 400);
+        nk_layout_row_template_push_static(ctx, ww-400);
         nk_layout_row_template_push_static(ctx, 30);
         nk_layout_row_template_push_static(ctx, 230);
         nk_layout_row_template_end(ctx);
@@ -1724,7 +1744,7 @@ void cafefm::gui_bindings_editor()
                 selected_bindings_preset
             ].get_name();
 
-        if(nk_combo_begin_label(ctx, combo_label.c_str(), nk_vec2(400,200)))
+        if(nk_combo_begin_label(ctx, combo_label.c_str(), nk_vec2(ww-400,200)))
         {
             int new_selected_preset = -1;
             nk_layout_row_dynamic(ctx, 25, 1);
@@ -1779,7 +1799,7 @@ void cafefm::gui_bindings_editor()
         }
 
         nk_layout_row_template_begin(ctx, 30);
-        nk_layout_row_template_push_static(ctx, 484);
+        nk_layout_row_template_push_static(ctx, ww-316);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_push_dynamic(ctx);
@@ -1823,7 +1843,7 @@ void cafefm::gui_bindings_editor()
         if(bindings_delete_popup_open)
         {
             struct nk_rect s = {0, 100, 300, 136};
-            s.x = WINDOW_WIDTH/2-s.w/2;
+            s.x = ww/2-s.w/2;
             if(nk_popup_begin(
                 ctx, NK_POPUP_STATIC, "Delete?",
                 NK_WINDOW_BORDER|NK_WINDOW_TITLE, s
@@ -1853,11 +1873,9 @@ void cafefm::gui_bindings_editor()
         nk_group_end(ctx);
     }
 
-    nk_layout_row_dynamic(
-        ctx,
-        WINDOW_HEIGHT-INSTRUMENT_HEADER_HEIGHT-43,
-        1
-    );
+    float control_height =
+        wh-nk_widget_position(ctx).y-ctx->style.window.group_padding.y*2;
+    nk_layout_row_dynamic(ctx, control_height, 1);
 
     // Actual bindings section
     if(nk_group_begin(ctx, "Bindings Group", NK_WINDOW_BORDER))
@@ -1920,7 +1938,7 @@ void cafefm::gui_options_editor()
     nk_widget(&empty_space, ctx);
 
     // Save, etc. controls at the top
-    if(nk_group_begin(ctx, "Options", NK_WINDOW_NO_SCROLLBAR))
+    if(nk_group_begin(ctx, "Options", 0))
     {
         options new_opts(opts);
 
@@ -2118,6 +2136,9 @@ void cafefm::gui_options_editor()
     }
 
     nk_widget(&empty_space, ctx);
+
+    // Padding
+    nk_layout_row_dynamic(ctx, wh-nk_widget_position(ctx).y-30, 0);
     
     // Draw notes at the bottom
     nk_layout_row_dynamic(ctx, 30, 2);

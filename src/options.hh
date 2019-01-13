@@ -32,6 +32,8 @@ struct options
     double target_latency;
     encoder::format recording_format;
     double recording_quality;
+    unsigned initial_window_width;
+    unsigned initial_window_height;
 
     json serialize() const;
     bool deserialize(const json& j);

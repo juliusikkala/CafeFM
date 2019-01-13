@@ -22,7 +22,8 @@
 
 options::options()
 : system_index(-1), device_index(-1), samplerate(44100), target_latency(0.030),
-  recording_format(encoder::WAV), recording_quality(90)
+  recording_format(encoder::WAV), recording_quality(90),
+  initial_window_width(800), initial_window_height(600)
 {}
 
 json options::serialize() const
@@ -38,6 +39,8 @@ json options::serialize() const
     j["target_latency"] = target_latency;
     j["recording_format"] = encoder::format_strings[(int)recording_format];
     j["recording_quality"] = recording_quality;
+    j["initial_window_width"] = initial_window_width;
+    j["initial_window_height"] = initial_window_height;
     return j;
 }
 
@@ -49,6 +52,8 @@ bool options::deserialize(const json& j)
     target_latency = 0.030;
     recording_format = encoder::WAV;
     recording_quality = 90;
+    initial_window_width = 800;
+    initial_window_height = 600;
 
     try
     {
@@ -87,6 +92,9 @@ bool options::deserialize(const json& j)
             sizeof(encoder::format_strings)/sizeof(*encoder::format_strings));
         if(format_i < 0) return false;
         recording_format = (encoder::format)format_i;
+
+        initial_window_width = j.value("initial_window_width", 800);
+        initial_window_height = j.value("initial_window_height", 600);
     }
     catch(...)
     {

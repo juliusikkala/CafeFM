@@ -115,6 +115,7 @@ private:
 
     nk_context* ctx;
     SDL_Window* win;
+    int ww, wh;
     SDL_GLContext gl_ctx;
 
     SDL_Surface* icon;
