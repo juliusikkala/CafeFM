@@ -1978,7 +1978,7 @@ void cafefm::gui_loop(unsigned loop_index)
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 50);
         nk_layout_row_template_push_static(ctx, 30);
-        nk_layout_row_template_push_static(ctx, 60);
+        nk_layout_row_template_push_static(ctx, 140);
         nk_layout_row_template_push_static(ctx, 160);
         nk_layout_row_template_push_static(ctx, 80);
         nk_layout_row_template_push_dynamic(ctx);
@@ -1998,21 +1998,16 @@ void cafefm::gui_loop(unsigned loop_index)
             lo.record_loop(loop_index);
         }
 
-        switch(state)
-        {
-        case looper::UNUSED:
-            nk_label(ctx, "Empty", NK_TEXT_LEFT);
-            break;
-        case looper::MUTED:
-        case looper::PLAYING:
-        case looper::RECORDING:
-            nk_labelf(
-                ctx,
-                NK_TEXT_LEFT,
-                "%.2f",
-                lo.get_loop_length(loop_index)
-            );
-            break;
+
+        double old_length = lo.get_loop_length(loop_index);
+        double new_length = fixed_propertyd(
+            ctx, "#Beats:", 0.5, old_length, 1000.0, 1.0, 0.01, 0.001
+        );
+        if(
+            new_length != old_length &&
+            (state == looper::PLAYING || state == looper::MUTED)
+        ){
+            lo.set_loop_length(loop_index, new_length);
         }
 
         double old_volume = lo.get_loop_volume(loop_index);

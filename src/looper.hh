@@ -60,6 +60,7 @@ public:
     loop_state get_loop_state(unsigned loop_index) const;
 
     // Length is in beats according to BPM.
+    void set_loop_length(unsigned loop_index, double length);
     double get_loop_length(unsigned loop_index) const;
 
     void apply(int32_t* o, unsigned long framecount);

@@ -20,6 +20,7 @@
 #include "instrument.hh"
 #include "helpers.hh"
 #include <algorithm>
+#include <cmath>
 
 looper::looper(uint64_t samplerate)
 :   samplerate(samplerate), ins(nullptr), beat_length(0), loop_t(0),
@@ -138,6 +139,13 @@ looper::loop_state looper::get_loop_state(unsigned loop_index) const
     return loops[loop_index].state;
 }
 
+void looper::set_loop_length(unsigned loop_index, double length)
+{
+    loop& l = loops[loop_index];
+    l.start_t = loop_t - ((loop_t - l.start_t) % l.length);
+    l.length = round(length * beat_length);
+}
+
 double looper::get_loop_length(unsigned loop_index) const
 {
     return (loops[loop_index].state == RECORDING ?
@@ -190,6 +198,9 @@ void looper::apply(int32_t* o, unsigned long framecount)
                 update_loop_volume(l);
                 if(t >= l.length) t -= l.length;
                 int64_t sample = 0;
+                // Key releases may overlap with the start of the loop. Also,
+                // the user may have adjusted the loop length such that it
+                // overlaps with itself.
                 for(unsigned w = 0; t + w < l.sample_count; w += l.length)
                     sample += l.samples[t+w];
                 o[i] += l.volume_num*sample/volume_denom;
