@@ -89,6 +89,9 @@ private:
     int gui_bind(bind& b, unsigned index);
     void gui_bindings_editor();
 
+    void gui_loop(unsigned loop_index);
+    void gui_loops_editor();
+
     void gui_options_editor();
 
     void gui();

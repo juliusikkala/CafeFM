@@ -33,6 +33,8 @@
 #define MAX_ELEMENT_MEMORY 128 * 1024
 #define CARRIER_HEIGHT 120
 #define INSTRUMENT_HEADER_HEIGHT 110
+#define LOOPS_HEADER_HEIGHT 40
+#define LOOP_HEIGHT 40
 #define MIN_WINDOW_WIDTH 800
 #define MIN_WINDOW_HEIGHT 600
 #define MAX_BINDING_NAME_LENGTH 128
@@ -199,6 +201,33 @@ namespace
                 2.0f, line_color
             );
         }
+    }
+
+    void metronome_widget(struct nk_context* ctx, double beat_index)
+    {
+        struct nk_rect bounds;
+        if(!nk_widget(&bounds, ctx)) return;
+
+        struct nk_command_buffer* out = &ctx->current->buffer;
+        struct nk_style_progress* style = &ctx->style.progress;
+
+        nk_color c = style->normal.data.color;
+        nk_color active = style->cursor_normal.data.color;
+        double value = pow(1.0-fmod(beat_index, 1.0), 4.0);
+        c.r = round(lerp(c.r, active.r, value));
+        c.g = round(lerp(c.g, active.g, value));
+        c.b = round(lerp(c.b, active.b, value));
+
+        nk_fill_rect(out, bounds, style->rounding, style->normal.data.color);
+
+        float border = 3;
+        struct nk_rect inner = bounds;
+        inner.x += border;
+        inner.y += border;
+        inner.w -= 2*border;
+        inner.h -= 2*border;
+
+        nk_fill_rect(out, inner, style->rounding, c);
     }
 
     constexpr const char* const protips[] = {
@@ -954,9 +983,9 @@ void cafefm::gui_instrument_editor()
 
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 80);
-        nk_layout_row_template_push_static(ctx, ww-400);
-        nk_layout_row_template_push_static(ctx, 90);
         nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_push_static(ctx, 90);
+        nk_layout_row_template_push_static(ctx, 184);
         nk_layout_row_template_end(ctx);
 
         // Preset picker
@@ -1699,9 +1728,9 @@ void cafefm::gui_bindings_editor()
     )){
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 80);
-        nk_layout_row_template_push_static(ctx, ww-400);
-        nk_layout_row_template_push_static(ctx, 90);
         nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_push_static(ctx, 90);
+        nk_layout_row_template_push_static(ctx, 184);
         nk_layout_row_template_end(ctx);
 
         // Controller picker
@@ -1930,6 +1959,121 @@ void cafefm::gui_bindings_editor()
             }
         }
 
+        nk_group_end(ctx);
+    }
+}
+
+void cafefm::gui_loop(unsigned loop_index)
+{
+    nk_style_set_font(ctx, &small_font->handle);
+
+    audio_output::loop_state state = output->get_loop_state(loop_index);
+    std::string title = "Loop " + std::to_string(loop_index);
+
+    struct nk_rect empty_space;
+    if(nk_group_begin(
+        ctx, title.c_str(), NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
+    )){
+        nk_layout_row_template_begin(ctx, 30);
+        nk_layout_row_template_push_static(ctx, 50);
+        nk_layout_row_template_push_static(ctx, 30);
+        nk_layout_row_template_push_static(ctx, 60);
+        nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_push_static(ctx, 60);
+        nk_layout_row_template_end(ctx);
+        nk_label(ctx, title.c_str(), NK_TEXT_LEFT);
+
+        if(state == audio_output::LOOP_RECORDING)
+        {
+            if(nk_button_symbol(ctx, NK_SYMBOL_RECT_SOLID))
+            {
+                output->finish_loop(loop_index);
+            }
+        }
+        else if(nk_button_symbol(ctx, NK_SYMBOL_CIRCLE_SOLID))
+        {
+            output->record_loop(loop_index);
+        }
+
+        switch(state)
+        {
+        case audio_output::LOOP_UNUSED:
+            nk_label(ctx, "Empty", NK_TEXT_LEFT);
+            break;
+        case audio_output::LOOP_MUTED:
+        case audio_output::LOOP_PLAYING:
+        case audio_output::LOOP_RECORDING:
+            nk_labelf(
+                ctx,
+                NK_TEXT_LEFT,
+                "%f",
+                output->get_loop_length(loop_index)
+            );
+            break;
+        }
+
+        nk_widget(&empty_space, ctx);
+
+        if(nk_button_label(ctx, "Clear"))
+            output->clear_loop(loop_index);
+
+        nk_group_end(ctx);
+    }
+}
+
+void cafefm::gui_loops_editor()
+{
+    nk_layout_row_dynamic(ctx, LOOPS_HEADER_HEIGHT, 1);
+    nk_style_set_font(ctx, &small_font->handle);
+
+    // Save, etc. controls at the top
+    struct nk_rect empty_space;
+    if(nk_group_begin(
+        ctx, "Loops Control", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
+    )){
+        nk_layout_row_template_begin(ctx, 30);
+        nk_layout_row_template_push_static(ctx, 200);
+        nk_layout_row_template_push_static(ctx, 60);
+        nk_layout_row_template_push_dynamic(ctx);
+        nk_layout_row_template_push_static(ctx, 120);
+        nk_layout_row_template_push_static(ctx, 90);
+        nk_layout_row_template_push_static(ctx, 184);
+        nk_layout_row_template_end(ctx);
+
+        int bpm = round(output->get_loop_bpm());
+        int old_bpm = bpm;
+        nk_property_int(ctx, "#BPM:", 1, &bpm, 1000, 1, 1);
+        if(bpm != old_bpm) output->set_loop_bpm(bpm);
+
+        metronome_widget(ctx,  output->get_loop_beat_index());
+
+        nk_widget(&empty_space, ctx);
+
+        if(nk_button_label(ctx, "Clear all loops"))
+            output->clear_all_loops();
+
+        if(nk_button_label(ctx, "Reset"))
+        {
+            fm->release_all_voices();
+            control.reset();
+        }
+
+        gui_controller_manager();
+
+        nk_group_end(ctx);
+    }
+
+    float loops_height =
+        wh-nk_widget_position(ctx).y-ctx->style.window.group_padding.y*2;
+    nk_layout_row_dynamic(ctx, loops_height, 1);
+
+    if(nk_group_begin(ctx, "Loops", NK_WINDOW_BORDER))
+    {
+        for(unsigned i = 0; i < output->get_loop_count(); ++i)
+        {
+            nk_layout_row_dynamic(ctx, LOOP_HEIGHT, 1);
+            gui_loop(i);
+        }
         nk_group_end(ctx);
     }
 }
@@ -2172,6 +2316,7 @@ void cafefm::gui()
     const char* tabs[] = {
         "Instrument",
         "Bindings",
+        "Loops",
         "Options"
     };
     unsigned tab_count = sizeof(tabs)/sizeof(*tabs);
@@ -2185,7 +2330,7 @@ void cafefm::gui()
     )){
         nk_style_push_vec2(ctx, &ctx->style.window.spacing, nk_vec2(0,0));
         nk_style_push_float(ctx, &ctx->style.button.rounding, 0);
-        nk_layout_row_begin(ctx, NK_STATIC, 30, 3);
+        nk_layout_row_begin(ctx, NK_STATIC, 30, tab_count);
 
         unsigned prev_tab = selected_tab;
         for(unsigned i = 0; i < tab_count; ++i)
@@ -2229,6 +2374,9 @@ void cafefm::gui()
             gui_bindings_editor();
             break;
         case 2:
+            gui_loops_editor();
+            break;
+        case 3:
             gui_options_editor();
             break;
         default:
@@ -2382,7 +2530,8 @@ void cafefm::select_instrument(unsigned index)
             (unsigned)all_instruments.size()-1
         );
         ins_state = all_instruments[selected_instrument_preset];
-        reset_fm(false);
+        master_volume = 1.0/ins_state.polyphony;
+        reset_fm();
     }
 }
 
@@ -2426,8 +2575,9 @@ void cafefm::create_new_instrument()
         if(found) break;
     }
     ins_state.name = modified_name;
+    master_volume = 1.0/ins_state.polyphony;
 
-    reset_fm(false);
+    reset_fm();
 }
 
 void cafefm::delete_current_instrument()
@@ -2451,26 +2601,26 @@ void cafefm::next_protip()
 
 void cafefm::reset_fm(bool refresh_only)
 {
-    if(output) output->stop();
-    output.reset(nullptr);
+    bool open_output = !refresh_only;
+    if(!output || output->get_samplerate() != opts.samplerate)
+    {
+        output.reset(new audio_output(opts.samplerate));
+        open_output = true;
+    }
+    if(open_output)
+        output->open(opts.target_latency, opts.system_index, opts.device_index);
 
     std::unique_ptr<fm_instrument> new_fm;
     
     new_fm.reset(ins_state.create_instrument(opts.samplerate));
-
-    if(!refresh_only) master_volume = 1.0/ins_state.polyphony;
     new_fm->set_volume(master_volume);
 
     if(fm) new_fm->copy_state(*fm);
     fm.swap(new_fm);
     control.apply(*fm, master_volume, ins_state);
 
-    output.reset(
-        new audio_output(
-            *fm, opts.target_latency, opts.system_index, opts.device_index
-        )
-    );
-
+    output->stop();
+    output->set_instrument(*fm);
     output->start();
 }
 
@@ -2485,5 +2635,5 @@ void cafefm::apply_options(const options& new_opts)
     }
 
     opts = new_opts;
-    reset_fm();
+    reset_fm(false);
 }

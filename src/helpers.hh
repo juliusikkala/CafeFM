@@ -25,6 +25,12 @@
 
 inline double lerp(double a, double b, double t) { return (1 - t) * a + t * b; }
 
+template<typename T>
+T div_round(T a, T b)
+{
+    return ((a < 0) ^ (b < 0)) ? ((a - b/2)/b) : ((a + b/2)/b);
+}
+
 int find_string_arg(
     const char* str,
     const char* const* strings,
