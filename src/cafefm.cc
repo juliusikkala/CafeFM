@@ -1979,6 +1979,7 @@ void cafefm::gui_loop(unsigned loop_index)
         nk_layout_row_template_push_static(ctx, 50);
         nk_layout_row_template_push_static(ctx, 30);
         nk_layout_row_template_push_static(ctx, 140);
+        nk_layout_row_template_push_static(ctx, 140);
         nk_layout_row_template_push_static(ctx, 160);
         nk_layout_row_template_push_static(ctx, 80);
         nk_layout_row_template_push_dynamic(ctx);
@@ -2006,9 +2007,16 @@ void cafefm::gui_loop(unsigned loop_index)
         if(
             new_length != old_length &&
             (state == looper::PLAYING || state == looper::MUTED)
-        ){
-            lo.set_loop_length(loop_index, new_length);
-        }
+        ) lo.set_loop_length(loop_index, new_length);
+
+        double old_delay = lo.get_loop_delay(loop_index);
+        double new_delay = fixed_propertyd(
+            ctx, "#Delay:", 0.0, old_delay, 1000.0, 0.05, 0.01, 0.001
+        );
+        if(
+            new_delay != old_delay &&
+            (state == looper::PLAYING || state == looper::MUTED)
+        ) lo.set_loop_delay(loop_index, new_delay);
 
         double old_volume = lo.get_loop_volume(loop_index);
         double new_volume = fixed_propertyd(

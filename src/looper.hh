@@ -63,6 +63,9 @@ public:
     void set_loop_length(unsigned loop_index, double length);
     double get_loop_length(unsigned loop_index) const;
 
+    void set_loop_delay(unsigned loop_index, double delay);
+    double get_loop_delay(unsigned loop_index) const;
+
     void apply(int32_t* o, unsigned long framecount);
 
     void set_max_volume_skip(double skip = 0.0001);
@@ -74,7 +77,8 @@ private:
 
         int64_t target_volume_num;
         int64_t volume_num;
-        uint64_t start_t;
+        int64_t start_t;
+        int64_t relative_start_t; // Comparison point for delay.
         uint64_t length;
         int64_t record_stop_timer;
         size_t sample_count;
@@ -87,7 +91,7 @@ private:
     instrument* ins;
 
     uint64_t beat_length;
-    uint64_t loop_t;
+    int64_t loop_t;
     int64_t max_volume_skip;
     int64_t volume_denom;
     std::vector<int32_t> loop_samples;
