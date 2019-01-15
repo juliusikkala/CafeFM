@@ -19,6 +19,7 @@ src = [
   'src/helpers.cc',
   'src/instrument.cc',
   'src/io.cc',
+  'src/looper.cc',
   'src/main.cc',
   'src/options.cc',
   'src/instrument_state.cc',

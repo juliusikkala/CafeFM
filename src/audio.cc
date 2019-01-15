@@ -136,10 +136,8 @@ std::vector<uint64_t> get_samplerates(
 audio_output::audio_output(uint64_t samplerate)
 :   samplerate(samplerate), ins(nullptr), stream(nullptr), record(false),
     encode(false), encode_head(0), total_recorded_samples(0),
-    max_recording_samples(0), beat_length(0), loop_t(0)
+    max_recording_samples(0), loop(samplerate)
 {
-    set_loop_bpm();
-    reset_loops();
 }
 
 audio_output::~audio_output()
@@ -193,6 +191,7 @@ void audio_output::set_instrument(instrument& i)
         );
 
     ins = &i;
+    loop.set_instrument(ins);
 }
 
 void audio_output::start_recording(
@@ -277,109 +276,14 @@ const encoder& audio_output::get_encoder() const
     return *enc;
 }
 
-void audio_output::reset_loops(size_t max_count, double max_loop_length)
+looper& audio_output::get_looper()
 {
-    unsigned loop_size = max_loop_length * samplerate;
-
-    loop_samples.resize(max_count*loop_size);
-    memset(loop_samples.data(), 0, loop_samples.size()*sizeof(int32_t));
-
-    loops.resize(max_count);
-    for(size_t i = 0; i < loops.size(); ++i)
-    {
-        loop& l = loops[i];
-        l.state = LOOP_UNUSED;
-        l.volume_num = 1;
-        l.volume_denom = 1;
-        l.start_t = 0;
-        l.length = 0;
-        l.sample_count = 0;
-        l.record_stop_timer = 0;
-        l.samples = loop_samples.data() + i * loop_size;
-    }
-
-    loop_t = 0;
+    return loop;
 }
 
-unsigned audio_output::get_loop_count() const
+const looper& audio_output::get_looper() const
 {
-    return loops.size();
-}
-
-void audio_output::set_loop_bpm(double bpm)
-{
-    beat_length = samplerate * 60.0 / bpm;
-}
-
-double audio_output::get_loop_bpm() const
-{
-    return samplerate * 60.0 / beat_length;
-}
-
-double audio_output::get_loop_beat_index() const
-{
-    return loop_t/(double)beat_length;
-}
-
-void audio_output::set_loop_volume(unsigned loop_index, double volume)
-{
-    loops[loop_index].volume_denom = 65536;
-    loops[loop_index].volume_num = volume*loops[loop_index].volume_denom;
-}
-
-void audio_output::record_loop(unsigned loop_index)
-{
-    unsigned loop_size = loop_samples.size()/loops.size();
-    memset(loops[loop_index].samples, 0, sizeof(int32_t)*loop_size);
-    loops[loop_index].state = LOOP_RECORDING;
-    loops[loop_index].start_t = loop_t;
-    loops[loop_index].length = 0;
-    loops[loop_index].sample_count = 0;
-}
-
-void audio_output::finish_loop(unsigned loop_index)
-{
-    ins->release_all_voices();
-    loops[loop_index].length = (
-        (loops[loop_index].sample_count + 3*beat_length/4) / beat_length
-    ) * beat_length;
-    loops[loop_index].record_stop_timer = ins->get_envelope().release_length;
-    loops[loop_index].state = LOOP_PLAYING;
-}
-
-void audio_output::play_loop(unsigned loop_index, bool play)
-{
-    loops[loop_index].state = play ? LOOP_PLAYING : LOOP_MUTED;
-}
-
-void audio_output::clear_loop(unsigned loop_index)
-{
-    unsigned loop_size = loop_samples.size()/loops.size();
-    loops[loop_index].state = LOOP_UNUSED;
-    loops[loop_index].volume_num = 1;
-    loops[loop_index].volume_denom = 1;
-    loops[loop_index].start_t = 0;
-    loops[loop_index].length = 0;
-    loops[loop_index].sample_count = 0;
-    loops[loop_index].record_stop_timer = 0;
-    memset(loops[loop_index].samples, 0, sizeof(int32_t)*loop_size);
-}
-
-void audio_output::clear_all_loops()
-{
-    for(size_t i = 0; i < loops.size(); ++i) clear_loop(i);
-}
-
-audio_output::loop_state audio_output::get_loop_state(unsigned loop_index) const
-{
-    return loops[loop_index].state;
-}
-
-double audio_output::get_loop_length(unsigned loop_index) const
-{
-    return (loops[loop_index].state == LOOP_RECORDING ?
-        loops[loop_index].sample_count :
-        loops[loop_index].length)/(double)beat_length;
+    return loop;
 }
 
 uint64_t audio_output::get_samplerate() const
@@ -582,67 +486,8 @@ int audio_output::stream_callback(
     memset(o, 0, sz);
     self->ins->synthesize(o, framecount);
 
-    // Handle loop recording
-    for(unsigned j = 0; j < self->loops.size(); ++j)
-    {
-        loop& l = self->loops[j];
-        if(l.state != LOOP_RECORDING && l.record_stop_timer <= 0) continue;
-
-        unsigned max_samples = self->loop_samples.size() / self->loops.size();
-        unsigned t = self->loop_t - l.start_t;
-        unsigned max_samples_left = max_samples - t;
-        unsigned write_length = framecount;
-
-        if(max_samples_left <= framecount)
-        {
-            l.length = (l.sample_count + max_samples_left)
-                / self->beat_length * self->beat_length;
-            l.record_stop_timer = 0;
-            l.state = LOOP_PLAYING;
-            write_length = max_samples_left;
-        }
-
-        for(unsigned i = 0; i < write_length; ++i, ++t)
-        {
-            l.sample_count++;
-            l.samples[t] = o[i];
-        }
-    }
-
-    // Handle loop playback
-    for(loop& l: self->loops)
-    {
-        if(l.state != LOOP_PLAYING) continue;
-        unsigned t = (self->loop_t - l.start_t) % l.length;
-
-        // TODO: Optimize & clarify
-        // Don't take release samples into account if still recording them.
-        if(l.record_stop_timer > 0)
-        {
-            for(unsigned i = 0; i < framecount; ++i, ++t)
-            {
-                if(t >= l.length) t -= l.length;
-                if(t >= l.sample_count) continue;
-                o[i] += l.samples[t];
-            }
-        }
-        else
-        {
-            for(unsigned i = 0; i < framecount; ++i, ++t)
-            {
-                if(t >= l.length) t -= l.length;
-                for(unsigned w = 0; t + w < l.sample_count; w += l.length)
-                    o[i] += l.samples[t+w];
-            }
-        }
-    }
-
-    // Update timers
-    for(loop& l: self->loops)
-    {
-        if(l.record_stop_timer > 0) l.record_stop_timer -= framecount;
-    }
-    self->loop_t += framecount;
+    // Handle loops
+    self->loop.apply(o, framecount);
 
     // Handle recording final output
     if(self->record)

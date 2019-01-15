@@ -16,11 +16,12 @@
     You should have received a copy of the GNU General Public License
     along with CafeFM.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef CAFE_AUDIO_HH
-#define CAFE_AUDIO_HH
+#ifndef CAFEFM_AUDIO_HH
+#define CAFEFM_AUDIO_HH
 #include "portaudio.h"
 #include "instrument.hh"
 #include "encoder.hh"
+#include "looper.hh"
 #include <cstdint>
 #include <stdexcept>
 #include <string>
@@ -60,29 +61,8 @@ public:
     // This will throw if encoding hasn't run or was aborted.
     const encoder& get_encoder() const;
 
-    enum loop_state
-    {
-        LOOP_UNUSED = 0,
-        LOOP_MUTED,
-        LOOP_PLAYING,
-        LOOP_RECORDING
-    };
-
-    void reset_loops(size_t max_count = 8, double max_loop_length = 30);
-    unsigned get_loop_count() const;
-    void set_loop_bpm(double bpm = 120);
-    double get_loop_bpm() const;
-    // Used for visualizing BPM.
-    double get_loop_beat_index() const;
-    void set_loop_volume(unsigned loop_index, double volume);
-    void record_loop(unsigned loop_index);
-    void finish_loop(unsigned loop_index);
-    void play_loop(unsigned loop_index, bool play = true);
-    void clear_loop(unsigned loop_index);
-    void clear_all_loops();
-    loop_state get_loop_state(unsigned loop_index) const;
-    // Length is in beats according to BPM.
-    double get_loop_length(unsigned loop_index) const;
+    looper& get_looper();
+    const looper& get_looper() const;
 
     uint64_t get_samplerate() const;
 
@@ -141,21 +121,7 @@ private:
     std::unique_ptr<encoder> enc;
     std::unique_ptr<std::thread> recording_thread;
 
-    struct loop
-    {
-        loop_state state;
-
-        uint64_t volume_num, volume_denom;
-        uint64_t start_t;
-        uint64_t length;
-        int64_t record_stop_timer;
-        size_t sample_count;
-        int32_t* samples;
-    };
-    uint64_t beat_length;
-    uint64_t loop_t;
-    std::vector<int32_t> loop_samples;
-    std::vector<loop> loops;
+    looper loop;
 };
 
 #endif

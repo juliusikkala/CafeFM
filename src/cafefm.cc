@@ -1967,7 +1967,8 @@ void cafefm::gui_loop(unsigned loop_index)
 {
     nk_style_set_font(ctx, &small_font->handle);
 
-    audio_output::loop_state state = output->get_loop_state(loop_index);
+    looper& lo = output->get_looper();
+    looper::loop_state state = lo.get_loop_state(loop_index);
     std::string title = "Loop " + std::to_string(loop_index);
 
     struct nk_rect empty_space;
@@ -1978,44 +1979,59 @@ void cafefm::gui_loop(unsigned loop_index)
         nk_layout_row_template_push_static(ctx, 50);
         nk_layout_row_template_push_static(ctx, 30);
         nk_layout_row_template_push_static(ctx, 60);
+        nk_layout_row_template_push_static(ctx, 160);
+        nk_layout_row_template_push_static(ctx, 80);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_push_static(ctx, 60);
         nk_layout_row_template_end(ctx);
         nk_label(ctx, title.c_str(), NK_TEXT_LEFT);
 
-        if(state == audio_output::LOOP_RECORDING)
+        if(state == looper::RECORDING)
         {
             if(nk_button_symbol(ctx, NK_SYMBOL_RECT_SOLID))
             {
-                output->finish_loop(loop_index);
+                lo.finish_loop(loop_index);
             }
         }
         else if(nk_button_symbol(ctx, NK_SYMBOL_CIRCLE_SOLID))
         {
-            output->record_loop(loop_index);
+            lo.record_loop(loop_index);
         }
 
         switch(state)
         {
-        case audio_output::LOOP_UNUSED:
+        case looper::UNUSED:
             nk_label(ctx, "Empty", NK_TEXT_LEFT);
             break;
-        case audio_output::LOOP_MUTED:
-        case audio_output::LOOP_PLAYING:
-        case audio_output::LOOP_RECORDING:
+        case looper::MUTED:
+        case looper::PLAYING:
+        case looper::RECORDING:
             nk_labelf(
                 ctx,
                 NK_TEXT_LEFT,
-                "%f",
-                output->get_loop_length(loop_index)
+                "%.2f",
+                lo.get_loop_length(loop_index)
             );
             break;
         }
 
+        double old_volume = lo.get_loop_volume(loop_index);
+        double new_volume = fixed_propertyd(
+            ctx, "#Volume:", 0.0, old_volume, 1.0, 0.05, 0.01, 0.001
+        );
+        if(old_volume != new_volume)
+            lo.set_loop_volume(loop_index, new_volume);
+
+        if(button_label_active(
+            ctx,
+            state == looper::PLAYING ? "Mute" : "Unmute",
+            state == looper::PLAYING || state == looper::MUTED
+        )) lo.play_loop(loop_index, state == looper::MUTED);
+
         nk_widget(&empty_space, ctx);
 
         if(nk_button_label(ctx, "Clear"))
-            output->clear_loop(loop_index);
+            lo.clear_loop(loop_index);
 
         nk_group_end(ctx);
     }
@@ -2025,6 +2041,8 @@ void cafefm::gui_loops_editor()
 {
     nk_layout_row_dynamic(ctx, LOOPS_HEADER_HEIGHT, 1);
     nk_style_set_font(ctx, &small_font->handle);
+
+    looper& lo = output->get_looper();
 
     // Save, etc. controls at the top
     struct nk_rect empty_space;
@@ -2040,17 +2058,17 @@ void cafefm::gui_loops_editor()
         nk_layout_row_template_push_static(ctx, 184);
         nk_layout_row_template_end(ctx);
 
-        int bpm = round(output->get_loop_bpm());
+        int bpm = round(lo.get_loop_bpm());
         int old_bpm = bpm;
         nk_property_int(ctx, "#BPM:", 1, &bpm, 1000, 1, 1);
-        if(bpm != old_bpm) output->set_loop_bpm(bpm);
+        if(bpm != old_bpm) lo.set_loop_bpm(bpm);
 
-        metronome_widget(ctx,  output->get_loop_beat_index());
+        metronome_widget(ctx,  lo.get_loop_beat_index());
 
         nk_widget(&empty_space, ctx);
 
         if(nk_button_label(ctx, "Clear all loops"))
-            output->clear_all_loops();
+            lo.clear_all_loops();
 
         if(nk_button_label(ctx, "Reset"))
         {
@@ -2069,7 +2087,7 @@ void cafefm::gui_loops_editor()
 
     if(nk_group_begin(ctx, "Loops", NK_WINDOW_BORDER))
     {
-        for(unsigned i = 0; i < output->get_loop_count(); ++i)
+        for(unsigned i = 0; i < lo.get_loop_count(); ++i)
         {
             nk_layout_row_dynamic(ctx, LOOP_HEIGHT, 1);
             gui_loop(i);
