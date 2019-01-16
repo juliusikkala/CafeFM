@@ -15888,14 +15888,14 @@ nk_panel_end(struct nk_context *ctx)
             scroll.w = scrollbar_size.x;
             scroll.h = layout->bounds.h;
 
-            scroll_offset = (float)*layout->offset_y;
+            scroll_offset = (float)(layout->offset_y ? *layout->offset_y : 0.0f);
             scroll_step = scroll.h * 0.10f;
             scroll_inc = scroll.h * 0.01f;
             scroll_target = (float)(int)(layout->at_y - scroll.y);
             scroll_offset = nk_do_scrollbarv(&state, out, scroll, scroll_has_scrolling,
                 scroll_offset, scroll_target, scroll_step, scroll_inc,
                 &ctx->style.scrollv, in, style->font);
-            *layout->offset_y = (nk_uint)scroll_offset;
+            if(layout->offset_y) *layout->offset_y = (nk_uint)scroll_offset;
             if (in && scroll_has_scrolling)
                 in->mouse.scroll_delta.y = 0;
         }

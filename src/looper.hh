@@ -70,6 +70,10 @@ public:
 
     void set_max_volume_skip(double skip = 0.0001);
 
+    // Used for tracking selected loop in bindings
+    void set_selected_loop(int selected_loop);
+    int get_selected_loop() const;
+
 private:
     struct loop
     {
@@ -96,6 +100,8 @@ private:
     int64_t volume_denom;
     std::vector<int32_t> loop_samples;
     std::vector<loop> loops;
+
+    int selected_loop;
 };
 
 #endif

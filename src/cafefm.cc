@@ -613,7 +613,14 @@ void cafefm::handle_controller(
 
     latest_input_axis_2d = axis_2d_index;
 
-    binds.act(control, c, axis_1d_index, axis_2d_index, button_index);
+    binds.act(
+        c,
+        control,
+        output ? &output->get_looper() : nullptr,
+        axis_1d_index,
+        axis_2d_index,
+        button_index
+    );
 }
 
 void cafefm::detach_controller(unsigned index)
@@ -1366,6 +1373,10 @@ void cafefm::gui_bind_action_template(bind& b)
         nk_layout_row_template_push_static(ctx, 90);
         nk_layout_row_template_push_static(ctx, 150);
         break;
+    case bind::LOOP_CONTROL:
+        nk_layout_row_template_push_static(ctx, 90);
+        nk_layout_row_template_push_static(ctx, 90);
+        break;
     }
 }
 
@@ -1379,6 +1390,10 @@ void cafefm::gui_bind_action(bind& b)
         "Attack", "Decay", "Sustain", "Release"
     };
 
+    static const char* loop_control_names[] = {
+        "Record", "Clear", "Mute"
+    };
+
     switch(b.action)
     {
     case bind::KEY:
@@ -1386,7 +1401,7 @@ void cafefm::gui_bind_action(bind& b)
             std::string note_name = generate_semitone_name(b.key_semitone);
 
             bool was_open = ctx->current->popup.win;
-            if(nk_combo_begin_label(ctx, note_name.c_str(), nk_vec2(80, 200)))
+            if(nk_combo_begin_label(ctx, note_name.c_str(), nk_vec2(80, -200)))
             {
                 nk_layout_row_dynamic(ctx, 30, 1);
                 unsigned match_i = 0;
@@ -1438,7 +1453,7 @@ void cafefm::gui_bind_action(bind& b)
         nk_combobox(
             ctx, envelope_index_names,
             sizeof(envelope_index_names)/sizeof(*envelope_index_names),
-            (int*)&b.envelope.which, 20, nk_vec2(80, 80)
+            (int*)&b.envelope.which, 20, nk_vec2(80, 105)
         );
         if(b.envelope.which == 2)
         {
@@ -1450,6 +1465,63 @@ void cafefm::gui_bind_action(bind& b)
         else nk_property_double(
             ctx, "#Multiplier:", 0, &b.envelope.max_mul, 128.0, 0.5, 0.25
         );
+        break;
+    case bind::LOOP_CONTROL:
+        {
+            bind::loop_control old_control = b.loop.control;
+            nk_combobox(
+                ctx, loop_control_names,
+                sizeof(loop_control_names)/sizeof(*loop_control_names),
+                (int*)&b.loop.control, 20, nk_vec2(80, -105)
+            );
+            if(b.loop.control != old_control)
+            {
+                if(b.loop.control == bind::LOOP_RECORD) b.toggle = true;
+                else if(b.loop.control == bind::LOOP_CLEAR) b.toggle = false;
+                else if(b.loop.control == bind::LOOP_MUTE) b.toggle = true;
+            }
+
+            std::vector<std::string> labels;
+            int offset = 2;
+            switch(b.loop.control)
+            {
+            case bind::LOOP_RECORD:
+                offset = 1;
+                labels.push_back("Next");
+                if(b.loop.index == -2) b.loop.index = -1;
+                break;
+            case bind::LOOP_CLEAR:
+                labels.push_back("All");
+                labels.push_back("Previous");
+                break;
+            case bind::LOOP_MUTE:
+                labels.push_back("All");
+                labels.push_back("Current");
+                break;
+            }
+
+            unsigned valid_indices = output->get_looper().get_loop_count();
+            for(unsigned i = 0; i < valid_indices; ++i)
+                labels.push_back(std::to_string(i));
+
+            std::string title;
+            if(b.loop.index < (int)labels.size())
+                title = labels[offset + b.loop.index];
+            else title = std::to_string(b.loop.index);
+
+            if(nk_combo_begin_label(ctx, title.c_str(), nk_vec2(80, -200)))
+            {
+                nk_layout_row_dynamic(ctx, 30, 1);
+                for(unsigned i = 0; i < labels.size(); ++i)
+                {
+                    if(nk_combo_item_label(
+                        ctx, labels[i].c_str(), NK_TEXT_LEFT
+                    )) b.loop.index = i-offset;
+                }
+
+                nk_combo_end(ctx);
+            }
+        }
         break;
     }
 }
@@ -1472,12 +1544,20 @@ void cafefm::gui_bind_modifiers(
     if(b.control == bind::AXIS_1D_CONTINUOUS)
         allow_stacking = false;
 
-    bool multiple =
-        ((int)allow_toggle +
+    unsigned total = 
+        (int)allow_toggle +
         (int)allow_cumulative +
         (int)allow_stacking +
         (int)allow_threshold +
-        (int)allow_invert) > 1;
+        (int)allow_invert;
+    bool multiple = total > 1;
+
+    if(total == 0)
+    {
+        struct nk_rect empty_space;
+        nk_widget(&empty_space, ctx);
+        return;
+    }
 
     if(multiple)
     {
@@ -1653,9 +1733,10 @@ int cafefm::gui_bind_control(bind& b, bool discrete_only)
 
     gui_bind_modifiers(
         b,
-        b.control != bind::AXIS_1D_CONTINUOUS,
-        b.action != bind::KEY,
-        b.action != bind::KEY
+        b.control != bind::AXIS_1D_CONTINUOUS &&
+        (b.action != bind::LOOP_CONTROL || b.loop.control != bind::LOOP_CLEAR),
+        b.action != bind::KEY && b.action != bind::LOOP_CONTROL,
+        b.action != bind::KEY && b.action != bind::LOOP_CONTROL
     );
 
     gui_bind_button(b, discrete_only);
@@ -1928,7 +2009,8 @@ void cafefm::gui_bindings_editor()
             {"Volume", bind::VOLUME_MUL},
             {"Modulator period", bind::PERIOD_EXPT},
             {"Modulator amplitude", bind::AMPLITUDE_MUL},
-            {"Envelope", bind::ENVELOPE_ADJUST}
+            {"Envelope", bind::ENVELOPE_ADJUST},
+            {"Loops", bind::LOOP_CONTROL}
         };
         unsigned id = 0;
         for(auto a: actions)

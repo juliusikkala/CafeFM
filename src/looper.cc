@@ -59,6 +59,7 @@ void looper::reset_loops(size_t max_count, double max_loop_length)
     }
 
     loop_t = 0;
+    selected_loop = 0;
 }
 
 unsigned looper::get_loop_count() const
@@ -93,9 +94,8 @@ double looper::get_loop_volume(unsigned loop_index) const
 
 void looper::record_loop(unsigned loop_index)
 {
-    unsigned loop_size = loop_samples.size()/loops.size();
+    clear_loop(loop_index);
     loop& l = loops[loop_index];
-    memset(l.samples, 0, sizeof(int32_t)*loop_size);
     l.state = RECORDING;
     l.start_t = loop_t;
     l.relative_start_t = loop_t;
@@ -108,6 +108,7 @@ void looper::finish_loop(unsigned loop_index)
     if(ins) ins->release_all_voices();
     loop& l = loops[loop_index];
     l.length = (l.sample_count + 3*beat_length/4) / beat_length * beat_length;
+    if(l.length == 0) l.length = beat_length;
     l.record_stop_timer = ins ? ins->get_envelope().release_length : 0;
     l.state = PLAYING;
 }
@@ -237,6 +238,18 @@ void looper::apply(int32_t* o, unsigned long framecount)
 void looper::set_max_volume_skip(double skip)
 {
     max_volume_skip = skip * volume_denom;
+}
+
+void looper::set_selected_loop(int selected_loop)
+{
+    while(selected_loop < 0) selected_loop += loops.size();
+    selected_loop %= loops.size();
+    this->selected_loop = selected_loop;
+}
+
+int looper::get_selected_loop() const
+{
+    return selected_loop;
 }
 
 void looper::update_loop_volume(loop& l)

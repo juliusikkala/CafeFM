@@ -25,6 +25,7 @@
 
 class controller;
 class control_state;
+class looper;
 
 struct bind
 {
@@ -74,13 +75,21 @@ struct bind
 
     enum action
     {
-        KEY, // Discrete control only
+        KEY = 0, // Discrete control only
         FREQUENCY_EXPT,
         VOLUME_MUL,
         PERIOD_EXPT,
         AMPLITUDE_MUL,
-        ENVELOPE_ADJUST
+        ENVELOPE_ADJUST,
+        LOOP_CONTROL
     } action;
+
+    enum loop_control
+    {
+        LOOP_RECORD = 0,
+        LOOP_CLEAR,
+        LOOP_MUTE
+    };
 
     union
     {
@@ -124,6 +133,14 @@ struct bind
             unsigned which;
             double max_mul;
         } envelope;
+
+        // LOOP_CONTROL (discrete only)
+        struct
+        {
+            // -1 for next/prev, -2 for all
+            int index;
+            loop_control control;
+        } loop;
     };
 
     bind(enum action a = KEY);
@@ -181,10 +198,12 @@ public:
     // Called by control state whenever cumulative values have changed.
     void cumulative_update(control_state& state);
 
-    // Applies controller inputs to control state according to the bindings.
+    // Applies controller inputs to control state and loops according to the
+    // bindings.
     void act(
-        control_state& state,
         controller* c,
+        control_state& state,
+        looper* loop,
         int axis_1d_index,
         int axis_2d_index,
         int button_index
@@ -212,7 +231,19 @@ public:
     void clear();
 
 private:
-    void handle_action(control_state& state, const bind& b, double input_value);
+    int handle_loop_event(
+        looper& loop,
+        bind::loop_control control,
+        int index,
+        double value
+    );
+
+    void handle_action(
+        control_state& state,
+        looper* loop,
+        const bind& b,
+        double input_value
+    );
 
     bool write_lock;
     std::string name;

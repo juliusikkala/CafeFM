@@ -22,6 +22,18 @@
 
 control_state::control_state() { }
 
+void control_state::set_threshold_state(action_id id, int active)
+{
+    threshold_state[id] = active;
+}
+
+int control_state::get_threshold_state(action_id id) const
+{
+    auto it = threshold_state.find(id);
+    if(it == threshold_state.end()) return 0;
+    return it->second;
+}
+
 void control_state::set_toggle_state(action_id id, int state)
 {
     toggle_state[id] = state;
@@ -79,6 +91,7 @@ void control_state::erase_action(action_id id)
 
     release_key(id);
 
+    threshold_state.erase(id);
     toggle_state.erase(id);
     stacking.erase(id);
     cumulative_state.erase(id);
@@ -196,6 +209,7 @@ void control_state::reset()
     press_queue.clear();
     release_queue.clear();
     pressed_keys.clear();
+    threshold_state.clear();
     toggle_state.clear();
     stacking.clear();
     cumulative_state.clear();

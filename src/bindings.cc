@@ -19,6 +19,7 @@
 #include "bindings.hh"
 #include "controller/controller.hh"
 #include "helpers.hh"
+#include "looper.hh"
 #include <stdexcept>
 #include <cstring>
 #include <algorithm>
@@ -30,7 +31,11 @@ namespace
 
     const char* const action_strings[] = {
         "KEY", "FREQUENCY_EXPT", "VOLUME_MUL", "PERIOD_EXPT", "AMPLITUDE_MUL",
-        "ENVELOPE_ADJUST"
+        "ENVELOPE_ADJUST", "LOOP_CONTROL"
+    };
+
+    const char* const loop_control_strings[] = {
+        "LOOP_RECORD", "LOOP_CLEAR", "LOOP_MUTE"
     };
 
     double compute_deadzone(double v, double origin, double threshold)
@@ -71,6 +76,11 @@ bind::bind(enum action a)
         envelope.which = 3;
         envelope.max_mul = 10.0;
         break;
+    case LOOP_CONTROL:
+        toggle = true;
+        loop.index = -1;
+        loop.control = LOOP_RECORD;
+        break;
     }
 }
 
@@ -96,10 +106,16 @@ json bind::serialize() const
         break;
     }
 
-    if(control != AXIS_1D_CONTINUOUS)
-        j["control"]["toggle"] = toggle;
-    j["control"]["cumulative"] = cumulative;
-    j["control"]["stacking"] = stacking;
+    if(
+        control != AXIS_1D_CONTINUOUS &&
+        (action != LOOP_CONTROL || loop.control != LOOP_CLEAR)
+    ) j["control"]["toggle"] = toggle;
+
+    if(action != LOOP_CONTROL && action != KEY)
+    {
+        j["control"]["cumulative"] = cumulative;
+        j["control"]["stacking"] = stacking;
+    }
 
     j["action"]["type"] = action_strings[(unsigned)action];
 
@@ -125,6 +141,11 @@ json bind::serialize() const
     case ENVELOPE_ADJUST:
         j["action"]["envelope"]["which"] = envelope.which;
         j["action"]["envelope"]["max_mul"] = envelope.max_mul;
+        break;
+    case LOOP_CONTROL:
+        j["action"]["loop"]["index"] = loop.index;
+        j["action"]["loop"]["control"] =
+            loop_control_strings[(unsigned)loop.control];
         break;
     }
 
@@ -201,6 +222,20 @@ bool bind::deserialize(const json& j)
             j.at("action").at("envelope").at("which").get_to(envelope.which);
             j.at("action").at("envelope")
                 .at("max_mul").get_to(envelope.max_mul);
+            break;
+        case LOOP_CONTROL:
+            j.at("action").at("loop").at("index").get_to(loop.index);
+            {
+                std::string control_str =
+                    j.at("action").at("loop").at("control").get<std::string>();
+                int control_i = find_string_arg(
+                    control_str.c_str(),
+                    loop_control_strings,
+                    sizeof(loop_control_strings)/sizeof(*loop_control_strings)
+                );
+                if(control_i < 0) return false;
+                loop.control = (enum loop_control)control_i;
+            }
             break;
         }
     }
@@ -307,7 +342,13 @@ bool bind::update_value(
 ) const {
     bool is_signed;
     v = input_value(c, &is_signed);
-    if(control == AXIS_1D_THRESHOLD) v = v > axis_1d.threshold ? 1.0 : 0.0;
+    if(control == AXIS_1D_THRESHOLD)
+    {
+        v = v > axis_1d.threshold ? 1.0 : 0.0;
+        int prev_state = state.get_threshold_state(id);
+        if(prev_state == v) return false;
+        state.set_threshold_state(id, v);
+    }
     else if(control == AXIS_1D_CONTINUOUS)
     {
         v = compute_deadzone(v, axis_1d.origin, axis_1d.threshold);
@@ -477,13 +518,18 @@ void bindings::cumulative_update(control_state& state)
     for(const bind& b: binds)
     {
         if(b.cumulative)
-            handle_action(state, b, state.get_cumulation(b.id));
+        {
+            // Loop controls cannot be cumulative, luckily, which is why
+            // we can pass nullptr here and not worry about it.
+            handle_action(state, nullptr, b, state.get_cumulation(b.id));
+        }
     }
 }
 
 void bindings::act(
-    control_state& state,
     controller* c,
+    control_state& state,
+    looper* loop,
     int axis_1d_index,
     int axis_2d_index,
     int button_index
@@ -509,7 +555,7 @@ void bindings::act(
         ) value = b.normalize(c, value);
 
         // Perform actual action.
-        handle_action(state, b, value);
+        handle_action(state, loop, b, value);
     }
 }
 
@@ -645,8 +691,58 @@ void bindings::clear()
     binds.clear();
 }
 
-void bindings::handle_action(control_state& state, const bind& b, double value)
-{
+int bindings::handle_loop_event(
+    looper& loop,
+    bind::loop_control control,
+    int index,
+    double value
+){
+    looper::loop_state state = loop.get_loop_state(index);
+    switch(control)
+    {
+    case bind::LOOP_RECORD:
+        if(state == looper::RECORDING)
+        {
+            if(value == 0)
+            {
+                loop.finish_loop(index);
+            }
+        }
+        else if(value == 1)
+        {
+            if(
+                state != looper::UNUSED &&
+                index+1 < (int)loop.get_loop_count()
+            ) index++;
+            loop.record_loop(index);
+        }
+        break;
+    case bind::LOOP_CLEAR:
+        if(state == looper::RECORDING || state == looper::UNUSED) break;
+
+        if(value == 1)
+        {
+            loop.clear_loop(index);
+            if(index > 0) index--;
+        }
+        break;
+    case bind::LOOP_MUTE:
+        if(state == looper::PLAYING && value == 1)
+            loop.play_loop(index, false);
+        else if(state == looper::MUTED && value == 0)
+            loop.play_loop(index, true);
+        break;
+    }
+
+    return index;
+}
+
+void bindings::handle_action(
+    control_state& state,
+    looper* loop,
+    const bind& b,
+    double value
+){
     switch(b.action)
     {
     case bind::KEY:
@@ -692,6 +788,27 @@ void bindings::handle_action(control_state& state, const bind& b, double value)
                 pow(b.envelope.max_mul, value):
                 lerp(1.0, b.envelope.max_mul, value)
         );
+        break;
+    case bind::LOOP_CONTROL:
+        {
+            if(!loop) return;
+            int selected_loop = b.loop.index;
+            int loop_count = loop->get_loop_count();
+            if(selected_loop >= loop_count) return;
+            if(b.loop.index == -1) selected_loop = loop->get_selected_loop();
+
+            if(selected_loop < 0)
+            {
+                for(int i = 0; i < loop_count; ++i)
+                    handle_loop_event(*loop, b.loop.control, i, value);
+            }
+            else selected_loop = handle_loop_event(
+                *loop, b.loop.control, selected_loop, value
+            );
+
+            if(b.loop.index == -1)
+                loop->set_selected_loop(selected_loop);
+        }
         break;
     }
 }

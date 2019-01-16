@@ -33,6 +33,9 @@ public:
 
     control_state();
 
+    void set_threshold_state(action_id id, int active);
+    int get_threshold_state(action_id id) const;
+
     void set_toggle_state(action_id id, int state);
     int get_toggle_state(action_id id) const;
 
@@ -96,6 +99,7 @@ private:
     // indexed but often iterated.
     std::map<instrument::voice_id, action_id> pressed_keys;
 
+    std::map<action_id, int> threshold_state;
     std::map<action_id, int> toggle_state;
     std::map<action_id, int> stacking;
     std::map<
