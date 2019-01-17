@@ -303,7 +303,7 @@ double bind::input_value(const controller* c, bool* is_signed) const
 
 double bind::get_value(const control_state& state, const controller* c) const
 {
-    bool is_signed;
+    bool is_signed = false;
     double v = input_value(c, &is_signed);
     if(control == AXIS_1D_THRESHOLD) v = v > axis_1d.threshold ? 1.0 : 0.0;
     else if(control == AXIS_1D_CONTINUOUS)
@@ -340,7 +340,7 @@ bool bind::update_value(
     const controller* c,
     double& v
 ) const {
-    bool is_signed;
+    bool is_signed = false;
     v = input_value(c, &is_signed);
     if(control == AXIS_1D_THRESHOLD)
     {

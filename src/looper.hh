@@ -19,6 +19,7 @@
 #ifndef CAFEFM_LOOPER_HH
 #define CAFEFM_LOOPER_HH
 #include <cstdint>
+#include <cstddef>
 #include <vector>
 
 class instrument;
@@ -42,6 +43,7 @@ public:
     void set_loop_volume(unsigned loop_index, double volume);
     double get_loop_volume(unsigned loop_index) const;
 
+    void set_record_on_sound(bool start_on_sound);
     void record_loop(unsigned loop_index);
     void finish_loop(unsigned loop_index);
     void play_loop(unsigned loop_index, bool play = true);
@@ -85,6 +87,7 @@ private:
         int64_t relative_start_t; // Comparison point for delay.
         uint64_t length;
         int64_t record_stop_timer;
+        bool record_on_sound;
         size_t sample_count;
         int32_t* samples;
     };
@@ -102,6 +105,7 @@ private:
     std::vector<loop> loops;
 
     int selected_loop;
+    bool record_on_sound;
 };
 
 #endif

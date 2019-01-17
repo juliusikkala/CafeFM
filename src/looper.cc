@@ -24,7 +24,7 @@
 
 looper::looper(uint64_t samplerate)
 :   samplerate(samplerate), ins(nullptr), beat_length(0), loop_t(0),
-    volume_denom(65536)
+    volume_denom(65536), record_on_sound(false)
 {
     set_max_volume_skip();
     set_loop_bpm();
@@ -92,6 +92,11 @@ double looper::get_loop_volume(unsigned loop_index) const
     return loops[loop_index].target_volume_num/(double)volume_denom;
 }
 
+void looper::set_record_on_sound(bool start_on_sound)
+{
+    record_on_sound = start_on_sound;
+}
+
 void looper::record_loop(unsigned loop_index)
 {
     clear_loop(loop_index);
@@ -99,6 +104,7 @@ void looper::record_loop(unsigned loop_index)
     l.state = RECORDING;
     l.start_t = loop_t;
     l.relative_start_t = loop_t;
+    l.record_on_sound = record_on_sound;
     l.length = 0;
     l.sample_count = 0;
 }
@@ -110,6 +116,7 @@ void looper::finish_loop(unsigned loop_index)
     l.length = (l.sample_count + 3*beat_length/4) / beat_length * beat_length;
     if(l.length == 0) l.length = beat_length;
     l.record_stop_timer = ins ? ins->get_envelope().release_length : 0;
+    l.record_on_sound = false;
     l.state = PLAYING;
 }
 
@@ -130,6 +137,7 @@ void looper::clear_loop(unsigned loop_index)
     l.length = 0;
     l.sample_count = 0;
     l.record_stop_timer = 0;
+    l.record_on_sound = 0;
     memset(l.samples, 0, sizeof(int32_t)*loop_size);
 }
 
@@ -194,10 +202,14 @@ void looper::apply(int32_t* o, unsigned long framecount)
             write_length = max_samples_left;
         }
 
-        for(unsigned i = 0; i < write_length; ++i, ++t)
+        for(unsigned i = 0; i < write_length; ++i)
         {
-            l.sample_count++;
-            l.samples[t] = o[i];
+            if(!l.record_on_sound || o[i] != 0)
+            {
+                l.record_on_sound = false;
+                l.sample_count++;
+                l.samples[t++] = o[i];
+            }
         }
     }
 

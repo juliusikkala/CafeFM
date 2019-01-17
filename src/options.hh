@@ -34,6 +34,7 @@ struct options
     double recording_quality;
     unsigned initial_window_width;
     unsigned initial_window_height;
+    bool start_loop_on_sound;
 
     json serialize() const;
     bool deserialize(const json& j);

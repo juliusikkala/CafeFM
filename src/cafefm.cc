@@ -2135,8 +2135,9 @@ void cafefm::gui_loops_editor()
         ctx, "Loops Control", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
     )){
         nk_layout_row_template_begin(ctx, 30);
-        nk_layout_row_template_push_static(ctx, 200);
+        nk_layout_row_template_push_static(ctx, 120);
         nk_layout_row_template_push_static(ctx, 60);
+        nk_layout_row_template_push_static(ctx, 120);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_push_static(ctx, 120);
         nk_layout_row_template_push_static(ctx, 90);
@@ -2149,6 +2150,11 @@ void cafefm::gui_loops_editor()
         if(bpm != old_bpm) lo.set_loop_bpm(bpm);
 
         metronome_widget(ctx,  lo.get_loop_beat_index());
+
+        opts.start_loop_on_sound = !nk_check_label(
+            ctx, "Start on sound", !opts.start_loop_on_sound
+        );
+        output->get_looper().set_record_on_sound(opts.start_loop_on_sound);
 
         nk_widget(&empty_space, ctx);
 
@@ -2712,6 +2718,8 @@ void cafefm::reset_fm(bool refresh_only)
     }
     if(open_output)
         output->open(opts.target_latency, opts.system_index, opts.device_index);
+
+    output->get_looper().set_record_on_sound(opts.start_loop_on_sound);
 
     std::unique_ptr<fm_instrument> new_fm;
     
