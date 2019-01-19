@@ -111,7 +111,7 @@ json bind::serialize() const
         (action != LOOP_CONTROL || loop.control != LOOP_CLEAR)
     ) j["control"]["toggle"] = toggle;
 
-    if(action != LOOP_CONTROL && action != KEY)
+    if(action != LOOP_CONTROL)
     {
         j["control"]["cumulative"] = cumulative;
         j["control"]["stacking"] = stacking;
@@ -749,7 +749,8 @@ void bindings::handle_action(
         if(value)
         {
             if(!state.is_active_key(b.id))
-                state.press_key(b.id, b.key_semitone);
+                state.press_key(b.id, b.key_semitone, value);
+            else state.set_key_volume(b.id, value);
         }
         else state.release_key(b.id);
         break;

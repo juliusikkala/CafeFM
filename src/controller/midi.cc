@@ -80,14 +80,31 @@ bindings midi_context::generate_default_midi_bindings()
 
     for(int i = 0; i < 128; ++i)
     {
-        bind& b = binds.create_new_bind(bind::KEY);
-        b.control = bind::AXIS_1D_THRESHOLD;
-        b.axis_1d.index = VEL_OFFSET + i;
-        b.axis_1d.invert = false;
-        b.axis_1d.threshold = 1.0/127.0;
-        b.axis_1d.origin = 0;
-        b.key_semitone = i - 69;
+        bind& note = binds.create_new_bind(bind::KEY);
+        note.control = bind::AXIS_1D_CONTINUOUS;
+        note.axis_1d.index = VEL_OFFSET + i;
+        note.axis_1d.invert = false;
+        note.axis_1d.threshold = 0;
+        note.axis_1d.origin = 0;
+        note.key_semitone = i - 69;
     }
+
+    bind& pitch = binds.create_new_bind(bind::FREQUENCY_EXPT);
+    pitch.control = bind::AXIS_1D_CONTINUOUS;
+    pitch.frequency.max_expt = 6;
+    pitch.axis_1d.index = PITCH_WHEEL_OFFSET;
+    pitch.axis_1d.invert = false;
+    pitch.axis_1d.threshold = 0;
+    pitch.axis_1d.origin = 0;
+
+    bind& volume = binds.create_new_bind(bind::VOLUME_MUL);
+    volume.control = bind::AXIS_1D_CONTINUOUS;
+    volume.volume.max_mul = 0;
+    volume.axis_1d.index = CONTROL_AXES_OFFSET + 0x07;
+    volume.axis_1d.invert = true;
+    volume.axis_1d.threshold = 0;
+    volume.axis_1d.origin = 1.0;
+
     return binds;
 }
 
@@ -101,6 +118,8 @@ midi_controller::midi_controller(midi_context& ctx, unsigned port)
     note_velocity.resize(128, 0);
     note_aftertouch.resize(128, 0);
     control_axes.resize(32, 0);
+    // Start with max volume.
+    control_axes[0x07] = 0x3FFF;
     control_buttons.resize(32, 0);
     program = 0;
     pitch_wheel = CENTER;
@@ -264,16 +283,19 @@ axis_1d midi_controller::get_axis_1d_state(unsigned i) const
         case 8:
         case 10:
             res.is_signed = true;
-            res.value = (control_axes[i] - CENTER)/(double)0x1FFF;
+            res.value = (control_axes[i] - CENTER)/(double)0x1F80;
+            res.value = std::max(std::min(res.value, 1.0f), -1.0f);
             return res;
         default:
-            res.value = control_axes[i]/(double)0x3FFF;
+            res.value = control_axes[i]/(double)0x3F80;
+            res.value = std::min(res.value, 1.0f);
             return res;
         }
     }
 
     res.is_signed = true;
-    res.value = (pitch_wheel - CENTER)/(double)0x1FFF;
+    res.value = (pitch_wheel - CENTER)/(double)0x1F80;
+    res.value = std::max(std::min(res.value, 1.0f), -1.0f);
     return res;
 }
 

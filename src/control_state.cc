@@ -82,7 +82,7 @@ void control_state::erase_action(action_id id)
 {
     for(unsigned i = 0; i < press_queue.size(); ++i)
     {
-        if(press_queue[i].first == id)
+        if(press_queue[i].id == id)
         {
             press_queue.erase(press_queue.begin() + i);
             i--;
@@ -109,9 +109,16 @@ void control_state::erase_action(action_id id)
         env[i].mul.erase(id);
 }
 
-void control_state::press_key(action_id id, int semitone)
+void control_state::press_key(action_id id, int semitone, double volume)
 {
-    press_queue.emplace_back(id, semitone);
+    press_queue.push_back({id, semitone, volume});
+}
+
+void control_state::set_key_volume(action_id id, double volume)
+{
+    for(auto& pair: pressed_keys)
+        if(pair.second.id == id)
+            pair.second.volume = volume;
 }
 
 void control_state::release_key(action_id id)
@@ -122,7 +129,7 @@ void control_state::release_key(action_id id)
 bool control_state::is_active_key(action_id id) const
 {
     for(const auto& pair: pressed_keys)
-        if(pair.second == id) return true;
+        if(pair.second.id == id) return true;
     return false;
 }
 
@@ -322,17 +329,18 @@ void control_state::apply(
     dst.update_period_lookup();
     ins.set_synth(dst);
 
-    for(auto& pair: press_queue)
-        pressed_keys[ins.press_voice(pair.second)] = pair.first;
+    for(key_data& p: press_queue)
+        pressed_keys[ins.press_voice(p.semitone)] = p;
 
     press_queue.clear();
 
-    for(action_id id: release_queue)
+    for(auto it = pressed_keys.begin(); it != pressed_keys.end();)
     {
-        for(auto it = pressed_keys.begin(); it != pressed_keys.end();)
+        auto old_it = it++;
+        ins.set_voice_volume(old_it->first, old_it->second.volume);
+        for(action_id id: release_queue)
         {
-            auto old_it = it++;
-            if(old_it->second == id)
+            if(old_it->second.id == id)
             {
                 ins.release_voice(old_it->first);
                 pressed_keys.erase(old_it);

@@ -75,7 +75,7 @@ struct bind
 
     enum action
     {
-        KEY = 0, // Discrete control only
+        KEY = 0,
         FREQUENCY_EXPT,
         VOLUME_MUL,
         PERIOD_EXPT,

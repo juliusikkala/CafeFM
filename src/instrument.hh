@@ -66,7 +66,8 @@ public:
     uint64_t get_samplerate() const;
 
     voice_id press_voice(int semitone);
-    void press_voice(voice_id id, int semitone);
+    void press_voice(voice_id id, int semitone, double volume = 1.0);
+    void set_voice_volume(voice_id id, double volume = 1.0);
     void release_voice(voice_id id);
     void release_all_voices();
     // Makes sure all updates are applied to voices.
@@ -97,6 +98,7 @@ protected:
         uint64_t press_timer;
         uint64_t release_timer;
         int semitone;
+        int64_t volume_num;
         int64_t volume; // Used for limiting volume jumps
     };
 
@@ -115,8 +117,8 @@ private:
     std::vector<voice> voices;
     envelope adsr;
     double base_frequency;
-    double volume;
-    double max_volume_skip;
+    int64_t volume_num, volume_denom;
+    int64_t max_volume_skip;
     uint64_t samplerate;
 };
 

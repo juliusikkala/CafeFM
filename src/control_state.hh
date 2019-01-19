@@ -48,7 +48,8 @@ public:
 
     void erase_action(action_id id);
 
-    void press_key(action_id id, int semitone);
+    void press_key(action_id id, int semitone, double volume);
+    void set_key_volume(action_id id, double volume);
     void release_key(action_id id);
     bool is_active_key(action_id id) const;
 
@@ -92,12 +93,18 @@ public:
     );
 
 private:
-    std::vector<std::pair<action_id, int /* semitone */>> press_queue;
+    struct key_data
+    {
+        action_id id;
+        int semitone;
+        double volume;
+    };
+    std::vector<key_data> press_queue;
     std::vector<action_id> release_queue;
 
     // TODO: These should be vectors for performance reasons. They are rarely
     // indexed but often iterated.
-    std::map<instrument::voice_id, action_id> pressed_keys;
+    std::map<instrument::voice_id, key_data> pressed_keys;
 
     std::map<action_id, int> threshold_state;
     std::map<action_id, int> toggle_state;

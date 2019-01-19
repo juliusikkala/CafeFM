@@ -1742,8 +1742,8 @@ int cafefm::gui_bind_control(bind& b, bool discrete_only)
         b,
         b.control != bind::AXIS_1D_CONTINUOUS &&
         (b.action != bind::LOOP_CONTROL || b.loop.control != bind::LOOP_CLEAR),
-        b.action != bind::KEY && b.action != bind::LOOP_CONTROL,
-        b.action != bind::KEY && b.action != bind::LOOP_CONTROL
+        b.action != bind::LOOP_CONTROL,
+        b.action != bind::LOOP_CONTROL
     );
 
     gui_bind_button(b, discrete_only);

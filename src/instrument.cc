@@ -63,11 +63,12 @@ bool envelope::operator==(const envelope& other) const
 }
 
 instrument::instrument(uint64_t samplerate)
-:   base_frequency(440), volume(0.5), max_volume_skip(0.0001),
-    samplerate(samplerate)
+: base_frequency(440), volume_denom(65536), samplerate(samplerate)
 {
-    voices.resize(1, {false, false, 0, 0, 0, 0});
+    voices.resize(1, {false, false, 0, 0, 0, 0, 0});
     adsr.set_volume(1.0f, 0.5f);
+    set_volume(0.5f);
+    set_max_volume_skip(0.0005);
     adsr.set_curve(0.07f, 0.2f, 0.05f, samplerate);
 }
 
@@ -115,15 +116,21 @@ instrument::voice_id instrument::press_voice(int semitone)
     return closest_index;
 }
 
-void instrument::press_voice(voice_id id, int semitone)
+void instrument::press_voice(voice_id id, int semitone, double volume)
 {
     voices[id].enabled = true;
     voices[id].pressed = true;
     voices[id].press_timer = adsr.attack_length + adsr.decay_length;
     voices[id].release_timer = adsr.release_length;
     voices[id].semitone = semitone;
+    voices[id].volume_num = volume_denom * volume;
     voices[id].volume = 0;
     reset_voice(id);
+}
+
+void instrument::set_voice_volume(voice_id id, double volume)
+{
+    voices[id].volume_num = volume_denom * volume;
 }
 
 void instrument::release_voice(voice_id id)
@@ -139,7 +146,7 @@ void instrument::release_all_voices()
 void instrument::set_polyphony(unsigned n)
 {
     if(voices.size() == n) return;
-    voices.resize(n, {false, false, 0, 0, 0, 0});
+    voices.resize(n, {false, false, 0, 0, 0, 0, 0});
     handle_polyphony(n);
 }
 
@@ -176,22 +183,22 @@ envelope instrument::get_envelope() const
 
 void instrument::set_volume(double volume)
 {
-    this->volume = volume;
+    volume_num = volume*volume_denom;
 }
 
 void instrument::set_max_safe_volume()
 {
-    this->volume = 1.0/voices.size();
+    set_volume(1.0/voices.size());
 }
 
 double instrument::get_volume() const
 {
-    return volume;
+    return volume_num/(double)volume_denom;
 }
 
 void instrument::set_max_volume_skip(double max_volume_skip)
 {
-    this->max_volume_skip = max_volume_skip;
+    this->max_volume_skip = max_volume_skip * volume_denom;
 }
 
 double instrument::get_max_volume_skip() const
@@ -203,7 +210,7 @@ void instrument::copy_state(const instrument& other)
 {
     unsigned polyphony = voices.size();
     voices = other.voices;
-    voices.resize(polyphony, {false, false, 0, 0, 0, 0});
+    voices.resize(polyphony, {false, false, 0, 0, 0, 0, 0});
     for(voice& v: voices)
     {
         v.press_timer = samplerate * v.press_timer / other.samplerate;
@@ -212,7 +219,8 @@ void instrument::copy_state(const instrument& other)
 
     adsr = other.adsr.convert(other.samplerate, samplerate);
     base_frequency = other.base_frequency;
-    volume = other.volume;
+    volume_num = other.volume_num;
+    volume_denom = other.volume_denom;
 
     // Reset all voices
     for(voice_id id = 0; id < voices.size(); ++id)
@@ -227,7 +235,7 @@ double instrument::get_frequency(voice_id id) const
 void instrument::get_voice_volume(voice_id id, int64_t& num, int64_t& denom)
 {
     voice& v = voices[id];
-    denom = adsr.volume_denom;
+    denom = volume_denom;
     num = v.volume;
 }
 
@@ -239,9 +247,7 @@ void instrument::update_voice_volume(voice& v)
         return;
     }
 
-    int64_t denom = adsr.volume_denom;
     int64_t target_volume = 0;
-    int64_t max_skip = denom * max_volume_skip;
 
     int64_t attack_timer = v.press_timer - adsr.decay_length;
     int64_t decay_timer = v.press_timer;
@@ -270,10 +276,11 @@ void instrument::update_voice_volume(voice& v)
         );
     }
 
-    target_volume *= volume;
+    target_volume = v.volume_num * volume_num * target_volume
+        / (volume_denom * adsr.volume_denom);
     int64_t skip_size = target_volume - v.volume;
-    if(skip_size < -max_skip) skip_size = -max_skip;
-    if(skip_size > max_skip) skip_size = max_skip;
+    if(skip_size < -max_volume_skip) skip_size = -max_volume_skip;
+    if(skip_size > max_volume_skip) skip_size = max_volume_skip;
     v.volume += skip_size;
 }
 
