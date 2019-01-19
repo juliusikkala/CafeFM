@@ -210,6 +210,11 @@ void looper::apply(int32_t* o, unsigned long framecount)
                 l.sample_count++;
                 l.samples[t++] = o[i];
             }
+            else
+            {
+                l.start_t++;
+                l.relative_start_t++;
+            }
         }
     }
 
