@@ -14,6 +14,7 @@ src = [
   'src/controller/keyboard.cc',
   'src/controller/gamecontroller.cc',
   'src/controller/joystick.cc',
+  'src/controller/midi.cc',
   'src/encoder.cc',
   'src/fm.cc',
   'src/helpers.cc',
@@ -31,6 +32,7 @@ portaudio_dep = dependency('portaudio-2.0')
 sdl2_dep = dependency('sdl2')
 sdl2_image_dep = dependency('SDL2_image')
 glew_dep = dependency('glew')
+rtmidi_dep = dependency('rtmidi')
 sndfile_dep = dependency('sndfile')
 boost_dep = dependency('boost', modules : ['filesystem', 'system'])
 incdir = include_directories('src', 'external')
@@ -51,6 +53,7 @@ executable(
     sdl2_dep,
     sdl2_image_dep,
     glew_dep,
+    rtmidi_dep,
     sndfile_dep,
     boost_dep,
     m_dep

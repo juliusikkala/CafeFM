@@ -508,12 +508,17 @@ bool cafefm::update(unsigned dt)
 {
     bool quit = false;
 
+    // Discover midi inputs
+    auto midi_controllers = midi.discover();
+    for(auto& c: midi_controllers) available_controllers.emplace_back(c);
+
     auto cb = [this](
         controller* c, int axis_1d_index, int axis_2d_index, int button_index
     ){
         handle_controller(c, axis_1d_index, axis_2d_index, button_index);
     };
 
+    // Handle controllers that poll themselves
     for(unsigned i = 0; i < available_controllers.size(); ++i)
     {
         auto& c = available_controllers[i];
@@ -522,6 +527,7 @@ bool cafefm::update(unsigned dt)
         if(!c->poll(fn)) detach_controller(i);
     }
 
+    // Handle SDL-related controllers
     SDL_Event e;
     while(SDL_PollEvent(&e))
     {
@@ -589,6 +595,7 @@ bool cafefm::update(unsigned dt)
         if(!handled) nk_sdl_handle_event(&e);
     }
 
+    // Apply controls
     control.update(binds, dt);
     control.apply(*fm, master_volume, ins_state);
     return !quit;
@@ -2565,7 +2572,14 @@ void cafefm::create_new_bindings()
     binds.clear();
 
     if(selected_controller)
+    {
         binds.set_target_device(selected_controller);
+        if(selected_controller->get_type_name() == "MIDI input")
+        {
+            binds = midi_context::generate_default_midi_bindings();
+            return;
+        }
+    }
 
     std::string name = "New bindings";
     if(all_bindings.count(name) == 0) binds.set_name(name);

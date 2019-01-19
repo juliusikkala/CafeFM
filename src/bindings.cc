@@ -484,7 +484,7 @@ unsigned bindings::rate_compatibility(controller* c) const
     int button_count = c->get_button_count();
 
     bool type_match = c->get_type_name() == device_type;
-    bool name_match = c->get_device_name() == device_name;
+    bool name_match = c->get_device_name() == device_name || device_name == "";
     bool index_match = true;
 
     for(const bind& b: binds)

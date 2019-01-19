@@ -25,6 +25,7 @@
 #include "options.hh"
 #include "bindings.hh"
 #include "controller/controller.hh"
+#include "controller/midi.hh"
 #include "audio.hh"
 #include "nuklear.hh"
 #include "SDL.h"
@@ -137,6 +138,7 @@ private:
     int latest_input_button, latest_input_axis_1d, latest_input_axis_2d;
     unsigned protip_index;
 
+    midi_context midi;
     std::vector<std::unique_ptr<controller>> available_controllers;
     controller* selected_controller;
 
