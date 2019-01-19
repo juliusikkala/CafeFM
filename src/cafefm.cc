@@ -2574,11 +2574,13 @@ void cafefm::create_new_bindings()
     if(selected_controller)
     {
         binds.set_target_device(selected_controller);
+        /*
         if(selected_controller->get_type_name() == "MIDI input")
         {
             binds = midi_context::generate_default_midi_bindings();
             return;
         }
+        */
     }
 
     std::string name = "New bindings";

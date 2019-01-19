@@ -1,0 +1,1962 @@
+{
+  "binds": [
+    {
+      "action": {
+        "semitone": -69,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 0,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -68,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 1,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -67,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 2,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -66,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 3,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -65,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 4,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -64,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 5,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -63,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 6,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -62,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 7,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -61,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 8,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -60,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 9,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -59,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 10,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -58,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 11,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -57,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 12,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -56,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 13,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -55,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 14,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -54,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 15,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -53,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 16,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -52,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 17,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -51,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 18,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -50,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 19,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -49,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 20,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -48,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 21,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -47,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 22,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -46,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 23,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -45,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 24,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -44,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 25,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -43,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 26,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -42,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 27,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -41,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 28,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -40,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 29,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -39,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 30,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -38,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 31,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -37,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 32,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -36,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 33,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -35,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 34,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -34,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 35,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -33,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 36,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -32,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 37,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -31,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 38,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -30,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 39,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -29,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 40,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -28,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 41,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -27,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 42,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -26,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 43,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -25,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 44,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -24,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 45,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -23,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 46,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -22,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 47,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -21,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 48,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -20,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 49,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -19,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 50,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -18,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 51,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -17,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 52,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -16,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 53,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -15,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 54,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -14,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 55,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -13,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 56,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -12,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 57,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -11,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 58,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -10,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 59,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -9,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 60,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -8,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 61,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -7,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 62,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -6,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 63,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -5,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 64,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -4,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 65,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -3,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 66,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -2,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 67,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": -1,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 68,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 0,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 69,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 1,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 70,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 2,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 71,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 3,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 72,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 4,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 73,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 5,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 74,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 6,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 75,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 7,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 76,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 8,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 77,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 9,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 78,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 10,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 79,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 11,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 80,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 12,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 81,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 13,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 82,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 14,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 83,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 15,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 84,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 16,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 85,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 17,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 86,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 18,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 87,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 19,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 88,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 20,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 89,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 21,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 90,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 22,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 91,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 23,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 92,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 24,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 93,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 25,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 94,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 26,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 95,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 27,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 96,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 28,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 97,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 29,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 98,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 30,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 99,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 31,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 100,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 32,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 101,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 33,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 102,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 34,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 103,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 35,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 104,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 36,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 105,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 37,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 106,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 38,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 107,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 39,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 108,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 40,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 109,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 41,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 110,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 42,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 111,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 43,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 112,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 44,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 113,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 45,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 114,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 46,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 115,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 47,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 116,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 48,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 117,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 49,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 118,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 50,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 119,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 51,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 120,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 52,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 121,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 53,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 122,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 54,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 123,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 55,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 124,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 56,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 125,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 57,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 126,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "semitone": 58,
+        "type": "KEY"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 127,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "frequency": {
+          "max_expt": 6.0
+        },
+        "type": "FREQUENCY_EXPT"
+      },
+      "control": {
+        "cumulative": false,
+        "index": 288,
+        "invert": false,
+        "origin": 0.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    },
+    {
+      "action": {
+        "type": "VOLUME_MUL",
+        "volume": {
+          "max_mul": 0.0
+        }
+      },
+      "control": {
+        "cumulative": false,
+        "index": 263,
+        "invert": true,
+        "origin": 1.0,
+        "stacking": false,
+        "threshold": 0.0,
+        "type": "AXIS_1D_CONTINUOUS"
+      }
+    }
+  ],
+  "controller_type": "MIDI input",
+  "device_name": "",
+  "locked": false,
+  "name": "Generic MIDI default"
+}
