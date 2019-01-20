@@ -235,7 +235,8 @@ private:
         looper& loop,
         bind::loop_control control,
         int index,
-        double value
+        double value,
+        bool update_index
     );
 
     void handle_action(

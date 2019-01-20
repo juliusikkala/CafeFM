@@ -695,7 +695,8 @@ int bindings::handle_loop_event(
     looper& loop,
     bind::loop_control control,
     int index,
-    double value
+    double value,
+    bool update_index
 ){
     looper::loop_state state = loop.get_loop_state(index);
     switch(control)
@@ -711,6 +712,7 @@ int bindings::handle_loop_event(
         else if(value == 1)
         {
             if(
+                update_index &&
                 state != looper::UNUSED &&
                 index+1 < (int)loop.get_loop_count()
             ) index++;
@@ -723,7 +725,7 @@ int bindings::handle_loop_event(
         if(value == 1)
         {
             loop.clear_loop(index);
-            if(index > 0) index--;
+            if(update_index && index > 0) index--;
         }
         break;
     case bind::LOOP_MUTE:
@@ -801,10 +803,10 @@ void bindings::handle_action(
             if(selected_loop < 0)
             {
                 for(int i = 0; i < loop_count; ++i)
-                    handle_loop_event(*loop, b.loop.control, i, value);
+                    handle_loop_event(*loop, b.loop.control, i, value, false);
             }
             else selected_loop = handle_loop_event(
-                *loop, b.loop.control, selected_loop, value
+                *loop, b.loop.control, selected_loop, value, b.loop.index == -1
             );
 
             if(b.loop.index == -1)
