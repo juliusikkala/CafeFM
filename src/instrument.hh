@@ -26,7 +26,7 @@ struct envelope
     void set_volume(
         double peak_volume,
         double sustain_volume,
-        int64_t denom = 65536
+        int64_t denom = 1<<20
     );
 
     void set_curve(
@@ -83,8 +83,8 @@ public:
     void set_max_safe_volume();
     double get_volume() const;
 
+    // How much volume can change in a second.
     void set_max_volume_skip(double max_volume_skip);
-    double get_max_volume_skip() const;
 
     void copy_state(const instrument& other);
 

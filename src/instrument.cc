@@ -63,12 +63,12 @@ bool envelope::operator==(const envelope& other) const
 }
 
 instrument::instrument(uint64_t samplerate)
-: base_frequency(440), volume_denom(65536), samplerate(samplerate)
+:   base_frequency(440), volume_denom(1<<20), samplerate(samplerate)
 {
     voices.resize(1, {false, false, 0, 0, 0, 0, 0});
     adsr.set_volume(1.0f, 0.5f);
     set_volume(0.5f);
-    set_max_volume_skip(0.0005);
+    set_max_volume_skip(32);
     adsr.set_curve(0.07f, 0.2f, 0.05f, samplerate);
 }
 
@@ -198,12 +198,8 @@ double instrument::get_volume() const
 
 void instrument::set_max_volume_skip(double max_volume_skip)
 {
-    this->max_volume_skip = max_volume_skip * volume_denom;
-}
-
-double instrument::get_max_volume_skip() const
-{
-    return max_volume_skip;
+    this->max_volume_skip = max_volume_skip * volume_denom / samplerate;
+    if(this->max_volume_skip <= 0) this->max_volume_skip = 1;
 }
 
 void instrument::copy_state(const instrument& other)
@@ -221,6 +217,7 @@ void instrument::copy_state(const instrument& other)
     base_frequency = other.base_frequency;
     volume_num = other.volume_num;
     volume_denom = other.volume_denom;
+    max_volume_skip = other.max_volume_skip;
 
     // Reset all voices
     for(voice_id id = 0; id < voices.size(); ++id)

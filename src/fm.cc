@@ -19,6 +19,7 @@
 #include "fm.hh"
 #include "helpers.hh"
 #include <stdexcept>
+#include <algorithm>
 
 static const char* const mode_strings[] = {
     "FREQUENCY", "PHASE"
@@ -794,17 +795,21 @@ void fm_instrument::synthesize(int32_t* samples, unsigned sample_count)
 {
     // This is done by duplication to avoid testing mode in inner loops.
 #define generate_samples(step_func) \
-    for(voice_id j = 0; j < states.size(); ++j) \
+    for(unsigned i = 0; i < sample_count; ++i) \
     { \
-        for(unsigned i = 0; i < sample_count; ++i) \
+        int64_t sum = 0; \
+        for(voice_id j = 0; j < states.size(); ++j) \
         { \
             step_voice(j); \
             int64_t volume_num = 0, volume_denom; \
             get_voice_volume(j, volume_num, volume_denom); \
             if(volume_num == 0) continue; \
             synth.set_volume(states[j], volume_num, volume_denom); \
-            samples[i] += synth. step_func (states[j]); \
+            sum += synth. step_func (states[j]); \
         } \
+        samples[i] = std::clamp( \
+            sum, (int64_t)INT32_MIN, (int64_t)INT32_MAX \
+        ); \
     }
 
     switch(synth.get_modulation_mode())
