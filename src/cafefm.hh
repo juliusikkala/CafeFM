@@ -60,13 +60,15 @@ private:
     void gui_draw_adsr(const envelope& adsr);
     unsigned gui_oscillator_type(oscillator::func& type, bool down = true);
     unsigned gui_modulation_mode();
-    unsigned gui_carrier(oscillator::func& type);
-    unsigned gui_modulator(
+    unsigned gui_adsr();
+    unsigned gui_oscillator(
         oscillator& osc,
         unsigned index,
         bool& erase,
         unsigned partition,
-        bool down
+        bool down,
+        bool is_carrier,
+        bool removable
     );
     void gui_instrument_editor();
 

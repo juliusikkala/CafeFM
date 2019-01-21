@@ -212,18 +212,18 @@ void oscillator::update(
 }
 
 fm_synth::fm_synth()
-: mode(FREQUENCY), carrier_type(oscillator::SINE) {}
+: mode(FREQUENCY), oscillators{{}}, carriers{0} {}
 
 bool fm_synth::index_compatible(const fm_synth& other) const
 {
     if(
-        other.carrier_modulators != carrier_modulators ||
-        other.modulators.size() != modulators.size()
+        other.carriers != carriers ||
+        other.oscillators.size() != oscillators.size()
     ) return false;
     
-    for(unsigned i = 0; i < modulators.size(); ++i)
+    for(unsigned i = 0; i < oscillators.size(); ++i)
     {
-        if(other.modulators[i].modulators != modulators[i].modulators)
+        if(other.oscillators[i].modulators != oscillators[i].modulators)
             return false;
     }
     return true;
@@ -239,46 +239,37 @@ fm_synth::modulation_mode fm_synth::get_modulation_mode() const
     return mode;
 }
 
-void fm_synth::set_carrier_type(oscillator::func carrier_type)
+std::vector<unsigned>& fm_synth::get_carriers()
 {
-    this->carrier_type = carrier_type;
-}
-oscillator::func fm_synth::get_carrier_type() const
-{
-    return carrier_type;
+    return carriers;
 }
 
-std::vector<unsigned>& fm_synth::get_carrier_modulators()
+const std::vector<unsigned>& fm_synth::get_carriers() const
 {
-    return carrier_modulators;
+    return carriers;
 }
 
-const std::vector<unsigned>& fm_synth::get_carrier_modulators() const
+unsigned fm_synth::get_oscillator_count() const
 {
-    return carrier_modulators;
+    return oscillators.size();
 }
 
-unsigned fm_synth::get_modulator_count() const
+oscillator& fm_synth::get_oscillator(unsigned i) { return oscillators[i]; }
+const oscillator& fm_synth::get_oscillator(unsigned i) const
 {
-    return modulators.size();
+    return oscillators[i];
 }
 
-oscillator& fm_synth::get_modulator(unsigned i) { return modulators[i]; }
-const oscillator& fm_synth::get_modulator(unsigned i) const
-{
-    return modulators[i];
-}
-
-void fm_synth::erase_modulator(unsigned i)
+void fm_synth::erase_oscillator(unsigned i)
 {
     erase_index(i);
 }
 
-unsigned fm_synth::add_modulator(const oscillator& o)
+unsigned fm_synth::add_oscillator(const oscillator& o)
 {
-    modulators.push_back(o);
-    modulators.back().modulators.clear();
-    return modulators.size()-1;
+    oscillators.push_back(o);
+    oscillators.back().modulators.clear();
+    return oscillators.size()-1;
 }
 
 void fm_synth::finish_changes()
@@ -289,21 +280,21 @@ void fm_synth::finish_changes()
 
     // Sort modulators
     std::map<int, int> index_map;
-    std::vector<bool> handled_modulators(modulators.size(), false);
-    std::vector<oscillator> new_modulators;
-    for(unsigned handled = 0; handled < modulators.size(); ++handled)
+    std::vector<bool> handled_oscillators(oscillators.size(), false);
+    std::vector<oscillator> new_oscillators;
+    for(unsigned handled = 0; handled < oscillators.size(); ++handled)
     {
         int add_index = 0;
-        int min_max_ref = modulators.size();
-        for(unsigned i = 0; i < modulators.size(); ++i)
+        int min_max_ref = oscillators.size();
+        for(unsigned i = 0; i < oscillators.size(); ++i)
         {
-            if(handled_modulators[i]) continue;
+            if(handled_oscillators[i]) continue;
             bool all_handled = true;
             int max_ref = -1;
             for(unsigned j = 0; j < ref[i].size(); ++j)
             {
                 if(ref[i][j] == -1) continue;
-                if(!handled_modulators[ref[i][j]])
+                if(!handled_oscillators[ref[i][j]])
                 {
                     all_handled = false;
                     break;
@@ -318,34 +309,34 @@ void fm_synth::finish_changes()
                 min_max_ref = max_ref;
             }
         }
-        index_map[add_index] = new_modulators.size();
-        handled_modulators[add_index] = true;
-        new_modulators.push_back(modulators[add_index]);
+        index_map[add_index] = new_oscillators.size();
+        handled_oscillators[add_index] = true;
+        new_oscillators.push_back(oscillators[add_index]);
     }
 
-    modulators = new_modulators;
+    oscillators = new_oscillators;
 
     // Apply new indices from index map
-    for(unsigned& m: carrier_modulators) m = index_map[m];
-    for(oscillator& o: modulators)
+    for(unsigned& m: carriers) m = index_map[m];
+    for(oscillator& o: oscillators)
         for(unsigned& m: o.modulators) m = index_map[m];
 
-    sort_oscillator_modulators();
+    sort_oscillators();
     update_period_lookup();
 }
 
 void fm_synth::update_period_lookup()
 {
-    period_lookup.resize(modulators.size());
+    period_lookup.resize(oscillators.size());
     std::fill(
         period_lookup.begin(),
         period_lookup.end(),
         std::make_pair(1lu, 1lu)
     );
 
-    for(unsigned i = 0; i < modulators.size(); ++i)
+    for(unsigned i = 0; i < oscillators.size(); ++i)
     {
-        oscillator& o = modulators[i];
+        oscillator& o = oscillators[i];
         auto [period_num, period_denom] = period_lookup[i];
         period_num *= o.period_num;
         period_denom *= o.period_denom;
@@ -373,7 +364,7 @@ fm_synth::layout fm_synth::generate_layout()
 
     // Since the parent should always be before in the array, a single pass
     // like this is enough.
-    for(unsigned i = 0; i < modulators.size(); ++i)
+    for(unsigned i = 0; i < oscillators.size(); ++i)
     {
         int parent = ref[i].front();
         unsigned layer = layer_map[parent] + 1;
@@ -389,7 +380,7 @@ fm_synth::layout fm_synth::generate_layout()
             layout::group& g = l.layers[layer][j];
             if(g.parent == parent)
             {
-                g.modulators.push_back(i);
+                g.oscillators.push_back(i);
                 found = true;
                 break;
             }
@@ -397,12 +388,12 @@ fm_synth::layout fm_synth::generate_layout()
         if(!found) l.layers[layer].push_back({parent, false, 1, {i}});
     }
 
-    // Now, the array has all modulator groups, but is unaligned and missing
+    // Now, the array has all oscillator groups, but is unaligned and missing
     // +-buttons.
 
     // Set initial layer partition
     if(l.layers.size() > 0)
-        l.layers[0][0].partition = l.layers[0][0].modulators.size();
+        l.layers[0][0].partition = l.layers[0][0].oscillators.size();
 
     // Since the first layer can't be unaligned, we don't have to care about it.
     for(unsigned i = 1; i < l.layers.size(); ++i)
@@ -415,19 +406,19 @@ fm_synth::layout fm_synth::generate_layout()
         for(unsigned j = 0; j < prev_layer.size(); ++j)
         {
             // Valid modulators go here
-            if(prev_layer[j].modulators.size())
+            if(prev_layer[j].oscillators.size())
             {
-                for(unsigned k = 0; k < prev_layer[j].modulators.size(); ++k)
+                for(unsigned k = 0; k < prev_layer[j].oscillators.size(); ++k)
                 {
                     bool found = false;
-                    int parent = prev_layer[j].modulators[k];
+                    int parent = prev_layer[j].oscillators[k];
                     // Find matching child group on current layer.
                     for(unsigned l = 0; l < cur_layer.size(); ++l)
                     {
                         if(cur_layer[l].parent == parent)
                         {
                             cur_layer[l].partition =
-                                cur_layer[l].modulators.size() *
+                                cur_layer[l].oscillators.size() *
                                 prev_layer[j].partition;
                             new_layer.push_back(cur_layer[l]);
                             found = true;
@@ -460,11 +451,11 @@ fm_synth::layout fm_synth::generate_layout()
         for(unsigned j = 0; j < prev_layer.size(); ++j)
         {
             // Valid modulators go here
-            if(prev_layer[j].modulators.size())
+            if(prev_layer[j].oscillators.size())
             {
-                for(unsigned k = 0; k < prev_layer[j].modulators.size(); ++k)
+                for(unsigned k = 0; k < prev_layer[j].oscillators.size(); ++k)
                 {
-                    int parent = prev_layer[j].modulators[k];
+                    int parent = prev_layer[j].oscillators[k];
                     new_layer.push_back({
                         parent, false, prev_layer[j].partition, {}
                     });
@@ -483,106 +474,91 @@ fm_synth::layout fm_synth::generate_layout()
 }
 
 fm_synth::state fm_synth::start(
-    double frequency, double volume, uint64_t samplerate
+    double frequency, double volume, uint64_t samplerate, int64_t denom
 ) const
 {
     state s;
-    s.carrier = oscillator(carrier_type, frequency, volume, samplerate);
-    s.states.resize(1 + modulators.size());
+    set_frequency(s, frequency, samplerate);
+    set_volume(s, volume*denom, denom);
+    s.states.resize(oscillators.size());
     reset(s);
     return s;
 }
 
 void fm_synth::reset(state& s) const
 {
-    s.carrier.reset(s.states[0]);
-    for(unsigned i = 0; i < modulators.size(); ++i)
-        modulators[i].reset(s.states[i+1]);
+    for(unsigned i = 0; i < oscillators.size(); ++i)
+        oscillators[i].reset(s.states[i]);
 }
 
 int64_t fm_synth::step_frequency(state& s) const
 {
-    for(unsigned i = modulators.size(); i > 0; --i)
+    for(unsigned i = oscillators.size(); i > 0; --i)
     {
-        const oscillator& o = modulators[i-1];
+        const oscillator& o = oscillators[i-1];
         int64_t x = 1u<<31;
-        for(unsigned m: o.modulators) x += s.states[m+1].output;
+        for(unsigned m: o.modulators) x += s.states[m].output;
 
-        uint64_t period_num = period_lookup[i - 1].first;
-        uint64_t period_denom = period_lookup[i - 1].second;
-        period_num *= s.carrier.period_num;
-        period_denom *= s.carrier.period_denom;
+        uint64_t period_num = period_lookup[i-1].first;
+        uint64_t period_denom = period_lookup[i-1].second;
+        period_num *= s.period_num;
+        period_denom *= s.period_denom;
         normalize_fract(period_num, period_denom);
-        period_num = period_num * x;
+        period_num *= x;
         period_denom <<= 31;
-        o.update(s.states[i], period_num, period_denom);
+        o.update(s.states[i-1], period_num, period_denom);
     }
 
-    int64_t x = 1u<<31;
-    for(unsigned m: carrier_modulators) x += s.states[m+1].output;
-
-    s.carrier.update(
-        s.states[0],
-        x*s.carrier.period_num,
-        s.carrier.period_denom<<31
-    );
-
-    return s.states[0].output;
+    int64_t x = 0;
+    for(unsigned m: carriers) x += s.states[m].output;
+    return s.amp_num*x/s.amp_denom;
 }
 
 int64_t fm_synth::step_phase(state& s) const
 {
-    for(unsigned i = modulators.size(); i > 0; --i)
+    for(unsigned i = oscillators.size(); i > 0; --i)
     {
-        const oscillator& o = modulators[i-1];
+        const oscillator& o = oscillators[i-1];
         int64_t x = 0;
-        for(unsigned m: o.modulators) x += s.states[m+1].output;
+        for(unsigned m: o.modulators) x += s.states[m].output;
 
-        uint64_t period_num = period_lookup[i - 1].first;
-        uint64_t period_denom = period_lookup[i - 1].second;
-        period_num *= s.carrier.period_num;
-        period_denom *= s.carrier.period_denom;
-        o.update(s.states[i], period_num, period_denom, x);
+        uint64_t period_num = period_lookup[i-1].first;
+        uint64_t period_denom = period_lookup[i-1].second;
+        period_num *= s.period_num;
+        period_denom *= s.period_denom;
+        o.update(s.states[i-1], period_num, period_denom, x);
     }
 
     int64_t x = 0;
-    for(unsigned m: carrier_modulators) x += s.states[m+1].output;
-
-    s.carrier.update(
-        s.states[0],
-        s.carrier.period_num,
-        s.carrier.period_denom,
-        x
-    );
-
-    return s.states[0].output;
+    for(unsigned m: carriers) x += s.states[m].output;
+    return s.amp_num*x/s.amp_denom;
 }
 
 void fm_synth::set_frequency(
     state& s, double frequency, uint64_t samplerate
 ) const
 {
-    s.carrier.set_frequency(frequency, samplerate);
+    s.period_num = round(frequency*4294967296.0/samplerate);
+    s.period_denom = 1;
 }
 
 void fm_synth::set_volume(
     state& s, int64_t volume_num, int64_t volume_denom
 ) const
 {
-    s.carrier.set_amplitude(volume_num, volume_denom);
+    s.amp_num = volume_num;
+    s.amp_denom = volume_denom;
+    s.amp_denom |= !s.amp_denom;
 }
 
 json fm_synth::serialize() const
 {
     json j;
     j["mode"] = mode_strings[(unsigned)mode];
-    j["carrier"] = {
-        {"type", osc_strings[(unsigned)carrier_type]},
-        {"modulators", carrier_modulators}
-    };
-    j["modulators"] = json::array();
+    j["carriers"] = carriers;
+    j["oscillators"] = json::array();
 
-    for(const oscillator& o: modulators)
+    for(const oscillator& o: oscillators)
     {
         json m = {
             {"type", osc_strings[(unsigned)o.type]},
@@ -594,7 +570,7 @@ json fm_synth::serialize() const
             {"modulators", o.modulators}
         };
 
-        j["modulators"].push_back(m);
+        j["oscillators"].push_back(m);
     }
 
     return j;
@@ -602,26 +578,20 @@ json fm_synth::serialize() const
 
 bool fm_synth::deserialize(const json& j)
 {
-    modulators.clear();
-    carrier_modulators.clear();
+    oscillators.clear();
+    carriers.clear();
 
     try
     {
-        std::string carrier_str = j.at("carrier").at("type").get<std::string>();
-        int carrier_i = find_string_arg(carrier_str.c_str(), osc_strings,
-            sizeof(osc_strings)/sizeof(*osc_strings));
-        if(carrier_i < 0) return false;
-        carrier_type = (oscillator::func)carrier_i;
-
         std::string mode_str = j.at("mode").get<std::string>();
         int mode_i = find_string_arg(mode_str.c_str(), mode_strings,
             sizeof(mode_strings)/sizeof(*mode_strings));
         if(mode_i < 0) return false;
         mode = (modulation_mode)mode_i;
 
-        j.at("carrier").at("modulators").get_to(carrier_modulators);
+        j.at("carriers").get_to(carriers);
 
-        for(auto& m: j.at("modulators"))
+        for(auto& m: j.at("oscillators"))
         {
             oscillator o;
 
@@ -638,13 +608,13 @@ bool fm_synth::deserialize(const json& j)
             m.at("phase_constant").get_to(o.phase_constant);
             m.at("modulators").get_to(o.modulators);
 
-            modulators.push_back(o);
+            oscillators.push_back(o);
         }
     }
     catch(...)
     {
-        modulators.clear();
-        carrier_modulators.clear();
+        oscillators.clear();
+        carriers.clear();
         return false;
     }
 
@@ -655,20 +625,20 @@ bool fm_synth::deserialize(const json& j)
 
 void fm_synth::erase_invalid_indices()
 {
-    for(unsigned j = 0; j < carrier_modulators.size(); ++j)
+    for(unsigned j = 0; j < carriers.size(); ++j)
     {
-        if(carrier_modulators[j] >= modulators.size())
+        if(carriers[j] >= oscillators.size())
         {
-            carrier_modulators.erase(carrier_modulators.begin() + j);
+            carriers.erase(carriers.begin() + j);
             j--;
         }
     }
 
-    for(oscillator& o: modulators)
+    for(oscillator& o: oscillators)
     {
         for(unsigned j = 0; j < o.modulators.size(); ++j)
         {
-            if(o.modulators[j] >= modulators.size())
+            if(o.modulators[j] >= oscillators.size())
             {
                 o.modulators.erase(o.modulators.begin() + j);
                 j--;
@@ -679,11 +649,11 @@ void fm_synth::erase_invalid_indices()
 
 fm_synth::reference_vec fm_synth::determine_references()
 {
-    reference_vec references(modulators.size());
-    for(unsigned m: carrier_modulators) references[m].push_back(-1);
-    for(unsigned i = 0; i < modulators.size(); ++i)
+    reference_vec references(oscillators.size());
+    for(unsigned m: carriers) references[m].push_back(-1);
+    for(unsigned i = 0; i < oscillators.size(); ++i)
     {
-        for(unsigned m: modulators[i].modulators)
+        for(unsigned m: oscillators[i].modulators)
             references[m].push_back(i);
     }
     return references;
@@ -711,20 +681,20 @@ void fm_synth::erase_orphans(reference_vec& ref)
 void fm_synth::erase_index(unsigned i, reference_vec* ref)
 {
     // Remove the modulator itself
-    modulators.erase(modulators.begin() + i);
+    oscillators.erase(oscillators.begin() + i);
 
     // Fix indices
-    for(unsigned j = 0; j < carrier_modulators.size(); ++j)
+    for(unsigned j = 0; j < carriers.size(); ++j)
     {
-        if(carrier_modulators[j] == i)
+        if(carriers[j] == i)
         {
-            carrier_modulators.erase(carrier_modulators.begin() + j);
+            carriers.erase(carriers.begin() + j);
             j--;
         }
-        else if(carrier_modulators[j] > i) carrier_modulators[j]--;
+        else if(carriers[j] > i) carriers[j]--;
     }
 
-    for(oscillator& o: modulators)
+    for(oscillator& o: oscillators)
     {
         for(unsigned j = 0; j < o.modulators.size(); ++j)
         {
@@ -756,10 +726,10 @@ void fm_synth::erase_index(unsigned i, reference_vec* ref)
     }
 }
 
-void fm_synth::sort_oscillator_modulators()
+void fm_synth::sort_oscillators()
 {
-    std::sort(carrier_modulators.begin(), carrier_modulators.end());
-    for(oscillator& o: modulators)
+    std::sort(carriers.begin(), carriers.end());
+    for(oscillator& o: oscillators)
         std::sort(o.modulators.begin(), o.modulators.end());
 }
 
@@ -827,13 +797,11 @@ void fm_instrument::synthesize(int32_t* samples, unsigned sample_count)
 void fm_instrument::refresh_voice(voice_id id)
 {
     synth.set_frequency(states[id], get_frequency(id), get_samplerate());
-    states[id].carrier.set_type(synth.get_carrier_type());
 }
 
 void fm_instrument::reset_voice(voice_id id)
 {
     synth.set_frequency(states[id], get_frequency(id), get_samplerate());
-    states[id].carrier.set_type(synth.get_carrier_type());
     synth.reset(states[id]);
 }
 

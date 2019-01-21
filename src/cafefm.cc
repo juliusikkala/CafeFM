@@ -791,7 +791,7 @@ unsigned cafefm::gui_modulation_mode()
     return old_mode != mode ? CHANGE_REQUIRE_IMPORT : CHANGE_NONE;
 }
 
-unsigned cafefm::gui_carrier(oscillator::func& type)
+unsigned cafefm::gui_adsr()
 {
     unsigned mask = CHANGE_NONE;
 
@@ -811,16 +811,22 @@ unsigned cafefm::gui_carrier(oscillator::func& type)
         nk_style_set_font(ctx, &small_font->handle);
         if(nk_group_begin(ctx, "Carrier Waveform", NK_WINDOW_NO_SCROLLBAR))
         {
-            nk_layout_row_template_begin(ctx, 30);
-            nk_layout_row_template_push_static(ctx, 90);
-            nk_layout_row_template_push_dynamic(ctx);
-            nk_layout_row_template_end(ctx);
-            nk_label(ctx, "Waveform:", NK_TEXT_LEFT);
-            mask |= gui_oscillator_type(type);
-            nk_label(ctx, "Modulation:", NK_TEXT_LEFT);
-            mask |= gui_modulation_mode();
-
             nk_layout_row_dynamic(ctx, 30, 1);
+            int new_polyphony = nk_propertyi(
+                ctx,
+                "#Polyphony",
+                1,
+                ins_state.polyphony,
+                64, 1, 1
+            );
+            if((unsigned)new_polyphony != ins_state.polyphony)
+            {
+                output->stop();
+                ins_state.polyphony = new_polyphony;
+                fm->set_polyphony(ins_state.polyphony);
+                output->start();
+            }
+
             nk_property_double(
                 ctx,
                 "#Tuning (Hz)",
@@ -828,6 +834,13 @@ unsigned cafefm::gui_carrier(oscillator::func& type)
                 &ins_state.tuning_frequency,
                 880.0f, 0.5f, 0.5f
             );
+
+            nk_layout_row_template_begin(ctx, 30);
+            nk_layout_row_template_push_static(ctx, 90);
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_end(ctx);
+            nk_label(ctx, "Modulation:", NK_TEXT_LEFT);
+            mask |= gui_modulation_mode();
 
             nk_group_end(ctx);
         }
@@ -887,22 +900,25 @@ unsigned cafefm::gui_carrier(oscillator::func& type)
     return mask;
 }
 
-unsigned cafefm::gui_modulator(
+unsigned cafefm::gui_oscillator(
     oscillator& osc,
     unsigned index,
     bool& erase,
     unsigned partition,
-    bool down
+    bool down,
+    bool is_carrier,
+    bool removable
 ){
     unsigned mask = CHANGE_NONE;
 
     nk_style_set_font(ctx, &small_font->handle);
-    std::string title = "Modulator " + std::to_string(index);
+    std::string title = (is_carrier ? "Carrier " : "Modulators ")
+        + std::to_string(index);
     nk_window_show(ctx, title.c_str(), NK_SHOWN);
     int res = nk_group_begin(
         ctx, title.c_str(),
         NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER|
-        NK_WINDOW_TITLE|NK_WINDOW_CLOSABLE
+        NK_WINDOW_TITLE|(removable ? NK_WINDOW_CLOSABLE : 0)
     );
     if(res == NK_WINDOW_HIDDEN)
     {
@@ -985,7 +1001,7 @@ void cafefm::gui_instrument_editor()
 {
     unsigned mask = CHANGE_NONE;
 
-    nk_layout_row_dynamic(ctx, 142, 1);
+    nk_layout_row_dynamic(ctx, 112, 1);
 
     nk_style_set_font(ctx, &small_font->handle);
 
@@ -993,8 +1009,6 @@ void cafefm::gui_instrument_editor()
     if(nk_group_begin(
         ctx, "Instrument Control", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
     )){
-        float max_safe_volume = 1.0/ins_state.polyphony;
-
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 80);
         nk_layout_row_template_push_dynamic(ctx);
@@ -1117,35 +1131,11 @@ void cafefm::gui_instrument_editor()
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 140);
         nk_layout_row_template_push_static(ctx, ww-460);
-        nk_layout_row_template_push_static(ctx, 30);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
 
         nk_labelf(ctx, NK_TEXT_LEFT, "Master volume: %.2f", master_volume);
         nk_slider_float(ctx, 0, &master_volume, 1.0f, 0.01f);
-
-        if(master_volume > max_safe_volume)
-        {
-            nk_image(ctx, gray_warn_img);
-            nk_label(ctx, "Peaking is possible!", NK_TEXT_LEFT);
-        }
-
-        nk_layout_row_template_begin(ctx, 30);
-        nk_layout_row_template_push_static(ctx, 140);
-        nk_layout_row_template_push_static(ctx, ww-460);
-        nk_layout_row_template_push_dynamic(ctx);
-        nk_layout_row_template_end(ctx);
-
-        nk_labelf(ctx, NK_TEXT_LEFT, "Polyphony: %d", ins_state.polyphony);
-        int new_polyphony = ins_state.polyphony;
-        nk_slider_int(ctx, 1, &new_polyphony, 32, 1);
-        if((unsigned)new_polyphony != ins_state.polyphony)
-        {
-            output->stop();
-            ins_state.polyphony = new_polyphony;
-            fm->set_polyphony(ins_state.polyphony);
-            output->start();
-        }
 
         if(
             save_recording_state == 1 &&
@@ -1228,10 +1218,7 @@ void cafefm::gui_instrument_editor()
     struct nk_rect empty_space;
     if(nk_group_begin(ctx, "Synth Control", NK_WINDOW_BORDER))
     {
-        // Render carrier & ADSR
-        oscillator::func carrier = ins_state.synth.get_carrier_type();
-        mask |= gui_carrier(carrier);
-        ins_state.synth.set_carrier_type(carrier);
+        mask |= gui_adsr();
 
         fm_synth::layout layout = ins_state.synth.generate_layout();
 
@@ -1240,19 +1227,20 @@ void cafefm::gui_instrument_editor()
         std::map<int, double> modulator_width;
         modulator_width[-1] = 1.0;
 
-        for(fm_synth::layout::layer& layer: layout.layers)
+        for(unsigned l = 0; l < layout.layers.size(); ++l)
         {
+            fm_synth::layout::layer& layer = layout.layers[l];
             unsigned max_partition = 0;
             unsigned row_elements = 0;
             for(fm_synth::layout::group& group: layer)
             {
                 if(group.partition > max_partition)
                     max_partition = group.partition;
-                // Add room for each modulator
-                row_elements += group.modulators.size();
+                // Add room for each oscillator
+                row_elements += group.oscillators.size();
                 // Add room for +-buttons
                 if(
-                    group.modulators.size() == 0 ||
+                    group.oscillators.size() == 0 ||
                     group.partition < 4
                 ) row_elements++;
             }
@@ -1266,7 +1254,7 @@ void cafefm::gui_instrument_editor()
             nk_layout_row_begin(ctx, NK_DYNAMIC, height, row_elements);
             for(fm_synth::layout::group& group: layer)
             {
-                if(group.modulators.size() == 0)
+                if(group.oscillators.size() == 0)
                 {
                     // Compute width from parent width.
                     nk_layout_row_push(ctx, modulator_width[group.parent]);
@@ -1285,26 +1273,29 @@ void cafefm::gui_instrument_editor()
                 {
                     double width = modulator_width[group.parent];
                     if(group.partition < 4) width -= SIDE_PLUS_SIZE;
-                    width /= group.modulators.size();
-                    for(unsigned m: group.modulators)
+                    width /= group.oscillators.size();
+                    for(unsigned m: group.oscillators)
                     {
                         modulator_width[m] = width;
                         nk_layout_row_push(ctx, width);
                         bool erase = false;
-                        mask |= gui_modulator(
-                            ins_state.synth.get_modulator(m),
+                        mask |= gui_oscillator(
+                            ins_state.synth.get_oscillator(m),
                             m,
                             erase,
                             group.partition,
-                            true
+                            true,
+                            l == 0,
+                            l != 0 || group.oscillators.size() > 1
                         );
                         if(erase) erase_index = m;
                     }
                     if(group.partition < 4)
                     {
-                        if(group.modulators.size() > 0)
+                        if(group.oscillators.size() > 0)
                         {
-                            modulator_width[group.modulators.back()] += SIDE_PLUS_SIZE;
+                            modulator_width[group.oscillators.back()]
+                                += SIDE_PLUS_SIZE;
                         }
                         nk_layout_row_push(ctx, SIDE_PLUS_SIZE);
                         nk_style_set_font(ctx, &huge_font->handle);
@@ -1322,22 +1313,22 @@ void cafefm::gui_instrument_editor()
         // Do add & erase here to avoid meddling with layouts and such.
         if(add_parent >= -1)
         {
-            unsigned i = ins_state.synth.add_modulator(
+            unsigned i = ins_state.synth.add_oscillator(
                 {oscillator::SINE, 1.0, 0.5}
             );
             if(add_parent >= 0)
             {
-                ins_state.synth.get_modulator(add_parent)
+                ins_state.synth.get_oscillator(add_parent)
                     .get_modulators().push_back(i);
             }
             else
             {
-                ins_state.synth.get_carrier_modulators().push_back(i);
+                ins_state.synth.get_carriers().push_back(i);
             }
             mask |= CHANGE_REQUIRE_RESET;
         }
 
-        if(erase_index >= 0) ins_state.synth.erase_modulator(erase_index);
+        if(erase_index >= 0) ins_state.synth.erase_oscillator(erase_index);
 
         nk_group_end(ctx);
     }

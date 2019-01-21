@@ -300,10 +300,10 @@ void control_state::apply(
 
     for(
         unsigned i = 0;
-        i < osc.size() && i < dst.get_modulator_count();
+        i < osc.size() && i < dst.get_oscillator_count();
         ++i
     ){
-        oscillator& mod = dst.get_modulator(i);
+        oscillator& mod = dst.get_oscillator(i);
         int64_t amp_num, amp_denom;
         uint64_t period_num, period_denom;
         mod.get_amplitude(amp_num, amp_denom);

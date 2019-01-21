@@ -109,7 +109,8 @@ class fm_synth
 public:
     struct state
     {
-        oscillator carrier;
+        int64_t period_num, period_denom;
+        int64_t amp_num, amp_denom;
         std::vector<oscillator::state> states;
     };
 
@@ -126,24 +127,21 @@ public:
     void set_modulation_mode(modulation_mode mode);
     modulation_mode get_modulation_mode() const;
 
-    void set_carrier_type(oscillator::func carrier_type);
-    oscillator::func get_carrier_type() const;
+    std::vector<unsigned>& get_carriers();
+    const std::vector<unsigned>& get_carriers() const;
 
-    std::vector<unsigned>& get_carrier_modulators();
-    const std::vector<unsigned>& get_carrier_modulators() const;
-
-    unsigned get_modulator_count() const;
-    oscillator& get_modulator(unsigned i);
-    const oscillator& get_modulator(unsigned i) const;
-    // Invalidates and updates all modulator indices after i. May remove several
-    // modulators. States are also invalid afterwards, so restart them.
-    void erase_modulator(unsigned i);
-    unsigned add_modulator(const oscillator& o);
+    unsigned get_oscillator_count() const;
+    oscillator& get_oscillator(unsigned i);
+    const oscillator& get_oscillator(unsigned i) const;
+    // Invalidates and updates all oscillator indices after i. May remove
+    // several oscillators. States are also invalid afterwards, so restart them.
+    void erase_oscillator(unsigned i);
+    unsigned add_oscillator(const oscillator& o);
     // Cleans up modulators after dependency changes, ensuring that they are
     // properly formatted.
     void finish_changes();
-    // Call this after you are finished modifying the period of any oscillator
-    // (including carrier). finish_changes() also calls this.
+    // Call this after you are finished modifying the period of any oscillator.
+    // finish_changes() also calls this.
     void update_period_lookup();
 
     struct layout
@@ -153,9 +151,9 @@ public:
             int parent;
             bool empty; // If true, render as empty space with parent width.
             unsigned partition;
-            // If modulators is empty, this group exists as a +-button for the
+            // If oscillators is empty, this group exists as a +-button for the
             // parent.
-            std::vector<unsigned> modulators;
+            std::vector<unsigned> oscillators;
         };
         using layer = std::vector<group>;
         std::vector<layer> layers;
@@ -166,7 +164,8 @@ public:
     state start(
         double frequency = 440.0,
         double volume = 0.5,
-        uint64_t samplerate = 44100
+        uint64_t samplerate = 44100,
+        int64_t denom = 65536
     ) const;
     void reset(state& s) const;
     // Call this if mode == PHASE
@@ -186,12 +185,11 @@ private:
     reference_vec determine_references();
     void erase_orphans(reference_vec& ref);
     void erase_index(unsigned index, reference_vec* ref = nullptr);
-    void sort_oscillator_modulators();
+    void sort_oscillators();
 
     modulation_mode mode;
-    std::vector<oscillator> modulators;
-    oscillator::func carrier_type;
-    std::vector<unsigned> carrier_modulators;
+    std::vector<oscillator> oscillators;
+    std::vector<unsigned> carriers;
     std::vector<std::pair<uint64_t, uint64_t>> period_lookup;
 };
 
