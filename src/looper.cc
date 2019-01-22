@@ -180,6 +180,32 @@ double looper::get_loop_delay(unsigned loop_index) const
     return (l.start_t-l.relative_start_t)/(double)beat_length;
 }
 
+void looper::match_bpm(unsigned loop_index, unsigned granularity)
+{
+    // Find bpm closest to current, using granularity
+    loop& l = loops[loop_index];
+    if(l.state == UNUSED || l.state == RECORDING || granularity == 0) return;
+
+
+    uint64_t closest_length = l.length;
+    uint64_t closest_dist = UINT64_MAX;
+    bool prev_was_closer = false;
+    for(unsigned i = granularity; ; i += granularity)
+    {
+        uint64_t bl = l.length / i;
+        uint64_t dist = std::abs((int64_t)beat_length-(int64_t)bl);
+        if(dist < closest_dist)
+        {
+            closest_dist = dist;
+            closest_length = bl;
+            prev_was_closer = true;
+        }
+        else if(prev_was_closer) break;
+    }
+
+    if(closest_length != 0) beat_length = closest_length;
+}
+
 void looper::apply(int32_t* o, unsigned long framecount)
 {
     // Handle loop recording

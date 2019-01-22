@@ -2062,6 +2062,7 @@ void cafefm::gui_loop(unsigned loop_index)
         nk_layout_row_template_push_static(ctx, 140);
         nk_layout_row_template_push_static(ctx, 160);
         nk_layout_row_template_push_static(ctx, 80);
+        nk_layout_row_template_push_static(ctx, 80);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_push_static(ctx, 60);
         nk_layout_row_template_end(ctx);
@@ -2110,6 +2111,12 @@ void cafefm::gui_loop(unsigned loop_index)
             state == looper::PLAYING ? "Mute" : "Unmute",
             state == looper::PLAYING || state == looper::MUTED
         )) lo.play_loop(loop_index, state == looper::MUTED);
+
+        if(button_label_active(
+            ctx,
+            "Set BPM",
+            state == looper::PLAYING || state == looper::MUTED
+        )) lo.match_bpm(loop_index);
 
         nk_widget(&empty_space, ctx);
 

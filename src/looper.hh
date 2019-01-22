@@ -68,6 +68,8 @@ public:
     void set_loop_delay(unsigned loop_index, double delay);
     double get_loop_delay(unsigned loop_index) const;
 
+    void match_bpm(unsigned loop_index, unsigned granularity = 1);
+
     void apply(int32_t* o, unsigned long framecount);
 
     void set_max_volume_skip(double skip = 0.0001);
