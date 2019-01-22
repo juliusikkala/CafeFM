@@ -1224,6 +1224,8 @@ void cafefm::gui_instrument_editor()
 
         int erase_index = -1;
         int add_parent = -2;
+        int min_osc_width = 200;
+        int max_row_osc = ww/min_osc_width;
         std::map<int, double> modulator_width;
         modulator_width[-1] = 1.0;
 
@@ -1241,7 +1243,7 @@ void cafefm::gui_instrument_editor()
                 // Add room for +-buttons
                 if(
                     group.oscillators.size() == 0 ||
-                    group.partition < 4
+                    group.partition < max_row_osc
                 ) row_elements++;
             }
             if(max_partition == 0) continue;
@@ -1272,7 +1274,14 @@ void cafefm::gui_instrument_editor()
                 else
                 {
                     double width = modulator_width[group.parent];
-                    if(group.partition < 4) width -= SIDE_PLUS_SIZE;
+                    bool has_side_plus = false;
+                    if(
+                        width/(group.oscillators.size()+1)
+                        >= min_osc_width/(double)ww
+                    ){
+                        width -= SIDE_PLUS_SIZE;
+                        has_side_plus = true;
+                    }
                     width /= group.oscillators.size();
                     for(unsigned m: group.oscillators)
                     {
@@ -1290,7 +1299,7 @@ void cafefm::gui_instrument_editor()
                         );
                         if(erase) erase_index = m;
                     }
-                    if(group.partition < 4)
+                    if(has_side_plus)
                     {
                         if(group.oscillators.size() > 0)
                         {
