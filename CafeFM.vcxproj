@@ -114,7 +114,7 @@
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>D:\WindowsLibraries\libsndfile\include;D:\WindowsLibraries\SDL2_image-2.0.4\include;D:\WindowsLibraries\glew-2.1.0\include;D:\WindowsLibraries\portaudio\include;D:\WindowsLibraries\SDL2-2.0.9\include;C:\Users\juliu\Ohjelmointi\CafeFM\external;D:\WindowsLibraries\boost_1_69_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\WindowsLibraries\libsndfile\include;D:\WindowsLibraries\SDL2_image-2.0.4\include;D:\WindowsLibraries\glew-2.1.0\include;D:\WindowsLibraries\portaudio\include;D:\WindowsLibraries\SDL2-2.0.9\include;C:\Users\juliu\Ohjelmointi\CafeFM\external;D:\WindowsLibraries\boost_1_69_0;D:\WindowsLibraries\rtmidi-3.0.0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -122,23 +122,23 @@
     </ClCompile>
     <Link>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
-      <AdditionalLibraryDirectories>D:\WindowsLibraries\libsndfile\lib;D:\WindowsLibraries\SDL2_image-2.0.4\lib\x64;D:\WindowsLibraries\glew-2.1.0\lib\Release\x64;D:\WindowsLibraries\portaudio\Release;D:\WindowsLibraries\SDL2-2.0.9\lib\x64;D:\WindowsLibraries\boost_1_69_0\stage_x64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>SDL2.lib;SDL2main.lib;portaudio_static_x64.lib;glew32.lib;opengl32.lib;SDL2_image.lib;libsndfile-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>D:\WindowsLibraries\rtmidi-3.0.0\lib;D:\WindowsLibraries\libsndfile\lib;D:\WindowsLibraries\SDL2_image-2.0.4\lib\x64;D:\WindowsLibraries\glew-2.1.0\lib\Release\x64;D:\WindowsLibraries\portaudio\Release;D:\WindowsLibraries\SDL2-2.0.9\lib\x64;D:\WindowsLibraries\boost_1_69_0\stage_x64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;portaudio_static_x64.lib;glew32.lib;opengl32.lib;SDL2_image.lib;libsndfile-1.lib;rtmidi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>D:\WindowsLibraries\libsndfile\include;D:\WindowsLibraries\SDL2_image-2.0.4\include;D:\WindowsLibraries\glew-2.1.0\include;D:\WindowsLibraries\portaudio\include;D:\WindowsLibraries\SDL2-2.0.9\include;C:\Users\juliu\Ohjelmointi\CafeFM\external;D:\WindowsLibraries\boost_1_69_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\WindowsLibraries\libsndfile\include;D:\WindowsLibraries\SDL2_image-2.0.4\include;D:\WindowsLibraries\glew-2.1.0\include;D:\WindowsLibraries\portaudio\include;D:\WindowsLibraries\SDL2-2.0.9\include;C:\Users\juliu\Ohjelmointi\CafeFM\external;D:\WindowsLibraries\boost_1_69_0;D:\WindowsLibraries\rtmidi-3.0.0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
-      <AdditionalLibraryDirectories>D:\WindowsLibraries\libsndfile\lib;D:\WindowsLibraries\SDL2_image-2.0.4\lib\x64;D:\WindowsLibraries\glew-2.1.0\lib\Release\x64;D:\WindowsLibraries\portaudio\Release;D:\WindowsLibraries\SDL2-2.0.9\lib\x64;D:\WindowsLibraries\boost_1_69_0\stage_x64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>SDL2.lib;SDL2main.lib;portaudio_static_x64.lib;glew32.lib;opengl32.lib;SDL2_image.lib;libsndfile-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>D:\WindowsLibraries\rtmidi-3.0.0\lib;D:\WindowsLibraries\libsndfile\lib;D:\WindowsLibraries\SDL2_image-2.0.4\lib\x64;D:\WindowsLibraries\glew-2.1.0\lib\Release\x64;D:\WindowsLibraries\portaudio\Release;D:\WindowsLibraries\SDL2-2.0.9\lib\x64;D:\WindowsLibraries\boost_1_69_0\stage_x64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;SDL2main.lib;portaudio_static_x64.lib;glew32.lib;opengl32.lib;SDL2_image.lib;libsndfile-1.lib;rtmidi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
     </Link>
   </ItemDefinitionGroup>
@@ -151,6 +151,7 @@
     <ClCompile Include="src\controller\gamecontroller.cc" />
     <ClCompile Include="src\controller\joystick.cc" />
     <ClCompile Include="src\controller\keyboard.cc" />
+    <ClCompile Include="src\controller\midi.cc" />
     <ClCompile Include="src\control_state.cc" />
     <ClCompile Include="src\encoder.cc" />
     <ClCompile Include="src\fm.cc" />
@@ -158,6 +159,7 @@
     <ClCompile Include="src\instrument.cc" />
     <ClCompile Include="src\instrument_state.cc" />
     <ClCompile Include="src\io.cc" />
+    <ClCompile Include="src\looper.cc" />
     <ClCompile Include="src\main.cc" />
     <ClCompile Include="src\options.cc" />
   </ItemGroup>
@@ -174,6 +176,7 @@
     <ClInclude Include="src\controller\gamecontroller.hh" />
     <ClInclude Include="src\controller\joystick.hh" />
     <ClInclude Include="src\controller\keyboard.hh" />
+    <ClInclude Include="src\controller\midi.hh" />
     <ClInclude Include="src\control_state.hh" />
     <ClInclude Include="src\encoder.hh" />
     <ClInclude Include="src\fm.hh" />
@@ -182,6 +185,7 @@
     <ClInclude Include="src\instrument.hh" />
     <ClInclude Include="src\instrument_state.hh" />
     <ClInclude Include="src\io.hh" />
+    <ClInclude Include="src\looper.hh" />
     <ClInclude Include="src\options.hh" />
   </ItemGroup>
   <ItemGroup>

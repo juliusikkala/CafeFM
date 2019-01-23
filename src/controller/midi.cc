@@ -17,7 +17,7 @@
     along with CafeFM.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "midi.hh"
-#include "bindings.hh"
+#include "../bindings.hh"
 #define CENTER (0x40 << 7)
 #define VEL_OFFSET 0x00
 #define AFTERTOUCH_OFFSET 0x80
