@@ -30,7 +30,7 @@ namespace
     };
 
     const char* const action_strings[] = {
-        "KEY", "FREQUENCY_EXPT", "VOLUME_MUL", "PERIOD_EXPT", "AMPLITUDE_MUL",
+        "KEY", "FREQUENCY_EXPT", "VOLUME_MUL", "PERIOD_FINE", "AMPLITUDE_MUL",
         "ENVELOPE_ADJUST", "LOOP_CONTROL"
     };
 
@@ -64,9 +64,9 @@ bind::bind(enum action a)
     case VOLUME_MUL:
         volume.max_mul = 0.5;
         break;
-    case PERIOD_EXPT:
+    case PERIOD_FINE:
         period.modulator_index = 0;
-        period.max_expt = 12;
+        period.max_fine = 1;
         break;
     case AMPLITUDE_MUL:
         amplitude.modulator_index = 0;
@@ -130,9 +130,9 @@ json bind::serialize() const
     case VOLUME_MUL:
         j["action"]["volume"]["max_mul"] = volume.max_mul;
         break;
-    case PERIOD_EXPT:
+    case PERIOD_FINE:
         j["action"]["period"]["modulator_index"] = period.modulator_index;
-        j["action"]["period"]["max_expt"] = period.max_expt;
+        j["action"]["period"]["max_fine"] = period.max_fine;
         break;
     case AMPLITUDE_MUL:
         j["action"]["amplitude"]["modulator_index"] = amplitude.modulator_index;
@@ -207,10 +207,10 @@ bool bind::deserialize(const json& j)
         case VOLUME_MUL:
             j.at("action").at("volume").at("max_mul").get_to(volume.max_mul);
             break;
-        case PERIOD_EXPT:
+        case PERIOD_FINE:
             j.at("action").at("period")
                 .at("modulator_index").get_to(period.modulator_index);
-            j.at("action").at("period").at("max_expt").get_to(period.max_expt);
+            j.at("action").at("period").at("max_fine").get_to(period.max_fine);
             break;
         case AMPLITUDE_MUL:
             j.at("action").at("amplitude")
@@ -767,11 +767,11 @@ void bindings::handle_action(
                 lerp(1.0, b.volume.max_mul, value)
         );
         break;
-    case bind::PERIOD_EXPT:
-        state.set_period_expt(
+    case bind::PERIOD_FINE:
+        state.set_period_fine(
             b.period.modulator_index,
             b.id,
-            b.period.max_expt * value
+            b.period.max_fine * value
         );
         break;
     case bind::AMPLITUDE_MUL:

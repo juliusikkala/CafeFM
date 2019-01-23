@@ -78,7 +78,7 @@ struct bind
         KEY = 0,
         FREQUENCY_EXPT,
         VOLUME_MUL,
-        PERIOD_EXPT,
+        PERIOD_FINE,
         AMPLITUDE_MUL,
         ENVELOPE_ADJUST,
         LOOP_CONTROL
@@ -108,11 +108,11 @@ struct bind
             double max_mul;
         } volume;
 
-        // PERIOD_EXPT (discrete jumps to max, can be negative)
+        // PERIOD_FINE (discrete jumps to max, can be negative)
         struct
         {
             unsigned modulator_index;
-            double max_expt;
+            double max_fine;
         } period;
 
         // AMPLITUDE_MUL (discrete jumps to max, must be positive)

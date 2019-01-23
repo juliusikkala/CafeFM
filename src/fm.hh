@@ -50,15 +50,10 @@ public:
 
     oscillator(
         func type = SINE,
-        double period = 1.0,
+        int64_t period_num = 1,
+        int64_t period_denom = 1,
         double amplitude = 1.0,
         double phase_constant = 0.0
-    );
-    oscillator(
-        func type,
-        double frequency,
-        double volume,
-        uint64_t samplerate
     );
     ~oscillator();
 
@@ -72,11 +67,11 @@ public:
     double get_amplitude() const;
     void get_amplitude(int64_t& amp_num, int64_t& amp_denom) const;
 
-    void set_period_fract(uint64_t period_num, uint64_t period_denom);
-    void set_period(double period, uint64_t denom=65536);
-    double get_period() const;
+    void set_period(uint64_t period_num, uint64_t period_denom);
     void get_period(uint64_t& period_num, uint64_t& period_denom) const;
-    void set_frequency(double freq, uint64_t samplerate);
+
+    void set_period_fine(double fine = 0);
+    double get_period_fine() const;
 
     void set_phase_constant(int64_t offset);
     void set_phase_constant(double offset);
@@ -98,7 +93,8 @@ public:
 protected:
     func type;
     int64_t amp_num, amp_denom;
-    uint64_t period_num, period_denom;
+    int64_t period_num, period_denom;
+    int64_t period_fine;
     int64_t phase_constant;
 
     std::vector<unsigned> modulators;

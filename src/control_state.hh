@@ -59,11 +59,11 @@ public:
     void set_volume_mul(action_id id, double volume_mul);
     bool get_volume_mul(action_id id, double& volume_mul) const;
 
-    void set_period_expt(
-        unsigned modulator_index, action_id id, double period_expt
+    void set_period_fine(
+        unsigned modulator_index, action_id id, double period_fine
     );
-    bool get_period_expt(
-        unsigned modulator_index, action_id id, double& period_expt
+    bool get_period_fine(
+        unsigned modulator_index, action_id id, double& period_fine
     ) const;
 
     void set_amplitude_mul(
@@ -81,7 +81,7 @@ public:
 
     double total_freq_mul(double base_freq = 440.0) const;
     double total_volume_mul() const;
-    double total_period_mul(unsigned oscillator_index) const;
+    double total_period_fine(unsigned oscillator_index) const;
     double total_amp_mul(unsigned oscillator_index) const;
     double total_envelope_adjust(unsigned which) const;
 
@@ -119,7 +119,7 @@ private:
 
     struct oscillator_mod
     {
-        std::map<action_id, double> period_expt;
+        std::map<action_id, double> period_fine;
         std::map<action_id, double> amplitude_mul;
     };
     std::vector<oscillator_mod> osc;

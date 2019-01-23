@@ -101,7 +101,7 @@ void control_state::erase_action(action_id id)
 
     for(auto& o: osc)
     {
-        o.period_expt.erase(id);
+        o.period_fine.erase(id);
         o.amplitude_mul.erase(id);
     }
 
@@ -159,21 +159,21 @@ bool control_state::get_volume_mul(action_id id, double& volume_mul) const
     return true;
 }
 
-void control_state::set_period_expt(
-    unsigned modulator_index, action_id id, double period_expt
+void control_state::set_period_fine(
+    unsigned modulator_index, action_id id, double period_fine
 ){
     if(modulator_index >= osc.size())
         osc.resize(modulator_index+1);
-    osc[modulator_index].period_expt[id] = period_expt;
+    osc[modulator_index].period_fine[id] = period_fine;
 }
 
-bool control_state::get_period_expt(
-    unsigned modulator_index, action_id id, double& period_expt
+bool control_state::get_period_fine(
+    unsigned modulator_index, action_id id, double& period_fine
 ) const {
     if(modulator_index >= osc.size()) return false;
-    auto it = osc[modulator_index].period_expt.find(id);
-    if(it == osc[modulator_index].period_expt.end()) return false;
-    period_expt = it->second;
+    auto it = osc[modulator_index].period_fine.find(id);
+    if(it == osc[modulator_index].period_fine.end()) return false;
+    period_fine = it->second;
     return true;
 }
 
@@ -225,7 +225,7 @@ void control_state::reset()
 
     for(auto& o: osc)
     {
-        o.period_expt.clear();
+        o.period_fine.clear();
         o.amplitude_mul.clear();
     }
 
@@ -266,13 +266,13 @@ double control_state::total_volume_mul() const
     return mul;
 }
 
-double control_state::total_period_mul(unsigned i) const
+double control_state::total_period_fine(unsigned i) const
 {
-    double expt = 0.0;
-    if(i >= osc.size()) return expt;
+    double fine = 0.0;
+    if(i >= osc.size()) return fine;
 
-    for(auto& pair: osc[i].period_expt) expt += pair.second;
-    return pow(2.0, expt/12.0);
+    for(auto& pair: osc[i].period_fine) fine += pair.second;
+    return fine;
 }
 
 double control_state::total_amp_mul(unsigned i) const
@@ -305,15 +305,13 @@ void control_state::apply(
     ){
         oscillator& mod = dst.get_oscillator(i);
         int64_t amp_num, amp_denom;
-        uint64_t period_num, period_denom;
+        double fine = mod.get_period_fine();
         mod.get_amplitude(amp_num, amp_denom);
-        mod.get_period(period_num, period_denom);
 
         amp_num *= total_amp_mul(i);
-        period_denom *= total_period_mul(i);
 
         mod.set_amplitude(amp_num, amp_denom);
-        mod.set_period_fract(period_num, period_denom);
+        mod.set_period_fine(fine + total_period_fine(i));
     }
 
     ins.set_tuning(total_freq_mul(ins_state.tuning_frequency));

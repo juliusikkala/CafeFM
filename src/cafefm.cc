@@ -935,6 +935,8 @@ unsigned cafefm::gui_oscillator(
             nk_layout_row_template_push_dynamic(ctx);
             nk_layout_row_template_push_dynamic(ctx);
             nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_push_dynamic(ctx);
             nk_layout_row_template_end(ctx);
             break;
         case 2:
@@ -956,7 +958,7 @@ unsigned cafefm::gui_oscillator(
         // Amplitude controls
         float old_amplitude = osc.get_amplitude();
         float amplitude = fixed_propertyd(
-            ctx, "#Amplitude:", 0.0, old_amplitude, 16.0, 0.01, 0.01
+            ctx, "#Amp", 0.0, old_amplitude, 16.0, 0.01, 0.01
         );
         if(amplitude != old_amplitude)
         {
@@ -965,25 +967,34 @@ unsigned cafefm::gui_oscillator(
         }
 
         // Period controls
-        uint64_t period_denom = 0, period_num = 0;
+        uint64_t period_num = 0, period_denom = 0;
         osc.get_period(period_num, period_denom);
-        double period = period_denom/(double)period_num;
 
-        period = fixed_propertyd(
-            ctx, "#Period:", 0.0, period, 1024.0, 0.01, 0.01
-        );
-        uint64_t new_period_denom = round(period*period_num);
+        uint64_t new_period_num = nk_propertyi(ctx, "#Mul", 1, period_num, 1024, 1, 1);
+        uint64_t new_period_denom = nk_propertyi(ctx, "#Div", 1, period_denom, 1024, 1, 1);
 
-        if(new_period_denom != period_denom)
+        if(new_period_num != period_num || new_period_denom != period_denom)
         {
-            osc.set_period_fract(period_num, new_period_denom);
+            osc.set_period(new_period_num, new_period_denom);
+            mask |= CHANGE_REQUIRE_IMPORT;
+        }
+
+        double period_fine = 0;
+        period_fine = osc.get_period_fine();
+        double new_period_fine = fixed_propertyd(
+            ctx, "#Fine", -128.0, period_fine, 128.0, 0.01, 0.01
+        );
+
+        if(new_period_fine != period_fine)
+        {
+            osc.set_period_fine(new_period_fine);
             mask |= CHANGE_REQUIRE_IMPORT;
         }
 
         // Phase controls
         double phase = osc.get_phase_constant_double();
         double new_phase = fixed_propertyd(
-            ctx, "#Phase:", 0.0, phase, 1.0, 0.01, 0.01
+            ctx, "#Phase", 0.0, phase, 1.0, 0.01, 0.01
         );
         if(fabs(new_phase-phase)>1e-8)
         {
@@ -1224,8 +1235,8 @@ void cafefm::gui_instrument_editor()
 
         int erase_index = -1;
         int add_parent = -2;
-        int min_osc_width = 200;
-        int max_row_osc = ww/min_osc_width;
+        int min_osc_width = 150;
+        unsigned max_row_osc = ww/min_osc_width;
         std::map<int, double> modulator_width;
         modulator_width[-1] = 1.0;
 
@@ -1249,7 +1260,7 @@ void cafefm::gui_instrument_editor()
             if(max_partition == 0) continue;
             // Determine layer height based on max partition.
             constexpr unsigned partition_height[] = {
-                73, 108, 175
+                73, 141, 243
             };
             unsigned height = partition_height[std::min(max_partition-1, 2u)];
 
@@ -1323,7 +1334,7 @@ void cafefm::gui_instrument_editor()
         if(add_parent >= -1)
         {
             unsigned i = ins_state.synth.add_oscillator(
-                {oscillator::SINE, 1.0, 0.5}
+                {oscillator::SINE, 1, 1, 0.5}
             );
             if(add_parent >= 0)
             {
@@ -1368,7 +1379,7 @@ void cafefm::gui_bind_action_template(bind& b)
     case bind::VOLUME_MUL:
         nk_layout_row_template_push_static(ctx, 150);
         break;
-    case bind::PERIOD_EXPT:
+    case bind::PERIOD_FINE:
         nk_layout_row_template_push_static(ctx, 150);
         nk_layout_row_template_push_static(ctx, 150);
         break;
@@ -1440,12 +1451,12 @@ void cafefm::gui_bind_action(bind& b)
             ctx, "#Multiplier:", 0.0, b.volume.max_mul, 2.0, 0.05, 0.01
         );
         break;
-    case bind::PERIOD_EXPT:
+    case bind::PERIOD_FINE:
         nk_property_int(
             ctx, "#Modulator:", 0, (int*)&b.period.modulator_index, 128, 1, 1
         );
         nk_property_double(
-            ctx, "#Offset:", -36.0f, &b.period.max_expt, 36.0f, 0.5f, 0.5f
+            ctx, "#Offset:", -1000.0f, &b.period.max_fine, 1000.0f, 0.5f, 0.5f
         );
         break;
     case bind::AMPLITUDE_MUL:
@@ -2014,7 +2025,7 @@ void cafefm::gui_bindings_editor()
             {"Keys", bind::KEY},
             {"Pitch", bind::FREQUENCY_EXPT},
             {"Volume", bind::VOLUME_MUL},
-            {"Modulator period", bind::PERIOD_EXPT},
+            {"Modulator period", bind::PERIOD_FINE},
             {"Modulator amplitude", bind::AMPLITUDE_MUL},
             {"Envelope", bind::ENVELOPE_ADJUST},
             {"Loops", bind::LOOP_CONTROL}

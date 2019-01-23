@@ -20,6 +20,7 @@
 #include "helpers.hh"
 #include <stdexcept>
 #include <algorithm>
+#define PERIOD_MUL 65536
 
 static const char* const mode_strings[] = {
     "FREQUENCY", "PHASE"
@@ -34,24 +35,16 @@ oscillator::state::state()
 
 oscillator::oscillator(
     func type,
-    double period,
+    int64_t period_num,
+    int64_t period_denom,
     double amplitude,
     double phase_constant
-): type(type), amp_num(1), amp_denom(1), period_num(1), period_denom(1) {
-    set_period(period);
+):  type(type), amp_num(1), amp_denom(1), period_num(1), period_denom(1),
+    period_fine(0)
+{
+    set_period(period_num, period_denom);
     set_amplitude(amplitude);
     set_phase_constant(phase_constant);
-}
-
-oscillator::oscillator(
-    func type,
-    double frequency,
-    double volume,
-    uint64_t samplerate
-): type(type), phase_constant(0)
-{
-    set_frequency(frequency, samplerate);
-    set_amplitude(volume);
 }
 
 oscillator::~oscillator() {}
@@ -64,6 +57,7 @@ bool oscillator::operator!=(const oscillator& o) const
         o.amp_denom != amp_denom ||
         o.period_num != period_num ||
         o.period_denom != period_denom ||
+        o.period_fine != period_fine ||
         o.phase_constant != phase_constant ||
         o.modulators != modulators
     );
@@ -104,40 +98,29 @@ void oscillator::get_amplitude(int64_t& amp_num, int64_t& amp_denom) const
     amp_denom = this->amp_denom;
 }
 
-void oscillator::set_period_fract(
-    uint64_t period_num,
-    uint64_t period_denom
-){
-    this->period_num = period_num;
-    this->period_denom = period_denom;
+void oscillator::set_period(uint64_t period_num, uint64_t period_denom)
+{
+    this->period_num = period_num * PERIOD_MUL + period_fine;
+    this->period_denom = period_denom * PERIOD_MUL;
     this->period_denom |= !period_denom;
 }
 
-void oscillator::set_period(double period, uint64_t denom)
+void oscillator::get_period(uint64_t& period_num, uint64_t& period_denom) const
 {
-    period_num = denom;
-    period_denom = denom * period;
-    period_denom |= !period_denom;
+    period_num = (this->period_num - period_fine) / PERIOD_MUL;
+    period_denom = this->period_denom / PERIOD_MUL;
 }
 
-double oscillator::get_period() const
+void oscillator::set_period_fine(double fine)
 {
-    return period_denom/(double)period_num;
+    period_num -= period_fine;
+    period_fine = std::max((int64_t)(fine * PERIOD_MUL), -(int64_t)period_num);
+    period_num += period_fine;
 }
 
-void oscillator::get_period(
-    uint64_t& period_num,
-    uint64_t& period_denom
-) const
+double oscillator::get_period_fine() const
 {
-    period_num = this->period_num;
-    period_denom = this->period_denom;
-}
-
-void oscillator::set_frequency(double freq, uint64_t samplerate)
-{
-    period_num = round(freq*4294967296.0/samplerate);
-    period_denom = 1;
+    return period_fine / (double)PERIOD_MUL;
 }
 
 void oscillator::set_phase_constant(int64_t offset)
@@ -478,7 +461,6 @@ fm_synth::state fm_synth::start(
 ) const
 {
     state s;
-    set_frequency(s, frequency, samplerate);
     set_volume(s, volume*denom, denom);
     s.states.resize(oscillators.size());
     reset(s);
@@ -564,8 +546,9 @@ json fm_synth::serialize() const
             {"type", osc_strings[(unsigned)o.type]},
             {"amp_num", o.amp_num},
             {"amp_denom", o.amp_denom},
-            {"period_num", o.period_num},
-            {"period_denom", o.period_denom},
+            {"period_num", (o.period_num-o.period_fine)/PERIOD_MUL},
+            {"period_denom", o.period_denom/PERIOD_MUL},
+            {"period_fine", o.period_fine/(double)PERIOD_MUL},
             {"phase_constant", o.phase_constant},
             {"modulators", o.modulators}
         };
@@ -601,12 +584,18 @@ bool fm_synth::deserialize(const json& j)
             if(type_i < 0) return false;
             o.type = (oscillator::func)type_i;
         
+            double fine;
             m.at("amp_num").get_to(o.amp_num);
             m.at("amp_denom").get_to(o.amp_denom);
             m.at("period_num").get_to(o.period_num);
             m.at("period_denom").get_to(o.period_denom);
+            m.at("period_fine").get_to(fine);
             m.at("phase_constant").get_to(o.phase_constant);
             m.at("modulators").get_to(o.modulators);
+
+            o.period_fine = fine * PERIOD_MUL;
+            o.period_num = o.period_num * PERIOD_MUL + o.period_fine;
+            o.period_denom *= PERIOD_MUL;
 
             oscillators.push_back(o);
         }
