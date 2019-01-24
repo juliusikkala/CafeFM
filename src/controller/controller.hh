@@ -44,6 +44,11 @@ public:
     virtual bool handle_event(const SDL_Event& e, change_callback cb = {});
     virtual bool poll(change_callback cb = {});
 
+    // If false, input binds should be assigned with a drop-down instead of
+    // waiting for the user to use the controller. Useful for overlapping
+    // controls. Defaults to true.
+    virtual bool assign_bind_on_use() const;
+
     virtual std::string get_type_name() const;
     virtual std::string get_device_name() const;
 

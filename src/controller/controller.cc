@@ -33,6 +33,12 @@ bool controller::poll(change_callback cb)
     return true;
 }
 
+
+bool controller::assign_bind_on_use() const
+{
+    return true;
+}
+
 std::string controller::get_type_name() const { return "Unknown"; }
 std::string controller::get_device_name() const { return "Unknown"; }
 

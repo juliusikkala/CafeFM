@@ -1642,6 +1642,8 @@ void cafefm::gui_bind_button(bind& b, bool discrete_only)
 {
     if(!selected_controller) return;
 
+    bool show_dropdown = !selected_controller->assign_bind_on_use();
+
     std::string label = "Unknown";
     switch(b.control)
     {
@@ -1663,42 +1665,86 @@ void cafefm::gui_bind_button(bind& b, bool discrete_only)
         break;
     }
 
-    if(!b.wait_assign && nk_button_label(ctx, label.c_str()))
+    if(show_dropdown)
     {
-        b.wait_assign = true;
-        latest_input_button = -1;
-        latest_input_axis = -1;
-        set_controller_grab(true);
+        if(nk_combo_begin_label(ctx, label.c_str(), nk_vec2(80, 200)))
+        {
+            nk_layout_row_dynamic(ctx, 30, 1);
+
+            b.wait_assign = true;
+            unsigned axis_count = selected_controller->get_axis_count();
+            unsigned button_count = selected_controller->get_button_count();
+
+            for(unsigned i = 0; i < axis_count; ++i)
+            {
+                std::string name = selected_controller->get_axis_name(i);
+                if(nk_combo_item_label(ctx, name.c_str(), NK_TEXT_LEFT))
+                {
+                    b.control = discrete_only ?
+                        bind::AXIS_THRESHOLD : bind::AXIS_CONTINUOUS;
+                    b.axis.index = i;
+                    b.axis.invert = false;
+                    b.axis.threshold =
+                        b.control == bind::AXIS_THRESHOLD ? 0.5 : 0.0;
+                    b.axis.origin = 0.0;
+                    b.wait_assign = false;
+                }
+            }
+
+            for(unsigned i = 0; i < button_count; ++i)
+            {
+                std::string name = selected_controller->get_button_name(i);
+                if(nk_combo_item_label(ctx, name.c_str(), NK_TEXT_LEFT))
+                {
+                    b.control = bind::BUTTON_PRESS;
+                    b.button.index = i;
+                    b.button.active_state = 1;
+                    b.wait_assign = false;
+                }
+            }
+
+            nk_combo_end(ctx);
+        }
     }
-    else if(b.wait_assign)
+    else
     {
-        if(latest_input_button >= 0)
+        if(!b.wait_assign && nk_button_label(ctx, label.c_str()))
         {
-            b.control = bind::BUTTON_PRESS;
-            b.button.index = latest_input_button;
-            b.button.active_state = 1;
-            b.wait_assign = false;
+            b.wait_assign = true;
+            latest_input_button = -1;
+            latest_input_axis = -1;
+            set_controller_grab(true);
         }
-        if(latest_input_axis >= 0)
+        else if(b.wait_assign)
         {
-            b.control = discrete_only ?
-                bind::AXIS_THRESHOLD : bind::AXIS_CONTINUOUS;
-            b.axis.index = latest_input_axis;
-            b.axis.invert = false;
-            b.axis.threshold =
-                b.control == bind::AXIS_THRESHOLD ? 0.5 : 0.0;
-            b.axis.origin = 0.0;
-            b.wait_assign = false;
-        }
-        else
-        {
-            struct nk_style_item button_color = ctx->style.button.normal;
-            ctx->style.button.normal = ctx->style.button.active;
-
-            if(nk_button_label(ctx, "Waiting"))
+            if(latest_input_button >= 0)
+            {
+                b.control = bind::BUTTON_PRESS;
+                b.button.index = latest_input_button;
+                b.button.active_state = 1;
                 b.wait_assign = false;
+            }
+            if(latest_input_axis >= 0)
+            {
+                b.control = discrete_only ?
+                    bind::AXIS_THRESHOLD : bind::AXIS_CONTINUOUS;
+                b.axis.index = latest_input_axis;
+                b.axis.invert = false;
+                b.axis.threshold =
+                    b.control == bind::AXIS_THRESHOLD ? 0.5 : 0.0;
+                b.axis.origin = 0.0;
+                b.wait_assign = false;
+            }
+            else
+            {
+                struct nk_style_item button_color = ctx->style.button.normal;
+                ctx->style.button.normal = ctx->style.button.active;
 
-            ctx->style.button.normal = button_color;
+                if(nk_button_label(ctx, "Waiting"))
+                    b.wait_assign = false;
+
+                ctx->style.button.normal = button_color;
+            }
         }
     }
 }
