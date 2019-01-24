@@ -157,12 +157,7 @@ public:
 
     layout generate_layout();
 
-    state start(
-        double frequency = 440.0,
-        double volume = 0.5,
-        uint64_t samplerate = 44100,
-        int64_t denom = 65536
-    ) const;
+    state start(double volume = 0.5, int64_t denom = 65536) const;
     void reset(state& s) const;
     // Call this if mode == PHASE
     int64_t step_phase(state& s) const;

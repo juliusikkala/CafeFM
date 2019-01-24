@@ -194,10 +194,11 @@ void open_bindings_folder()
     // TODO: Make this safer than relying on system()
     fs::path path = get_writable_bindings_path();
 #ifdef USE_XDG
-    system(("xdg-open "+path.string()).c_str());
+    int ret = system(("xdg-open "+path.string()).c_str());
 #else
-    system(("explorer "+path.string()).c_str());
+    int ret = system(("explorer "+path.string()).c_str());
 #endif
+    (void)ret;
 }
 
 void open_instruments_folder()
@@ -205,10 +206,11 @@ void open_instruments_folder()
     // TODO: Make this safer than relying on system()
     fs::path path = get_writable_instruments_path();
 #ifdef USE_XDG
-    system(("xdg-open "+path.string()).c_str());
+    int ret = system(("xdg-open "+path.string()).c_str());
 #else
-    system(("explorer "+path.string()).c_str());
+    int ret = system(("explorer "+path.string()).c_str());
 #endif
+    (void)ret;
 }
 
 void open_recordings_folder()
@@ -216,10 +218,11 @@ void open_recordings_folder()
     // TODO: Make this safer than relying on system()
     fs::path path = get_writable_recordings_path();
 #ifdef USE_XDG
-    system(("xdg-open "+path.string()).c_str());
+    int ret = system(("xdg-open "+path.string()).c_str());
 #else
-    system(("explorer "+path.string()).c_str());
+    int ret = system(("explorer "+path.string()).c_str());
 #endif
+    (void)ret;
 }
 
 std::string make_filename_safe(const std::string& name)

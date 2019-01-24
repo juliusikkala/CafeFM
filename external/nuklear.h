@@ -5648,6 +5648,12 @@ template<typename T> struct nk_alignof{struct Big {T x; char c;}; enum {
 #define NK_ASSERT(expr) assert(expr)
 #endif
 
+#ifdef __GNUC__
+#define NK_UNUSED_FUNC __attribute__((unused))
+#else
+#define NK_UNUSED_FUNC
+#endif
+
 #ifndef NK_MEMSET
 #define NK_MEMSET nk_memset
 #endif
@@ -5732,9 +5738,9 @@ NK_GLOBAL const struct nk_color nk_yellow = {255,255,0,255};
 
 /* math */
 NK_LIB float nk_inv_sqrt(float n);
-NK_LIB float nk_sqrt(float x);
-NK_LIB float nk_sin(float x);
-NK_LIB float nk_cos(float x);
+NK_LIB float nk_sqrt(float x) NK_UNUSED_FUNC;
+NK_LIB float nk_sin(float x) NK_UNUSED_FUNC;
+NK_LIB float nk_cos(float x) NK_UNUSED_FUNC;
 NK_LIB nk_uint nk_round_up_pow2(nk_uint v);
 NK_LIB struct nk_rect nk_shrink_rect(struct nk_rect r, float amount);
 NK_LIB struct nk_rect nk_pad_rect(struct nk_rect r, struct nk_vec2 pad);
@@ -5751,8 +5757,8 @@ NK_LIB int nk_is_lower(int c);
 NK_LIB int nk_is_upper(int c);
 NK_LIB int nk_to_upper(int c);
 NK_LIB int nk_to_lower(int c);
-NK_LIB void* nk_memcopy(void *dst, const void *src, nk_size n);
-NK_LIB void nk_memset(void *ptr, int c0, nk_size size);
+NK_LIB void* nk_memcopy(void *dst, const void *src, nk_size n) NK_UNUSED_FUNC;
+NK_LIB void nk_memset(void *ptr, int c0, nk_size size) NK_UNUSED_FUNC;
 NK_LIB void nk_zero(void *ptr, nk_size size);
 NK_LIB char *nk_itoa(char *s, long n);
 NK_LIB int nk_string_float_limit(char *string, int prec);

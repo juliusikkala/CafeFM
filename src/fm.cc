@@ -456,9 +456,7 @@ fm_synth::layout fm_synth::generate_layout()
     return l;
 }
 
-fm_synth::state fm_synth::start(
-    double frequency, double volume, uint64_t samplerate, int64_t denom
-) const
+fm_synth::state fm_synth::start(double volume, int64_t denom) const
 {
     state s;
     set_volume(s, volume*denom, denom);

@@ -1,7 +1,12 @@
 project(
   'CafeFM',
   ['cpp'],
-  default_options : ['cpp_std=c++1z', 'buildtype=debugoptimized']
+  default_options : [
+    'cpp_std=c++1z',
+    'buildtype=debugoptimized',
+    'warning_level=3',
+    'werror=true'
+  ]
 )
 
 src = [

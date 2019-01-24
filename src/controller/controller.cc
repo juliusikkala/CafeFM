@@ -23,12 +23,12 @@
 
 controller::~controller() {}
 
-bool controller::handle_event(const SDL_Event& e, change_callback cb)
+bool controller::handle_event(const SDL_Event&, change_callback)
 {
     return true;
 }
 
-bool controller::poll(change_callback cb)
+bool controller::poll(change_callback)
 {
     return true;
 }

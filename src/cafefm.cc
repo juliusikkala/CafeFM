@@ -281,7 +281,7 @@ namespace
         "shuffle some indices of other modulators.",
         "The help button doesn't like being pressed, so leave it in peace."
     };
-};
+}
 
 cafefm::cafefm()
 :   win(nullptr), bindings_delete_popup_open(false),
