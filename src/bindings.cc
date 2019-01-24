@@ -95,19 +95,19 @@ json bind::serialize() const
         j["control"]["index"] = button.index;
         j["control"]["active_state"] = button.active_state;
         break;
-    case AXIS_1D_CONTINUOUS:
-    case AXIS_1D_THRESHOLD:
-        j["control"]["index"] = axis_1d.index;
-        j["control"]["invert"] = axis_1d.invert;
-        j["control"]["threshold"] = axis_1d.threshold;
-        j["control"]["origin"] = axis_1d.origin;
+    case AXIS_CONTINUOUS:
+    case AXIS_THRESHOLD:
+        j["control"]["index"] = axis.index;
+        j["control"]["invert"] = axis.invert;
+        j["control"]["threshold"] = axis.threshold;
+        j["control"]["origin"] = axis.origin;
         break;
     default:
         break;
     }
 
     if(
-        control != AXIS_1D_CONTINUOUS &&
+        control != AXIS_CONTINUOUS &&
         (action != LOOP_CONTROL || loop.control != LOOP_CLEAR)
     ) j["control"]["toggle"] = toggle;
 
@@ -171,12 +171,12 @@ bool bind::deserialize(const json& j)
             j.at("control").at("index").get_to(button.index);
             j.at("control").at("active_state").get_to(button.active_state);
             break;
-        case AXIS_1D_CONTINUOUS:
-        case AXIS_1D_THRESHOLD:
-            j.at("control").at("index").get_to(axis_1d.index);
-            j.at("control").at("invert").get_to(axis_1d.invert);
-            j.at("control").at("threshold").get_to(axis_1d.threshold);
-            axis_1d.origin = j.at("control").value("origin", 0.0);
+        case AXIS_CONTINUOUS:
+        case AXIS_THRESHOLD:
+            j.at("control").at("index").get_to(axis.index);
+            j.at("control").at("invert").get_to(axis.invert);
+            j.at("control").at("threshold").get_to(axis.threshold);
+            axis.origin = j.at("control").value("origin", 0.0);
             break;
         default:
             break;
@@ -248,8 +248,7 @@ bool bind::deserialize(const json& j)
 }
 
 bool bind::triggered(
-    int axis_1d_index,
-    int axis_2d_index,
+    int axis_index,
     int button_index
 ) const {
     if(control == UNBOUND) return false;
@@ -258,9 +257,9 @@ bool bind::triggered(
     {
     case BUTTON_PRESS:
         return button_index >= 0 && button_index == button.index;
-    case AXIS_1D_CONTINUOUS:
-    case AXIS_1D_THRESHOLD:
-        return axis_1d_index >= 0 && axis_1d_index == axis_1d.index;
+    case AXIS_CONTINUOUS:
+    case AXIS_THRESHOLD:
+        return axis_index >= 0 && axis_index == axis.index;
     default:
         throw std::runtime_error(
             "Unknown bind control " + std::to_string(control)
@@ -280,14 +279,14 @@ double bind::input_value(const controller* c, bool* is_signed) const
         value = c->get_button_state(button.index) == button.active_state
             ? 1.0 : 0.0;
         break;
-    case AXIS_1D_CONTINUOUS:
-    case AXIS_1D_THRESHOLD:
+    case AXIS_CONTINUOUS:
+    case AXIS_THRESHOLD:
         {
-            ::axis_1d ax = c->get_axis_1d_state(axis_1d.index);
+            ::axis ax = c->get_axis_state(axis.index);
             value = ax.value;
             if(is_signed != nullptr) *is_signed = ax.is_signed;
 
-            if(axis_1d.invert)
+            if(axis.invert)
             {
                 if(ax.is_signed || !ax.is_limited) value = -value;
                 else value = 1.0 - value;
@@ -305,12 +304,12 @@ double bind::get_value(const control_state& state, const controller* c) const
 {
     bool is_signed = false;
     double v = input_value(c, &is_signed);
-    if(control == AXIS_1D_THRESHOLD) v = v > axis_1d.threshold ? 1.0 : 0.0;
-    else if(control == AXIS_1D_CONTINUOUS)
+    if(control == AXIS_THRESHOLD) v = v > axis.threshold ? 1.0 : 0.0;
+    else if(control == AXIS_CONTINUOUS)
     {
-        v = compute_deadzone(v, axis_1d.origin, axis_1d.threshold);
-        double origin = axis_1d.origin;
-        if(axis_1d.invert) origin = is_signed ? -origin : 1-origin;
+        v = compute_deadzone(v, axis.origin, axis.threshold);
+        double origin = axis.origin;
+        if(axis.invert) origin = is_signed ? -origin : 1-origin;
         v -= origin;
     }
 
@@ -342,18 +341,18 @@ bool bind::update_value(
 ) const {
     bool is_signed = false;
     v = input_value(c, &is_signed);
-    if(control == AXIS_1D_THRESHOLD)
+    if(control == AXIS_THRESHOLD)
     {
-        v = v > axis_1d.threshold ? 1.0 : 0.0;
+        v = v > axis.threshold ? 1.0 : 0.0;
         int prev_state = state.get_threshold_state(id);
         if(prev_state == v) return false;
         state.set_threshold_state(id, v);
     }
-    else if(control == AXIS_1D_CONTINUOUS)
+    else if(control == AXIS_CONTINUOUS)
     {
-        v = compute_deadzone(v, axis_1d.origin, axis_1d.threshold);
-        double origin = axis_1d.origin;
-        if(axis_1d.invert) origin = is_signed ? -origin : 1-origin;
+        v = compute_deadzone(v, axis.origin, axis.threshold);
+        double origin = axis.origin;
+        if(axis.invert) origin = is_signed ? -origin : 1-origin;
         v -= origin;
     }
 
@@ -415,9 +414,9 @@ bool bind::update_value(
 
 double bind::normalize(const controller* c, double v) const
 {
-    if(control == AXIS_1D_CONTINUOUS)
+    if(control == AXIS_CONTINUOUS)
     {
-        ::axis_1d ax = c->get_axis_1d_state(axis_1d.index);
+        ::axis ax = c->get_axis_state(axis.index);
         if(ax.is_signed || !ax.is_limited)
         {
             v = (v + 1.0)*0.5;
@@ -480,7 +479,7 @@ std::string bindings::get_target_device_name() const
 unsigned bindings::rate_compatibility(controller* c) const
 {
     if(!c) return 4;
-    int axis_1d_count = c->get_axis_1d_count();
+    int axis_count = c->get_axis_count();
     int button_count = c->get_button_count();
 
     bool type_match = c->get_type_name() == device_type;
@@ -494,9 +493,9 @@ unsigned bindings::rate_compatibility(controller* c) const
         case bind::BUTTON_PRESS:
             if(b.button.index >= button_count) index_match = false;
             break;
-        case bind::AXIS_1D_CONTINUOUS:
-        case bind::AXIS_1D_THRESHOLD:
-            if(b.axis_1d.index >= axis_1d_count) index_match = false;
+        case bind::AXIS_CONTINUOUS:
+        case bind::AXIS_THRESHOLD:
+            if(b.axis.index >= axis_count) index_match = false;
             break;
         default:
             break;
@@ -530,14 +529,13 @@ void bindings::act(
     controller* c,
     control_state& state,
     looper* loop,
-    int axis_1d_index,
-    int axis_2d_index,
+    int axis_index,
     int button_index
 ){
     for(const bind& b: binds)
     {
         // Skip if this bind wasn't triggered
-        if(!b.triggered(axis_1d_index, axis_2d_index, button_index)) continue;
+        if(!b.triggered(axis_index, button_index)) continue;
 
         double value = 0.0;
         if(!b.update_value(state, c, value)) continue;

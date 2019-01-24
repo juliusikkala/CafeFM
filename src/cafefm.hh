@@ -50,7 +50,7 @@ private:
     static constexpr unsigned CHANGE_REQUIRE_RESET = 2;
 
     void handle_controller(
-        controller* c, int axis_1d_index, int axis_2d_index, int button_index
+        controller* c, int axis_index, int button_index
     );
     void detach_controller(unsigned index);
     void set_controller_grab(bool grab);
@@ -137,7 +137,7 @@ private:
     bool instrument_delete_popup_open;
     int save_recording_state;
     // Used for assigning binds
-    int latest_input_button, latest_input_axis_1d, latest_input_axis_2d;
+    int latest_input_button, latest_input_axis;
     unsigned protip_index;
 
     midi_context midi;

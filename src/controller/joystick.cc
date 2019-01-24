@@ -44,13 +44,13 @@ bool joystick::handle_event(const SDL_Event& e, change_callback cb)
         if(e.jdevice.which == id) return false;
         break;
     case SDL_JOYAXISMOTION:
-        if(e.jaxis.which == id && cb) cb(this, e.jaxis.axis, -1, -1);
+        if(e.jaxis.which == id && cb) cb(this, e.jaxis.axis, -1);
         break;
     case SDL_JOYBALLMOTION:
         if(e.jball.which == id && cb)
         {
-            if(e.jball.xrel != 0) cb(this, axes+e.jball.ball*2, -1, -1);
-            if(e.jball.yrel != 0) cb(this, axes+e.jball.ball*2+1, -1, -1);
+            if(e.jball.xrel != 0) cb(this, axes+e.jball.ball*2, -1);
+            if(e.jball.yrel != 0) cb(this, axes+e.jball.ball*2+1, -1);
         }
         break;
     case SDL_JOYHATMOTION:
@@ -58,16 +58,16 @@ bool joystick::handle_event(const SDL_Event& e, change_callback cb)
         {
             uint8_t prev_state = hat_states[e.jhat.hat];
             uint8_t changed = prev_state^e.jhat.value;
-            if(changed&1) cb(this, -1, -1, buttons+e.jhat.hat*4);
-            if(changed&2) cb(this, -1, -1, buttons+e.jhat.hat*4+1);
-            if(changed&4) cb(this, -1, -1, buttons+e.jhat.hat*4+2);
-            if(changed&8) cb(this, -1, -1, buttons+e.jhat.hat*4+3);
+            if(changed&1) cb(this, -1, buttons+e.jhat.hat*4);
+            if(changed&2) cb(this, -1, buttons+e.jhat.hat*4+1);
+            if(changed&4) cb(this, -1, buttons+e.jhat.hat*4+2);
+            if(changed&8) cb(this, -1, buttons+e.jhat.hat*4+3);
             hat_states[e.jhat.hat] = e.jhat.value;
         }
         break;
     case SDL_JOYBUTTONDOWN:
     case SDL_JOYBUTTONUP:
-        if(e.jbutton.which == id && cb) cb(this, -1, -1, e.jbutton.button);
+        if(e.jbutton.which == id && cb) cb(this, -1, e.jbutton.button);
         break;
     }
     return true;
@@ -84,12 +84,12 @@ std::string joystick::get_device_name() const
     return name ? name : "Generic joystick";
 }
 
-unsigned joystick::get_axis_1d_count() const
+unsigned joystick::get_axis_count() const
 {
     return SDL_JoystickNumAxes(js) + SDL_JoystickNumBalls(js)*2;
 }
 
-std::string joystick::get_axis_1d_name(unsigned i) const
+std::string joystick::get_axis_name(unsigned i) const
 {
     unsigned axes = SDL_JoystickNumAxes(js);
     if(i < axes)
@@ -98,9 +98,9 @@ std::string joystick::get_axis_1d_name(unsigned i) const
     return "Ball " + std::to_string(i/2) + ((i&1) ? " Y" : " X");
 }
 
-axis_1d joystick::get_axis_1d_state(unsigned i) const
+axis joystick::get_axis_state(unsigned i) const
 {
-    axis_1d res;
+    axis res;
     res.is_signed = true;
 
     unsigned axes = SDL_JoystickNumAxes(js);

@@ -36,13 +36,9 @@ bool controller::poll(change_callback cb)
 std::string controller::get_type_name() const { return "Unknown"; }
 std::string controller::get_device_name() const { return "Unknown"; }
 
-unsigned controller::get_axis_1d_count() const { return 0; }
-std::string controller::get_axis_1d_name(unsigned i) const { outofbounds(i); }
-axis_1d controller::get_axis_1d_state(unsigned i) const { outofbounds(i); }
-
-unsigned controller::get_axis_2d_count() const { return 0; }
-std::string controller::get_axis_2d_name(unsigned i) const { outofbounds(i); }
-axis_2d controller::get_axis_2d_state(unsigned i) const { outofbounds(i); }
+unsigned controller::get_axis_count() const { return 0; }
+std::string controller::get_axis_name(unsigned i) const { outofbounds(i); }
+axis controller::get_axis_state(unsigned i) const { outofbounds(i); }
 
 unsigned controller::get_button_count() const { return 0; }
 std::string controller::get_button_name(unsigned i) const { outofbounds(i); }

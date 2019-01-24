@@ -44,11 +44,11 @@ struct bind
     {
         UNBOUND = 0,
         BUTTON_PRESS,
-        AXIS_1D_CONTINUOUS,
-        AXIS_1D_THRESHOLD
+        AXIS_CONTINUOUS,
+        AXIS_THRESHOLD
     } control;
 
-    // Ignored for AXIS_1D_CONTINUOUS
+    // Ignored for AXIS_CONTINUOUS
     bool toggle;
     bool cumulative;
     // If set, toggle and cumulative should be false.
@@ -63,14 +63,14 @@ struct bind
             unsigned active_state;
         } button;
 
-        // AXIS_1D_CONTINUOUS, AXIS_1D_THRESHOLD
+        // AXIS_CONTINUOUS, AXIS_THRESHOLD
         struct
         {
             int index;
             bool invert;
             double threshold; // deadzone from offset for continuous
             double origin; // Continuous only: point considered as zero.
-        } axis_1d;
+        } axis;
     };
 
     enum action
@@ -146,8 +146,7 @@ struct bind
     bind(enum action a = KEY);
 
     bool triggered(
-        int axis_1d_index,
-        int axis_2d_index,
+        int axis_index,
         int button_index
     ) const;
 
@@ -204,8 +203,7 @@ public:
         controller* c,
         control_state& state,
         looper* loop,
-        int axis_1d_index,
-        int axis_2d_index,
+        int axis_index,
         int button_index
     );
 

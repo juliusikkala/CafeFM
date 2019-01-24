@@ -34,9 +34,9 @@ public:
     std::string get_type_name() const override;
     std::string get_device_name() const override;
 
-    unsigned get_axis_1d_count() const override;
-    std::string get_axis_1d_name(unsigned i) const override;
-    axis_1d get_axis_1d_state(unsigned i) const override;
+    unsigned get_axis_count() const override;
+    std::string get_axis_name(unsigned i) const override;
+    axis get_axis_state(unsigned i) const override;
 
     unsigned get_button_count() const override;
     std::string get_button_name(unsigned i) const override;

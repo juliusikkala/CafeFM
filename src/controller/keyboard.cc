@@ -24,7 +24,7 @@ bool keyboard::handle_event(const SDL_Event& e, change_callback cb)
     {
     case SDL_KEYDOWN:
     case SDL_KEYUP:
-        if(!e.key.repeat && cb) cb(this, -1, -1, e.key.keysym.scancode);
+        if(!e.key.repeat && cb) cb(this, -1, e.key.keysym.scancode);
         break;
     }
     return true;

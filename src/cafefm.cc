@@ -513,9 +513,9 @@ bool cafefm::update(unsigned dt)
     for(auto& c: midi_controllers) available_controllers.emplace_back(c);
 
     auto cb = [this](
-        controller* c, int axis_1d_index, int axis_2d_index, int button_index
+        controller* c, int axis_index, int button_index
     ){
-        handle_controller(c, axis_1d_index, axis_2d_index, button_index);
+        handle_controller(c, axis_index, button_index);
     };
 
     // Handle controllers that poll themselves
@@ -602,7 +602,7 @@ bool cafefm::update(unsigned dt)
 }
 
 void cafefm::handle_controller(
-    controller* c, int axis_1d_index, int axis_2d_index, int button_index
+    controller* c, int axis_index, int button_index
 ){
     std::string type = c->get_type_name();
     if(
@@ -614,18 +614,15 @@ void cafefm::handle_controller(
     latest_input_button = button_index;
     // Make sure small inputs don't cause bind assignment
     if(
-        axis_1d_index >= 0 &&
-        fabs(c->get_axis_1d_state(axis_1d_index).value) > 0.5
-    ) latest_input_axis_1d = axis_1d_index;
-
-    latest_input_axis_2d = axis_2d_index;
+        axis_index >= 0 &&
+        fabs(c->get_axis_state(axis_index).value) > 0.5
+    ) latest_input_axis = axis_index;
 
     binds.act(
         c,
         control,
         output ? &output->get_looper() : nullptr,
-        axis_1d_index,
-        axis_2d_index,
+        axis_index,
         button_index
     );
 }
@@ -1553,13 +1550,13 @@ void cafefm::gui_bind_modifiers(
     bool allow_stacking = allow_cumulative;
 
     if(
-        b.control == bind::AXIS_1D_CONTINUOUS ||
-        b.control == bind::AXIS_1D_THRESHOLD
+        b.control == bind::AXIS_CONTINUOUS ||
+        b.control == bind::AXIS_THRESHOLD
     ){
         allow_invert = true;
     }
     else allow_threshold = false;
-    if(b.control == bind::AXIS_1D_CONTINUOUS)
+    if(b.control == bind::AXIS_CONTINUOUS)
         allow_stacking = false;
 
     unsigned total = 
@@ -1592,22 +1589,22 @@ void cafefm::gui_bind_modifiers(
 
     if(allow_threshold)
     {
-        bool has_threshold = b.control == bind::AXIS_1D_THRESHOLD;
+        bool has_threshold = b.control == bind::AXIS_THRESHOLD;
         bool old_threshold = has_threshold;
         has_threshold = !nk_check_label(ctx, "Threshold", !has_threshold);
         if(has_threshold)
         {
-            b.control = bind::AXIS_1D_THRESHOLD;
+            b.control = bind::AXIS_THRESHOLD;
             if(old_threshold != has_threshold)
-                b.axis_1d.threshold = 0.5;
+                b.axis.threshold = 0.5;
         }
         else
         {
-            b.control = bind::AXIS_1D_CONTINUOUS;
+            b.control = bind::AXIS_CONTINUOUS;
             if(old_threshold != has_threshold)
             {
-                b.axis_1d.threshold = 0.0;
-                b.axis_1d.origin = 0.0;
+                b.axis.threshold = 0.0;
+                b.axis.origin = 0.0;
             }
         }
     }
@@ -1624,16 +1621,16 @@ void cafefm::gui_bind_modifiers(
 
     if(allow_invert)
     {
-        bool old_invert = b.axis_1d.invert;
-        b.axis_1d.invert = !nk_check_label(ctx, "Invert", !b.axis_1d.invert);
-        if(old_invert != b.axis_1d.invert)
+        bool old_invert = b.axis.invert;
+        b.axis.invert = !nk_check_label(ctx, "Invert", !b.axis.invert);
+        if(old_invert != b.axis.invert)
         {
-            if(b.control == bind::AXIS_1D_CONTINUOUS)
+            if(b.control == bind::AXIS_CONTINUOUS)
             {
                 bool is_signed;
                 b.input_value(selected_controller, &is_signed);
-                b.axis_1d.origin =
-                    is_signed ? -b.axis_1d.origin : 1 - b.axis_1d.origin;
+                b.axis.origin =
+                    is_signed ? -b.axis.origin : 1 - b.axis.origin;
             }
         }
     }
@@ -1657,12 +1654,12 @@ void cafefm::gui_bind_button(bind& b, bool discrete_only)
             b.button.index < (int)selected_controller->get_button_count()
         ) label = selected_controller->get_button_name(b.button.index);
         break;
-    case bind::AXIS_1D_CONTINUOUS:
-    case bind::AXIS_1D_THRESHOLD:
+    case bind::AXIS_CONTINUOUS:
+    case bind::AXIS_THRESHOLD:
         if(
-            b.axis_1d.index >= 0 &&
-            b.axis_1d.index < (int)selected_controller->get_axis_1d_count()
-        ) label = selected_controller->get_axis_1d_name(b.axis_1d.index);
+            b.axis.index >= 0 &&
+            b.axis.index < (int)selected_controller->get_axis_count()
+        ) label = selected_controller->get_axis_name(b.axis.index);
         break;
     }
 
@@ -1670,8 +1667,7 @@ void cafefm::gui_bind_button(bind& b, bool discrete_only)
     {
         b.wait_assign = true;
         latest_input_button = -1;
-        latest_input_axis_1d = -1;
-        latest_input_axis_2d = -1;
+        latest_input_axis = -1;
         set_controller_grab(true);
     }
     else if(b.wait_assign)
@@ -1683,15 +1679,15 @@ void cafefm::gui_bind_button(bind& b, bool discrete_only)
             b.button.active_state = 1;
             b.wait_assign = false;
         }
-        if(latest_input_axis_1d >= 0)
+        if(latest_input_axis >= 0)
         {
             b.control = discrete_only ?
-                bind::AXIS_1D_THRESHOLD : bind::AXIS_1D_CONTINUOUS;
-            b.axis_1d.index = latest_input_axis_1d;
-            b.axis_1d.invert = false;
-            b.axis_1d.threshold =
-                b.control == bind::AXIS_1D_THRESHOLD ? 0.5 : 0.0;
-            b.axis_1d.origin = 0.0;
+                bind::AXIS_THRESHOLD : bind::AXIS_CONTINUOUS;
+            b.axis.index = latest_input_axis;
+            b.axis.invert = false;
+            b.axis.threshold =
+                b.control == bind::AXIS_THRESHOLD ? 0.5 : 0.0;
+            b.axis.origin = 0.0;
             b.wait_assign = false;
         }
         else
@@ -1716,11 +1712,11 @@ void cafefm::gui_bind_control_template(bind& b)
     case bind::BUTTON_PRESS:
         nk_layout_row_template_push_static(ctx, 100);
         break;
-    case bind::AXIS_1D_CONTINUOUS:
+    case bind::AXIS_CONTINUOUS:
         nk_layout_row_template_push_static(ctx, 80);
         nk_layout_row_template_push_static(ctx, 100);
         break;
-    case bind::AXIS_1D_THRESHOLD:
+    case bind::AXIS_THRESHOLD:
         nk_layout_row_template_push_static(ctx, 80);
         nk_layout_row_template_push_static(ctx, 100);
         break;
@@ -1734,8 +1730,8 @@ void cafefm::gui_bind_control_template(bind& b)
 int cafefm::gui_bind_control(bind& b, bool discrete_only)
 {
     if(
-        b.control == bind::AXIS_1D_CONTINUOUS ||
-        b.control == bind::AXIS_1D_THRESHOLD
+        b.control == bind::AXIS_CONTINUOUS ||
+        b.control == bind::AXIS_THRESHOLD
     ){
         bool is_signed;
         double input_value = b.input_value(selected_controller, &is_signed);
@@ -1743,15 +1739,15 @@ int cafefm::gui_bind_control(bind& b, bool discrete_only)
             ctx,
             input_value,
             is_signed,
-            &b.axis_1d.threshold,
-            b.control == bind::AXIS_1D_CONTINUOUS ?
-                &b.axis_1d.origin : nullptr
+            &b.axis.threshold,
+            b.control == bind::AXIS_CONTINUOUS ?
+                &b.axis.origin : nullptr
         );
     }
 
     gui_bind_modifiers(
         b,
-        b.control != bind::AXIS_1D_CONTINUOUS &&
+        b.control != bind::AXIS_CONTINUOUS &&
         (b.action != bind::LOOP_CONTROL || b.loop.control != bind::LOOP_CLEAR),
         b.action != bind::LOOP_CONTROL,
         b.action != bind::LOOP_CONTROL

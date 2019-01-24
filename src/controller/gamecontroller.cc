@@ -43,11 +43,11 @@ bool gamecontroller::handle_event(const SDL_Event& e, change_callback cb)
         if(e.cdevice.which == id) return false;
         break;
     case SDL_CONTROLLERAXISMOTION:
-        if(e.caxis.which == id && cb) cb(this, e.caxis.axis, -1, -1);
+        if(e.caxis.which == id && cb) cb(this, e.caxis.axis, -1);
         break;
     case SDL_CONTROLLERBUTTONDOWN:
     case SDL_CONTROLLERBUTTONUP:
-        if(e.cbutton.which == id && cb) cb(this, -1, -1, e.cbutton.button);
+        if(e.cbutton.which == id && cb) cb(this, -1, e.cbutton.button);
         break;
     }
     return true;
@@ -64,23 +64,23 @@ std::string gamecontroller::get_device_name() const
     return name ? name : "Generic controller";
 }
 
-unsigned gamecontroller::get_axis_1d_count() const
+unsigned gamecontroller::get_axis_count() const
 {
     return SDL_CONTROLLER_AXIS_MAX;
 }
 
-std::string gamecontroller::get_axis_1d_name(unsigned i) const
+std::string gamecontroller::get_axis_name(unsigned i) const
 {
     return SDL_GameControllerGetStringForAxis((SDL_GameControllerAxis)i);
 }
 
-axis_1d gamecontroller::get_axis_1d_state(unsigned i) const
+axis gamecontroller::get_axis_state(unsigned i) const
 {
-    SDL_GameControllerAxis axis = (SDL_GameControllerAxis)i;
+    SDL_GameControllerAxis ax = (SDL_GameControllerAxis)i;
 
-    axis_1d res;
+    axis res;
     res.is_limited = true;
-    switch(axis)
+    switch(ax)
     {
     case SDL_CONTROLLER_AXIS_LEFTX:
     case SDL_CONTROLLER_AXIS_LEFTY:
@@ -93,7 +93,7 @@ axis_1d gamecontroller::get_axis_1d_state(unsigned i) const
         break;
     }
 
-    res.value = std::max(SDL_GameControllerGetAxis(gc, axis)/32767.0, -1.0);
+    res.value = std::max(SDL_GameControllerGetAxis(gc, ax)/32767.0, -1.0);
     return res;
 }
 

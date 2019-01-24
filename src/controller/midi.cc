@@ -81,29 +81,29 @@ bindings midi_context::generate_default_midi_bindings()
     for(int i = 0; i < 128; ++i)
     {
         bind& note = binds.create_new_bind(bind::KEY);
-        note.control = bind::AXIS_1D_CONTINUOUS;
-        note.axis_1d.index = VEL_OFFSET + i;
-        note.axis_1d.invert = false;
-        note.axis_1d.threshold = 0;
-        note.axis_1d.origin = 0;
+        note.control = bind::AXIS_CONTINUOUS;
+        note.axis.index = VEL_OFFSET + i;
+        note.axis.invert = false;
+        note.axis.threshold = 0;
+        note.axis.origin = 0;
         note.key_semitone = i - 69;
     }
 
     bind& pitch = binds.create_new_bind(bind::FREQUENCY_EXPT);
-    pitch.control = bind::AXIS_1D_CONTINUOUS;
+    pitch.control = bind::AXIS_CONTINUOUS;
     pitch.frequency.max_expt = 6;
-    pitch.axis_1d.index = PITCH_WHEEL_OFFSET;
-    pitch.axis_1d.invert = false;
-    pitch.axis_1d.threshold = 0;
-    pitch.axis_1d.origin = 0;
+    pitch.axis.index = PITCH_WHEEL_OFFSET;
+    pitch.axis.invert = false;
+    pitch.axis.threshold = 0;
+    pitch.axis.origin = 0;
 
     bind& volume = binds.create_new_bind(bind::VOLUME_MUL);
-    volume.control = bind::AXIS_1D_CONTINUOUS;
+    volume.control = bind::AXIS_CONTINUOUS;
     volume.volume.max_mul = 0;
-    volume.axis_1d.index = CONTROL_AXES_OFFSET + 0x07;
-    volume.axis_1d.invert = true;
-    volume.axis_1d.threshold = 0;
-    volume.axis_1d.origin = 1.0;
+    volume.axis.index = CONTROL_AXES_OFFSET + 0x07;
+    volume.axis.invert = true;
+    volume.axis.threshold = 0;
+    volume.axis.origin = 1.0;
 
     return binds;
 }
@@ -147,41 +147,41 @@ bool midi_controller::poll(change_callback cb)
         {
         case 0x80:
             note_velocity[d0] = 0;
-            if(cb) cb(this, VEL_OFFSET + d0, -1, -1);
+            if(cb) cb(this, VEL_OFFSET + d0, -1);
             break;
         case 0x90:
             note_velocity[d0] = d1;
-            if(cb) cb(this, VEL_OFFSET + d0, -1, -1);
+            if(cb) cb(this, VEL_OFFSET + d0, -1);
             break;
         case 0xA0:
             note_aftertouch[d0] = d1;
-            if(cb) cb(this, AFTERTOUCH_OFFSET + d0, -1, -1);
+            if(cb) cb(this, AFTERTOUCH_OFFSET + d0, -1);
             break;
         case 0xB0:
             if(d0 < 0x20)
             {
                 control_axes[d0] &= 0x7F;
                 control_axes[d0] |= ((uint16_t)d1)<<7;
-                if(cb) cb(this, CONTROL_AXES_OFFSET + d0, -1, -1);
+                if(cb) cb(this, CONTROL_AXES_OFFSET + d0, -1);
             }
             else if(d0 < 0x40)
             {
                 d0 -= 0x20;
                 control_axes[d0] &= 0x3F80;
                 control_axes[d0] |= d1;
-                if(cb) cb(this, CONTROL_AXES_OFFSET + d0, -1, -1);
+                if(cb) cb(this, CONTROL_AXES_OFFSET + d0, -1);
             }
             else if(d0 < 0x60)
             {
                 d0 -= 0x40;
                 control_buttons[d0] = d1 >= 64;
-                if(cb) cb(this, -1, -1, d0);
+                if(cb) cb(this, -1, d0);
             }
             else if(d0 >= 0x7B)
             {
                 note_velocity.assign(128, 0);
                 for(unsigned i = 0; i < note_velocity.size(); ++i)
-                    if(cb) cb(this, VEL_OFFSET + i, -1, -1);
+                    if(cb) cb(this, VEL_OFFSET + i, -1);
             }
             break;
         case 0xC0:
@@ -190,11 +190,11 @@ bool midi_controller::poll(change_callback cb)
         case 0xD0:
             note_aftertouch.assign(note_aftertouch.size(), d0);
             for(unsigned i = 0; i < note_aftertouch.size(); ++i)
-                if(cb) cb(this, AFTERTOUCH_OFFSET + i, -1, -1);
+                if(cb) cb(this, AFTERTOUCH_OFFSET + i, -1);
             break;
         case 0xE0:
             pitch_wheel = d0 | (((uint16_t)d1) << 7);
-            if(cb) cb(this, PITCH_WHEEL_OFFSET, -1, -1);
+            if(cb) cb(this, PITCH_WHEEL_OFFSET, -1);
             break;
         default:
             break;
@@ -214,7 +214,7 @@ std::string midi_controller::get_device_name() const
     return name;
 }
 
-unsigned midi_controller::get_axis_1d_count() const
+unsigned midi_controller::get_axis_count() const
 {
     return
         note_velocity.size() +
@@ -223,7 +223,7 @@ unsigned midi_controller::get_axis_1d_count() const
         1 /* pitch wheel */;
 }
 
-std::string midi_controller::get_axis_1d_name(unsigned i) const
+std::string midi_controller::get_axis_name(unsigned i) const
 {
     if(i < note_velocity.size()) return "Note " + std::to_string(i);
     i -= note_velocity.size();
@@ -254,9 +254,9 @@ std::string midi_controller::get_axis_1d_name(unsigned i) const
     return "Pitch";
 }
 
-axis_1d midi_controller::get_axis_1d_state(unsigned i) const
+axis midi_controller::get_axis_state(unsigned i) const
 {
-    axis_1d res;
+    axis res;
     res.is_limited = true;
     res.is_signed = false;
 
