@@ -612,10 +612,13 @@ void cafefm::handle_controller(
     ) return;
 
     latest_input_button = button_index;
-    // Make sure small inputs don't cause bind assignment
+    // Make sure small inputs don't cause bind assignment. MIDI inputs, however,
+    // can be more sensitive (so that we don't require the user to smash their
+    // MIDI keyboard for it to register high enough velocity)
     if(
         axis_index >= 0 &&
-        fabs(c->get_axis_state(axis_index).value) > 0.5
+        (fabs(c->get_axis_state(axis_index).value) > 0.5 ||
+        type == "MIDI input")
     ) latest_input_axis = axis_index;
 
     binds.act(
