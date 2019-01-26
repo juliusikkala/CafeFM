@@ -24,7 +24,7 @@
 
 looper::looper(uint64_t samplerate)
 :   samplerate(samplerate), ins(nullptr), beat_length(0), loop_t(0),
-    volume_denom(65536), record_on_sound(false)
+    volume_denom(65536), record_on_sound(false), align_on_finish(true)
 {
     set_max_volume_skip();
     set_loop_bpm();
@@ -106,18 +106,27 @@ void looper::record_loop(unsigned loop_index)
     l.relative_start_t = loop_t;
     l.record_on_sound = record_on_sound;
     l.length = 0;
+    l.record_stop_timer = 0;
     l.sample_count = 0;
 }
 
 void looper::finish_loop(unsigned loop_index)
 {
     if(ins) ins->release_all_voices();
+
     loop& l = loops[loop_index];
-    l.length = (l.sample_count + 3*beat_length/4) / beat_length * beat_length;
+
+    if(align_on_finish)
+    {
+        l.length = (l.sample_count + 3*beat_length/4)
+            / beat_length * beat_length;
+    }
+    else l.length = l.sample_count;
+
     if(l.length == 0) l.length = beat_length;
     l.record_stop_timer = ins ? ins->get_envelope().release_length : 0;
     l.record_on_sound = false;
-    l.state = PLAYING;
+    l.state = l.record_stop_timer == 0 ? PLAYING : FINISHING_RECORDING;
 }
 
 void looper::play_loop(unsigned loop_index, bool play)
@@ -186,7 +195,6 @@ void looper::match_bpm(unsigned loop_index, unsigned granularity)
     loop& l = loops[loop_index];
     if(l.state == UNUSED || l.state == RECORDING || granularity == 0) return;
 
-
     uint64_t closest_length = l.length;
     uint64_t closest_dist = UINT64_MAX;
     bool prev_was_closer = false;
@@ -206,13 +214,26 @@ void looper::match_bpm(unsigned loop_index, unsigned granularity)
     if(closest_length != 0) beat_length = closest_length;
 }
 
+void looper::align_to_bpm(unsigned loop_index)
+{
+    loop& l = loops[loop_index];
+    if(l.state == UNUSED || l.state == RECORDING) return;
+
+    l.length = round(l.length / (double)beat_length) * beat_length;
+}
+
+void looper::set_record_align(bool align_on_finish)
+{
+    this->align_on_finish = align_on_finish;
+}
+
 void looper::apply(int32_t* o, unsigned long framecount)
 {
     // Handle loop recording
     for(unsigned j = 0; j < loops.size(); ++j)
     {
         loop& l = loops[j];
-        if(l.state != RECORDING && l.record_stop_timer <= 0) continue;
+        if(l.state != RECORDING && l.state != FINISHING_RECORDING) continue;
 
         unsigned max_samples = loop_samples.size() / loops.size();
         unsigned t = loop_t - l.start_t;
@@ -252,28 +273,28 @@ void looper::apply(int32_t* o, unsigned long framecount)
         unsigned t = (loop_t - l.start_t) % l.length;
 
         // TODO: Optimize & clarify
-        // Don't take samples into account if still recording them.
-        if(l.record_stop_timer <= 0)
+        for(unsigned i = 0; i < framecount; ++i, ++t)
         {
-            for(unsigned i = 0; i < framecount; ++i, ++t)
-            {
-                update_loop_volume(l);
-                if(t >= l.length) t -= l.length;
-                int64_t sample = 0;
-                // Key releases may overlap with the start of the loop. Also,
-                // the user may have adjusted the loop length such that it
-                // overlaps with itself.
-                for(unsigned w = 0; t + w < l.sample_count; w += l.length)
-                    sample += l.samples[t+w];
-                o[i] += l.volume_num*sample/volume_denom;
-            }
+            update_loop_volume(l);
+            if(t >= l.length) t -= l.length;
+            int64_t sample = 0;
+            // Key releases may overlap with the start of the loop. Also,
+            // the user may have adjusted the loop length such that it
+            // overlaps with itself.
+            for(unsigned w = 0; t + w < l.sample_count; w += l.length)
+                sample += l.samples[t+w];
+            o[i] += l.volume_num*sample/volume_denom;
         }
     }
 
     // Update timers
     for(loop& l: loops)
     {
-        if(l.record_stop_timer > 0) l.record_stop_timer -= framecount;
+        if(l.record_stop_timer > 0)
+        {
+            l.record_stop_timer -= framecount;
+            if(l.record_stop_timer < 0) l.state = PLAYING;
+        }
     }
     loop_t += framecount;
 }

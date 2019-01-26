@@ -2116,6 +2116,11 @@ void cafefm::gui_loop(unsigned loop_index)
     looper::loop_state state = lo.get_loop_state(loop_index);
     std::string title = "Loop " + std::to_string(loop_index);
 
+    constexpr int split_line_width = 947;
+
+    if(ww > split_line_width) nk_layout_row_dynamic(ctx, LOOP_HEIGHT, 1);
+    else nk_layout_row_dynamic(ctx, 2*LOOP_HEIGHT-5, 1);
+
     struct nk_rect empty_space;
     if(nk_group_begin(
         ctx, title.c_str(), NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
@@ -2123,22 +2128,30 @@ void cafefm::gui_loop(unsigned loop_index)
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 50);
         nk_layout_row_template_push_static(ctx, 30);
-        nk_layout_row_template_push_static(ctx, 140);
-        nk_layout_row_template_push_static(ctx, 140);
-        nk_layout_row_template_push_static(ctx, 160);
-        nk_layout_row_template_push_static(ctx, 80);
-        nk_layout_row_template_push_static(ctx, 80);
-        nk_layout_row_template_push_dynamic(ctx);
-        nk_layout_row_template_push_static(ctx, 60);
+        if(ww > split_line_width)
+        {
+            nk_layout_row_template_push_static(ctx, 140);
+            nk_layout_row_template_push_static(ctx, 140);
+            nk_layout_row_template_push_static(ctx, 160);
+            nk_layout_row_template_push_static(ctx, 80);
+            nk_layout_row_template_push_static(ctx, 80);
+            nk_layout_row_template_push_static(ctx, 110);
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_push_static(ctx, 60);
+        }
+        else
+        {
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_push_dynamic(ctx);
+            nk_layout_row_template_push_dynamic(ctx);
+        }
         nk_layout_row_template_end(ctx);
         nk_label(ctx, title.c_str(), NK_TEXT_LEFT);
 
         if(state == looper::RECORDING)
         {
             if(nk_button_symbol(ctx, NK_SYMBOL_RECT_SOLID))
-            {
                 lo.finish_loop(loop_index);
-            }
         }
         else if(nk_button_symbol(ctx, NK_SYMBOL_CIRCLE_SOLID))
         {
@@ -2171,6 +2184,11 @@ void cafefm::gui_loop(unsigned loop_index)
         if(old_volume != new_volume)
             lo.set_loop_volume(loop_index, new_volume);
 
+        if(ww <= split_line_width)
+        {
+            nk_layout_row_dynamic(ctx, 30, 4);
+        }
+
         if(button_label_active(
             ctx,
             state == looper::PLAYING ? "Mute" : "Unmute",
@@ -2178,12 +2196,16 @@ void cafefm::gui_loop(unsigned loop_index)
         )) lo.play_loop(loop_index, state == looper::MUTED);
 
         if(button_label_active(
-            ctx,
-            "Set BPM",
+            ctx, "Set BPM",
             state == looper::PLAYING || state == looper::MUTED
         )) lo.match_bpm(loop_index);
 
-        nk_widget(&empty_space, ctx);
+        if(button_label_active(
+            ctx, "Align to BPM",
+            state == looper::PLAYING || state == looper::MUTED
+        )) lo.align_to_bpm(loop_index);
+
+        if(ww > split_line_width) nk_widget(&empty_space, ctx);
 
         if(nk_button_label(ctx, "Clear"))
             lo.clear_loop(loop_index);
@@ -2207,9 +2229,10 @@ void cafefm::gui_loops_editor()
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 120);
         nk_layout_row_template_push_static(ctx, 60);
-        nk_layout_row_template_push_static(ctx, 120);
+        nk_layout_row_template_push_static(ctx, 130);
+        nk_layout_row_template_push_static(ctx, 60);
         nk_layout_row_template_push_dynamic(ctx);
-        nk_layout_row_template_push_static(ctx, 120);
+        nk_layout_row_template_push_static(ctx, 70);
         nk_layout_row_template_push_static(ctx, 90);
         nk_layout_row_template_push_static(ctx, 184);
         nk_layout_row_template_end(ctx);
@@ -2226,9 +2249,14 @@ void cafefm::gui_loops_editor()
         );
         output->get_looper().set_record_on_sound(opts.start_loop_on_sound);
 
+        opts.align_loop_record = !nk_check_label(
+            ctx, "Align", !opts.align_loop_record
+        );
+        output->get_looper().set_record_align(opts.align_loop_record);
+
         nk_widget(&empty_space, ctx);
 
-        if(nk_button_label(ctx, "Clear all loops"))
+        if(nk_button_label(ctx, "Clear all"))
             lo.clear_all_loops();
 
         if(nk_button_label(ctx, "Reset"))
@@ -2250,7 +2278,6 @@ void cafefm::gui_loops_editor()
     {
         for(unsigned i = 0; i < lo.get_loop_count(); ++i)
         {
-            nk_layout_row_dynamic(ctx, LOOP_HEIGHT, 1);
             gui_loop(i);
         }
         nk_group_end(ctx);
@@ -2799,6 +2826,7 @@ void cafefm::reset_fm(bool refresh_only)
         output->open(opts.target_latency, opts.system_index, opts.device_index);
 
     output->get_looper().set_record_on_sound(opts.start_loop_on_sound);
+    output->get_looper().set_record_align(opts.align_loop_record);
 
     std::unique_ptr<fm_instrument> new_fm;
     

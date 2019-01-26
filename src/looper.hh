@@ -56,7 +56,8 @@ public:
         UNUSED = 0,
         MUTED,
         PLAYING,
-        RECORDING
+        RECORDING,
+        FINISHING_RECORDING
     };
 
     loop_state get_loop_state(unsigned loop_index) const;
@@ -69,6 +70,9 @@ public:
     double get_loop_delay(unsigned loop_index) const;
 
     void match_bpm(unsigned loop_index, unsigned granularity = 1);
+    void align_to_bpm(unsigned loop_index);
+
+    void set_record_align(bool align_on_finish);
 
     void apply(int32_t* o, unsigned long framecount);
 
@@ -107,7 +111,7 @@ private:
     std::vector<loop> loops;
 
     int selected_loop;
-    bool record_on_sound;
+    bool record_on_sound, align_on_finish;
 };
 
 #endif

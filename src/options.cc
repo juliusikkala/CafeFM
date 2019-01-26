@@ -24,7 +24,7 @@ options::options()
 : system_index(-1), device_index(-1), samplerate(44100), target_latency(0.030),
   recording_format(encoder::WAV), recording_quality(90),
   initial_window_width(800), initial_window_height(600),
-  start_loop_on_sound(false)
+  start_loop_on_sound(false), align_loop_record(true)
 {}
 
 json options::serialize() const
@@ -43,6 +43,7 @@ json options::serialize() const
     j["initial_window_width"] = initial_window_width;
     j["initial_window_height"] = initial_window_height;
     j["start_loop_on_sound"] = start_loop_on_sound;
+    j["align_loop_record"] = align_loop_record;
     return j;
 }
 
@@ -57,6 +58,7 @@ bool options::deserialize(const json& j)
     initial_window_width = 800;
     initial_window_height = 600;
     start_loop_on_sound = false;
+    align_loop_record = true;
 
     try
     {
@@ -99,6 +101,7 @@ bool options::deserialize(const json& j)
         initial_window_width = j.value("initial_window_width", 800);
         initial_window_height = j.value("initial_window_height", 600);
         start_loop_on_sound = j.value("start_loop_on_sound", false);
+        align_loop_record = j.value("align_loop_record", true);
     }
     catch(...)
     {
