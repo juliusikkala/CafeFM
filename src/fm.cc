@@ -484,8 +484,8 @@ int64_t fm_synth::step_frequency(state& s) const
         period_num *= s.period_num;
         period_denom *= s.period_denom;
         normalize_fract(period_num, period_denom);
-        period_num *= x;
-        period_denom <<= 31;
+        period_num *= x >> 16;
+        period_denom <<= 15;
         o.update(s.states[i-1], period_num, period_denom);
     }
 
