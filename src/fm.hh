@@ -139,6 +139,7 @@ public:
     // Call this after you are finished modifying the period of any oscillator.
     // finish_changes() also calls this.
     void update_period_lookup();
+    void limit_total_carrier_amplitude();
 
     struct layout
     {
@@ -181,7 +182,7 @@ private:
     modulation_mode mode;
     std::vector<oscillator> oscillators;
     std::vector<unsigned> carriers;
-    std::vector<std::pair<uint64_t, uint64_t>> period_lookup;
+    std::vector<std::pair<int64_t, int64_t>> period_lookup;
 };
 
 class fm_instrument: public instrument

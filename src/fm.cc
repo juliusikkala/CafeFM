@@ -337,6 +337,22 @@ void fm_synth::update_period_lookup()
     }
 }
 
+void fm_synth::limit_total_carrier_amplitude()
+{
+    double total = 0.0;
+    for(unsigned c: carriers)
+        total += oscillators[c].amp_num / (double)oscillators[c].amp_denom;
+    // If total volume is over 1, rebalance
+    if(total > 1.0)
+    {
+        for(unsigned c: carriers)
+        {
+            oscillator& o = oscillators[c];
+            o.amp_denom *= total;
+        }
+    }
+}
+
 fm_synth::layout fm_synth::generate_layout()
 {
     reference_vec ref = determine_references();
@@ -479,8 +495,8 @@ int64_t fm_synth::step_frequency(state& s) const
         int64_t x = 1u<<31;
         for(unsigned m: o.modulators) x += s.states[m].output;
 
-        uint64_t period_num = period_lookup[i-1].first;
-        uint64_t period_denom = period_lookup[i-1].second;
+        int64_t period_num = period_lookup[i-1].first;
+        int64_t period_denom = period_lookup[i-1].second;
         period_num *= s.period_num;
         period_denom *= s.period_denom;
         normalize_fract(period_num, period_denom);

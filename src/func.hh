@@ -65,7 +65,7 @@ inline int32_t i32noise(int32_t x)
 }
 
 // This function makes sure the fraction components fit in 32 bits.
-inline void normalize_fract(uint64_t& num, uint64_t& denom)
+inline void normalize_fract(int64_t& num, int64_t& denom)
 {
     int64_t mask = num|denom;
 #if defined(__GNUC__) || defined(__clang__)

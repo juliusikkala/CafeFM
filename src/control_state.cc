@@ -325,6 +325,7 @@ void control_state::apply(
     ins.set_envelope(adsr);
     ins.set_volume(src_volume*total_volume_mul());
     dst.update_period_lookup();
+    dst.limit_total_carrier_amplitude();
     ins.set_synth(dst);
 
     for(key_data& p: press_queue)
