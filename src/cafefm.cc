@@ -73,12 +73,22 @@ namespace
     double fixed_propertyd(
         struct nk_context *ctx, const char *name, double min,
         double val, double max, double step, double inc_per_pixel,
-        double eps = 0.00001
+        int precision = 2, double eps = 0.0001
     ){
         double mstep = std::min(step, inc_per_pixel);
-        double ret = nk_propertyd(
-            ctx, name, min+eps, val+eps, max+eps, step, inc_per_pixel
-        )-eps;
+        double ret = 0;
+        if(val >= 0)
+        {
+            ret = nk_propertyd(
+                ctx, name, min+eps, val+eps, max+eps, step, inc_per_pixel, precision
+            )-eps;
+        }
+        else
+        {
+            ret = nk_propertyd(
+                ctx, name, min-eps, val-eps, max-eps, step, inc_per_pixel, precision
+            )+eps;
+        }
         return round(ret/mstep)*mstep;
     }
 
@@ -472,7 +482,9 @@ void cafefm::load()
 
     // Setup controllers
     available_controllers.emplace_back(new keyboard());
-    select_controller(available_controllers[0].get());
+    auto midi_controllers = midi.discover();
+    for(auto& c: midi_controllers) available_controllers.emplace_back(c);
+    select_controller(available_controllers.back().get());
 }
 
 void cafefm::unload()
@@ -836,7 +848,7 @@ unsigned cafefm::gui_adsr()
                 "#Tuning (Hz)",
                 220.0f,
                 &ins_state.tuning_frequency,
-                880.0f, 0.5f, 0.5f
+                880.0f, 0.5f, 0.5f, 1
             );
 
             nk_layout_row_template_begin(ctx, 30);
@@ -986,7 +998,7 @@ unsigned cafefm::gui_oscillator(
         double period_fine = 0;
         period_fine = osc.get_period_fine();
         double new_period_fine = fixed_propertyd(
-            ctx, "#Fine", -128.0, period_fine, 128.0, 0.01, 0.01
+            ctx, "#Fine", -128.0, period_fine, 128.0, 0.001, 0.001, 3
         );
 
         if(new_period_fine != period_fine)
@@ -1447,7 +1459,8 @@ void cafefm::gui_bind_action(bind& b)
         break;
     case bind::FREQUENCY_EXPT:
         nk_property_double(
-            ctx, "#Offset:", -72.0f, &b.frequency.max_expt, 72.0f, 0.5f, 0.5f
+            ctx, "#Offset:", -72.0f, &b.frequency.max_expt, 72.0f, 0.5f, 0.5f,
+            1
         );
         break;
     case bind::VOLUME_MUL:
@@ -1460,7 +1473,8 @@ void cafefm::gui_bind_action(bind& b)
             ctx, "#Modulator:", 0, (int*)&b.period.modulator_index, 128, 1, 1
         );
         nk_property_double(
-            ctx, "#Offset:", -1000.0f, &b.period.max_fine, 1000.0f, 0.5f, 0.5f
+            ctx, "#Offset:", -1000.0f, &b.period.max_fine, 1000.0f, 0.5f, 0.5f,
+            1
         );
         break;
     case bind::AMPLITUDE_MUL:
@@ -1485,7 +1499,7 @@ void cafefm::gui_bind_action(bind& b)
             );
         }
         else nk_property_double(
-            ctx, "#Multiplier:", 0, &b.envelope.max_mul, 128.0, 0.5, 0.25
+            ctx, "#Multiplier:", 0, &b.envelope.max_mul, 128.0, 0.5, 0.25, 2
         );
         break;
     case bind::LOOP_CONTROL:
@@ -2165,7 +2179,7 @@ void cafefm::gui_loop(unsigned loop_index)
 
         double old_length = lo.get_loop_length(loop_index);
         double new_length = fixed_propertyd(
-            ctx, "#Beats:", 0.5, old_length, 1000.0, 1.0, 0.01, 0.001
+            ctx, "#Beats:", 0.5, old_length, 1000.0, 1.0, 0.01
         );
         if(
             new_length != old_length &&
@@ -2174,7 +2188,7 @@ void cafefm::gui_loop(unsigned loop_index)
 
         double old_delay = lo.get_loop_delay(loop_index);
         double new_delay = fixed_propertyd(
-            ctx, "#Delay:", 0.0, old_delay, 1000.0, 0.05, 0.01, 0.001
+            ctx, "#Delay:", 0.0, old_delay, 1000.0, 0.05, 0.01
         );
         if(
             new_delay != old_delay &&
@@ -2183,7 +2197,7 @@ void cafefm::gui_loop(unsigned loop_index)
 
         double old_volume = lo.get_loop_volume(loop_index);
         double new_volume = fixed_propertyd(
-            ctx, "#Volume:", 0.0, old_volume, 1.0, 0.05, 0.01, 0.001
+            ctx, "#Volume:", 0.0, old_volume, 1.0, 0.05, 0.01
         );
         if(old_volume != new_volume)
             lo.set_loop_volume(loop_index, new_volume);

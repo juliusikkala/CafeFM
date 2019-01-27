@@ -343,6 +343,7 @@ void control_state::apply(
             {
                 ins.release_voice(old_it->first);
                 pressed_keys.erase(old_it);
+                break;
             }
         }
     }
