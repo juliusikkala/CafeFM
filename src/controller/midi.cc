@@ -307,7 +307,7 @@ unsigned midi_controller::get_button_count() const
 std::string midi_controller::get_button_name(unsigned i) const
 {
     constexpr const char* const control_names[] = {
-        "Damper",
+        "Sustain",
         "Portamento",
         "Sustenuto",
         "Soft pedal"

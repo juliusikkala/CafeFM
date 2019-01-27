@@ -240,10 +240,10 @@ namespace
         "Remember to save often, this program is extremely dangerous and may "
         "crash at any time.",
         "Do or do not, there is no undo.",
-        "If you hear clicks or static, first check that the master volume "
-        "isn't warning about peaking. If it isn't that, try picking a higher "
+        "If you hear clicks or static, first check if lowering the master "
+        "volume prevents peaking. If it isn't that, try picking a higher "
         "latency.",
-        "Have multiple cores? Sorry, this program isn't using them.",
+        "Have multiple cores? Good for you.",
         "44100 is almost always enough. However, if you do hear artifacts with "
         "high frequency noises, lifting the samplerate could help.",
         "The bit depth outputted by this program is 32 bits and cannot be "
@@ -252,14 +252,13 @@ namespace
         "Read the protips, they can often be useful.",
         "Some audio subsystems and devices may have special requirements and "
         "not work on your system or this program.",
-        "Modulators shown horizontally are summed to each other, and in "
+        "Oscillators shown horizontally are summed to each other, and in "
         "vertical configurations the one below is modulating the one above.",
         "Phase often has minimal effect on the sound, but may sometimes "
         "affect the perceived pitch and timbre slightly.",
         "Looking for keyboard shortcuts? Exhaustive list: Alt + F4.",
-        "Setting amplitude above 1 generally breaks things if you have more "
-        "than one modulator. Also, try to keep the total amplitude of summed "
-        "modulators less than or equal to 1.",
+        "Want a metronome? Record a single beat long loop consisting of one "
+        "key press.",
         "If you have issues with some cumulative or stacking bindings going "
         "too far, either click the reset button at the top of the screen or "
         "add an opposite cumulative or stacking binding to another axis or "
@@ -276,6 +275,11 @@ namespace
         "put the files there.",
         "To find your recordings, click the \"Open recordings folder\" button "
         "above.",
+        "This program supports both frequency and phase modulation. You can "
+        "select which one to use on the instrument page. Frequency modulation "
+        "usually produces softer sounds, but phase modulation might be easier "
+        "to use.",
+        "Go through the harmonic series by raising \"Mul\" on an oscillator.",
         "Delete a modulator by clicking the [x] button on its title bar. "
         "Notice that this will also delete its modulators as well, and may "
         "shuffle some indices of other modulators.",
@@ -2228,9 +2232,9 @@ void cafefm::gui_loops_editor()
     )){
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 120);
-        nk_layout_row_template_push_static(ctx, 60);
-        nk_layout_row_template_push_static(ctx, 130);
-        nk_layout_row_template_push_static(ctx, 60);
+        nk_layout_row_template_push_static(ctx, 50);
+        nk_layout_row_template_push_static(ctx, 124);
+        nk_layout_row_template_push_static(ctx, 94);
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_push_static(ctx, 70);
         nk_layout_row_template_push_static(ctx, 90);
@@ -2250,7 +2254,7 @@ void cafefm::gui_loops_editor()
         output->get_looper().set_record_on_sound(opts.start_loop_on_sound);
 
         opts.align_loop_record = !nk_check_label(
-            ctx, "Align", !opts.align_loop_record
+            ctx, "Align length", !opts.align_loop_record
         );
         output->get_looper().set_record_align(opts.align_loop_record);
 
