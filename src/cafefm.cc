@@ -300,8 +300,8 @@ namespace
 cafefm::cafefm()
 :   win(nullptr), bindings_delete_popup_open(false),
     instrument_delete_popup_open(false), save_recording_state(0),
-    selected_controller(nullptr), keyboard_grabbed(false), mouse_grabbed(false),
-    master_volume(0.5)
+    selected_controller(nullptr), controller_id_counter(0),
+    keyboard_grabbed(false), mouse_grabbed(false), master_volume(0.5)
 {
     SDL_GL_SetAttribute(
         SDL_GL_CONTEXT_FLAGS,
@@ -365,7 +365,6 @@ void cafefm::load()
 {
     // Setup GUI state
     selected_tab = 0;
-    selected_bindings_preset = -1;
     selected_instrument_preset = -1;
     protip_index = 0;
 
@@ -481,9 +480,9 @@ void cafefm::load()
     create_new_instrument();
 
     // Setup controllers
-    available_controllers.emplace_back(new keyboard());
+    connect_controller(new keyboard());
     auto midi_controllers = midi.discover();
-    for(auto& c: midi_controllers) available_controllers.emplace_back(c);
+    for(auto& c: midi_controllers) connect_controller(c);
     select_controller(available_controllers.back().get());
 }
 
@@ -493,7 +492,6 @@ void cafefm::unload()
 
     available_controllers.clear();
     all_bindings.clear();
-    compatible_bindings.clear();
 
     bindings_delete_popup_open = false;
     instrument_delete_popup_open = false;
@@ -526,21 +524,27 @@ bool cafefm::update(unsigned dt)
 
     // Discover midi inputs
     auto midi_controllers = midi.discover();
-    for(auto& c: midi_controllers) available_controllers.emplace_back(c);
+    for(auto& c: midi_controllers)
+        connect_controller(c);
 
     auto cb = [this](
         controller* c, int axis_index, int button_index
     ){
-        handle_controller(c, axis_index, button_index);
+        for(auto& data: available_controllers)
+        {
+            if(data->active && data->controller.get() == c)
+            {
+                handle_controller(data.get(), axis_index, button_index);
+                break;
+            }
+        }
     };
 
     // Handle controllers that poll themselves
     for(unsigned i = 0; i < available_controllers.size(); ++i)
     {
         auto& c = available_controllers[i];
-        auto fn = c.get() == selected_controller ?
-            cb : controller::change_callback();
-        if(!c->poll(fn)) detach_controller(i);
+        if(!c->controller->poll(cb)) disconnect_controller(i);
     }
 
     // Handle SDL-related controllers
@@ -578,18 +582,11 @@ bool cafefm::update(unsigned dt)
             is_mouse_event = true;
             break;
         case SDL_JOYDEVICEADDED:
-            if(SDL_IsGameController(e.jdevice.which))
-            {
-                available_controllers.emplace_back(
-                    new gamecontroller(e.jdevice.which)
-                );
-            }
-            else
-            {
-                available_controllers.emplace_back(
-                    new joystick(e.jdevice.which)
-                );
-            }
+            connect_controller(
+                SDL_IsGameController(e.jdevice.which) ?
+                    (controller*)new gamecontroller(e.jdevice.which) :
+                    (controller*)new joystick(e.jdevice.which)
+            );
             break;
         default:
             break;
@@ -603,68 +600,52 @@ bool cafefm::update(unsigned dt)
         for(unsigned i = 0; i < available_controllers.size(); ++i)
         {
             auto& c = available_controllers[i];
-            auto fn = c.get() == selected_controller ?
-                cb : controller::change_callback();
-            if(!c->handle_event(e, fn)) detach_controller(i);
+            if(!c->controller->handle_event(e, cb)) disconnect_controller(i);
         }
 
         if(!handled) nk_sdl_handle_event(&e);
     }
 
     // Apply controls
-    control.update(binds, dt);
+    for(auto& data: available_controllers)
+    {
+        if(data->active) control.update(data->id, data->binds, dt);
+    }
     control.apply(*fm, master_volume, ins_state);
     return !quit;
 }
 
 void cafefm::handle_controller(
-    controller* c, int axis_index, int button_index
+    controller_data* c, int axis_index, int button_index
 ){
-    std::string type = c->get_type_name();
+    std::string type = c->controller->get_type_name();
     if(
-        c != selected_controller ||
         (type == "Keyboard" && !keyboard_grabbed) ||
         (type == "Mouse" && !mouse_grabbed)
     ) return;
 
-    latest_input_button = button_index;
-    // Make sure small inputs don't cause bind assignment. MIDI inputs, however,
-    // can be more sensitive (so that we don't require the user to smash their
-    // MIDI keyboard for it to register high enough velocity)
-    if(
-        axis_index >= 0 &&
-        (fabs(c->get_axis_state(axis_index).value) > 0.5 ||
-        type == "MIDI input")
-    ) latest_input_axis = axis_index;
+    // Do input assignments if selected controller
+    if(c == selected_controller)
+    {
+        latest_input_button = button_index;
+        // Make sure small inputs don't cause bind assignment. MIDI inputs,
+        // however, can be more sensitive (so that we don't require the user to
+        // smash their MIDI keyboard for it to register high enough velocity)
+        if(
+            axis_index >= 0 &&
+            (fabs(c->controller->get_axis_state(axis_index).value) > 0.5 ||
+            type == "MIDI input")
+        ) latest_input_axis = axis_index;
+    }
 
-    binds.act(
-        c,
+    c->binds.act(
+        c->controller,
+        c->id,
         control,
         output ? &output->get_looper() : nullptr,
         axis_index,
         button_index
     );
-}
-
-void cafefm::detach_controller(unsigned index)
-{
-    controller* c = available_controllers[index].get();
-    available_controllers.erase(available_controllers.begin() + index);
-    if(selected_controller == c)
-    {
-        selected_controller = nullptr;
-        if(available_controllers.size() > 0)
-            select_controller(available_controllers[0].get());
-    }
-}
-
-void cafefm::set_controller_grab(bool grab)
-{
-    if(selected_controller)
-    {
-        std::string type = selected_controller->get_type_name();
-        if(type == "Keyboard") keyboard_grabbed = grab;
-    }
 }
 
 void cafefm::gui_keyboard_grab()
@@ -687,11 +668,16 @@ void cafefm::gui_keyboard_grab()
 
 void cafefm::gui_controller_manager()
 {
-    if(selected_controller)
+    bool has_keyboard = false;
+    for(auto& data: available_controllers)
     {
-        std::string type = selected_controller->get_type_name();
-        if(type == "Keyboard") gui_keyboard_grab();
+        if(data->active)
+        {
+            if(data->controller->get_type_name() == "Keyboard")
+                has_keyboard = true;
+        }
     }
+    if(has_keyboard) gui_keyboard_grab();
 }
 
 void cafefm::gui_draw_adsr(const envelope& adsr)
@@ -1649,7 +1635,10 @@ void cafefm::gui_bind_modifiers(
             if(b.control == bind::AXIS_CONTINUOUS)
             {
                 bool is_signed;
-                b.input_value(selected_controller, &is_signed);
+                b.input_value(
+                    selected_controller->controller.get(),
+                    &is_signed
+                );
                 b.axis.origin =
                     is_signed ? -b.axis.origin : 1 - b.axis.origin;
             }
@@ -1663,7 +1652,8 @@ void cafefm::gui_bind_button(bind& b, bool discrete_only)
 {
     if(!selected_controller) return;
 
-    bool show_dropdown = !selected_controller->assign_bind_on_use();
+    controller* c = selected_controller->controller.get();
+    bool show_dropdown = !c->assign_bind_on_use();
 
     std::string label = "Unknown";
     switch(b.control)
@@ -1673,16 +1663,15 @@ void cafefm::gui_bind_button(bind& b, bool discrete_only)
         break;
     case bind::BUTTON_PRESS:
         if(
-            b.button.index >= 0 &&
-            b.button.index < (int)selected_controller->get_button_count()
-        ) label = selected_controller->get_button_name(b.button.index);
+            b.button.index >= 0 && b.button.index < (int)c->get_button_count()
+        ) label = c->get_button_name(b.button.index);
         break;
     case bind::AXIS_CONTINUOUS:
     case bind::AXIS_THRESHOLD:
         if(
             b.axis.index >= 0 &&
-            b.axis.index < (int)selected_controller->get_axis_count()
-        ) label = selected_controller->get_axis_name(b.axis.index);
+            b.axis.index < (int)c->get_axis_count()
+        ) label = c->get_axis_name(b.axis.index);
         break;
     }
 
@@ -1693,12 +1682,12 @@ void cafefm::gui_bind_button(bind& b, bool discrete_only)
             nk_layout_row_dynamic(ctx, 30, 1);
 
             b.wait_assign = true;
-            unsigned axis_count = selected_controller->get_axis_count();
-            unsigned button_count = selected_controller->get_button_count();
+            unsigned axis_count = c->get_axis_count();
+            unsigned button_count = c->get_button_count();
 
             for(unsigned i = 0; i < axis_count; ++i)
             {
-                std::string name = selected_controller->get_axis_name(i);
+                std::string name = c->get_axis_name(i);
                 if(nk_combo_item_label(ctx, name.c_str(), NK_TEXT_LEFT))
                 {
                     b.control = discrete_only ?
@@ -1714,7 +1703,7 @@ void cafefm::gui_bind_button(bind& b, bool discrete_only)
 
             for(unsigned i = 0; i < button_count; ++i)
             {
-                std::string name = selected_controller->get_button_name(i);
+                std::string name = c->get_button_name(i);
                 if(nk_combo_item_label(ctx, name.c_str(), NK_TEXT_LEFT))
                 {
                     b.control = bind::BUTTON_PRESS;
@@ -1734,7 +1723,7 @@ void cafefm::gui_bind_button(bind& b, bool discrete_only)
             b.wait_assign = true;
             latest_input_button = -1;
             latest_input_axis = -1;
-            set_controller_grab(true);
+            keyboard_grabbed = true;
         }
         else if(b.wait_assign)
         {
@@ -1801,7 +1790,10 @@ int cafefm::gui_bind_control(bind& b, bool discrete_only)
         b.control == bind::AXIS_THRESHOLD
     ){
         bool is_signed;
-        double input_value = b.input_value(selected_controller, &is_signed);
+        double input_value = b.input_value(
+            selected_controller->controller.get(),
+            &is_signed
+        );
         axis_widget(
             ctx,
             input_value,
@@ -1835,7 +1827,9 @@ nk_color cafefm::gui_bind_background_color(bind& b)
     if(!selected_controller) return bg;
 
     nk_color active = nk_rgb(30,25,23);
-    double value = fabs(b.get_value(control, selected_controller));
+    double value = fabs(b.get_value(
+        control, selected_controller->controller.get()
+    ));
     value = std::min(1.0, value);
     bg.r = round(lerp(bg.r, active.r, value));
     bg.g = round(lerp(bg.g, active.g, value));
@@ -1881,6 +1875,8 @@ int cafefm::gui_bind(bind& b, unsigned index)
 
 void cafefm::gui_bindings_editor()
 {
+    bindings& binds = selected_controller->binds;
+
     nk_style_set_font(ctx, &small_font->handle);
     nk_layout_row_dynamic(ctx, INSTRUMENT_HEADER_HEIGHT, 1);
 
@@ -1903,9 +1899,10 @@ void cafefm::gui_bindings_editor()
         for(unsigned i = 0; i < available_controllers.size(); ++i)
         {
             auto& c = available_controllers[i];
+            std::string name = c->controller->get_device_name();
             if(c.get() == selected_controller) selected_index = i;
+            if(c->active) name += " [connected]";
 
-            std::string name = c->get_device_name();
             label_strings.push_back(name);
         }
 
@@ -1932,27 +1929,29 @@ void cafefm::gui_bindings_editor()
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 80);
         nk_layout_row_template_push_static(ctx, ww-400);
-        nk_layout_row_template_push_static(ctx, 30);
-        nk_layout_row_template_push_static(ctx, 230);
+        nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
 
         // Preset picker
         nk_label(ctx, "Preset:", NK_TEXT_LEFT);
 
-        std::string combo_label = "(None)";
-        if(selected_bindings_preset >= 0)
-            combo_label = compatible_bindings[
-                selected_bindings_preset
+        std::string combo_label =
+            selected_controller->active ? "(Disconnected)" : "(None)";
+        if(selected_controller->selected_preset >= 0)
+            combo_label = selected_controller->presets[
+                selected_controller->selected_preset
             ].get_name();
 
         if(nk_combo_begin_label(ctx, combo_label.c_str(), nk_vec2(ww-400,200)))
         {
             int new_selected_preset = -1;
             nk_layout_row_dynamic(ctx, 25, 1);
-            for(unsigned i = 0; i < compatible_bindings.size(); ++i)
+            for(unsigned i = 0; i < selected_controller->presets.size(); ++i)
             {
-                const auto& b = compatible_bindings[i];
-                unsigned comp = b.rate_compatibility(selected_controller);
+                const auto& b = selected_controller->presets[i];
+                unsigned comp = b.rate_compatibility(
+                    selected_controller->controller.get()
+                );
                 if(comp == 0)
                 {
                     if(nk_combo_item_label(
@@ -1976,28 +1975,17 @@ void cafefm::gui_bindings_editor()
             }
 
             if(new_selected_preset != -1)
-                select_compatible_bindings(new_selected_preset);
+            {
+                select_controller_preset(
+                    selected_controller,
+                    new_selected_preset
+                );
+            }
             nk_combo_end(ctx);
         }
 
-        // Warn user for suboptimal bindings
-        switch(binds.rate_compatibility(selected_controller))
-        {
-        case 1:
-            nk_image(ctx, gray_warn_img);
-            nk_label(
-                ctx, "This preset is for a different device", NK_TEXT_LEFT
-            );
-            break;
-        case 2:
-            nk_image(ctx, yellow_warn_img);
-            nk_label(
-                ctx, "This preset may be incompatible", NK_TEXT_LEFT
-            );
-            break;
-        default:
-            break;
-        }
+        if(nk_button_label(ctx, "Disconnect"))
+            deactivate_controller(selected_controller);
 
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, ww-316);
@@ -2017,10 +2005,14 @@ void cafefm::gui_bindings_editor()
             ctx, NK_EDIT_SIMPLE, current_name, &current_name_len,
             MAX_BINDING_NAME_LENGTH, nk_filter_default
         );
-        binds.set_name(std::string(current_name, current_name_len));
+        binds.set_name(
+            std::string(current_name, current_name_len)
+        );
 
         // Save, New and Delete buttons
-        auto name_match = all_bindings.find(binds.get_name());
+        auto name_match = all_bindings.find(
+            binds.get_name()
+        );
         bool can_save = false;
         bool can_delete = false;
         if(name_match == all_bindings.end()) can_save = true;
@@ -2032,10 +2024,10 @@ void cafefm::gui_bindings_editor()
         }
 
         if(button_label_active(ctx, "Save", can_save))
-            save_current_bindings();
+            save_current_bindings(selected_controller);
 
         if(nk_button_label(ctx, "New"))
-            create_new_bindings();
+            create_new_bindings(selected_controller);
 
         if(button_label_active(ctx, "Delete", can_delete))
             bindings_delete_popup_open = true;
@@ -2414,15 +2406,7 @@ void cafefm::gui_options_editor()
 
         if(nk_button_label(ctx, "Refresh all files"))
         {
-            update_compatible_bindings();
-            for(unsigned i = 0; i < compatible_bindings.size(); ++i)
-            {
-                if(compatible_bindings[i].get_name() == binds.get_name())
-                {
-                    selected_bindings_preset = i;
-                    break;
-                }
-            }
+            update_bindings_presets();
             update_all_instruments();
             for(unsigned i = 0; i < all_instruments.size(); ++i)
             {
@@ -2526,7 +2510,8 @@ void cafefm::gui_options_editor()
         ctx, "Copyright 2018-2019 Julius Ikkala", NK_TEXT_LEFT, fade_color
     );
     nk_label_colored(
-        ctx, "0.1.1 Bold Yoghurt edition", NK_TEXT_RIGHT, fade_color
+        ctx, "0.2.0 Circular Cereal edition",
+        NK_TEXT_RIGHT, fade_color
     );
 }
 
@@ -2612,87 +2597,104 @@ void cafefm::gui()
     nk_input_begin(ctx);
 }
 
-void cafefm::select_controller(controller* c)
+void cafefm::connect_controller(controller* c)
 {
-    if(selected_controller)
-        set_controller_grab(false);
+    if(!c) return;
 
+    available_controllers.emplace_back(new controller_data {
+        std::unique_ptr<controller>(c),
+        controller_id_counter++, {}, -1, {}, false
+    });
+
+    update_bindings_presets();
+}
+
+void cafefm::disconnect_controller(unsigned index)
+{
+    controller_data* data = available_controllers[index].get();
+    available_controllers.erase(available_controllers.begin() + index);
+    if(selected_controller == data)
+    {
+        selected_controller = nullptr;
+        if(available_controllers.size() > 0)
+            select_controller(available_controllers[0].get());
+    }
+}
+
+void cafefm::select_controller(controller_data* c)
+{
+    if(!c) return;
     selected_controller = c;
-
-    fm->release_all_voices();
-    control.reset();
-    update_compatible_bindings();
-    if(compatible_bindings.size() >= 1)
-    {
-        selected_bindings_preset = 0;
-        binds = compatible_bindings[0];
-    }
-    else
-    {
-        selected_bindings_preset = -1;
-        create_new_bindings();
-    }
+    update_bindings_presets();
 }
 
-void cafefm::select_compatible_bindings(unsigned index)
+void cafefm::select_controller_preset(controller_data* c, unsigned index)
 {
-    fm->release_all_voices();
-    control.reset();
-    if(compatible_bindings.size() == 0)
+    // If active already, clear state to avoid stuck modifiers and keys.
+    if(c->active)
     {
-        selected_bindings_preset = -1;
-        create_new_bindings();
+        fm->release_all_voices();
+        control.reset(c->id);
+    }
+    else c->active = true;
+
+    if(c->presets.size() == 0)
+    {
+        c->selected_preset = -1;
+        create_new_bindings(c);
     }
     else
     {
-        selected_bindings_preset = std::min(
+        c->selected_preset = std::min(
             index,
-            (unsigned)compatible_bindings.size()-1
+            (unsigned)c->presets.size()-1
         );
-        binds = compatible_bindings[selected_bindings_preset];
+        c->binds = c->presets[c->selected_preset];
     }
 }
 
-void cafefm::save_current_bindings()
+void cafefm::deactivate_controller(controller_data* c)
 {
-    if(selected_controller)
-        binds.set_target_device(selected_controller);
+    if(!c->active) return;
 
-    binds.set_write_lock(false);
-    write_bindings(binds);
-    update_compatible_bindings();
+    fm->release_all_voices();
+    control.reset(c->id);
+    c->active = false;
+}
 
-    for(unsigned i = 0; i < compatible_bindings.size(); ++i)
+void cafefm::save_current_bindings(controller_data* c)
+{
+    c->binds.set_target_device(c->controller.get());
+
+    c->binds.set_write_lock(false);
+    write_bindings(c->binds);
+    update_bindings_presets();
+
+    for(unsigned i = 0; i < c->presets.size(); ++i)
     {
-        if(compatible_bindings[i].get_name() == binds.get_name())
+        if(c->presets[i].get_name() == c->binds.get_name())
         {
-            selected_bindings_preset = i;
+            c->selected_preset = i;
             break;
         }
     }
 }
 
-void cafefm::create_new_bindings()
+void cafefm::create_new_bindings(controller_data* c)
 {
-    fm->release_all_voices();
-    control.reset();
-    selected_bindings_preset = -1;
-    binds.clear();
-
-    if(selected_controller)
+    if(c->active)
     {
-        binds.set_target_device(selected_controller);
-        /*
-        if(selected_controller->get_type_name() == "MIDI input")
-        {
-            binds = midi_context::generate_default_midi_bindings();
-            return;
-        }
-        */
+        fm->release_all_voices();
+        control.reset(c->id);
     }
+    else c->active = true;
+
+    c->selected_preset = -1;
+    c->binds.clear();
+    c->binds.set_target_device(c->controller.get());
 
     std::string name = "New bindings";
-    if(all_bindings.count(name) == 0) binds.set_name(name);
+    if(all_bindings.count(name) == 0) c->binds.set_name(name);
     else
     {
         unsigned i = 1;
@@ -2703,7 +2705,7 @@ void cafefm::create_new_bindings()
             modified_name = name + std::to_string(++i);
         }
         while(all_bindings.count(modified_name) != 0);
-        binds.set_name(modified_name);
+        c->binds.set_name(modified_name);
     }
 }
 
@@ -2713,8 +2715,7 @@ void cafefm::delete_bindings(const std::string& name)
     if(it == all_bindings.end()) return;
 
     remove_bindings(it->second);
-    update_compatible_bindings();
-    select_compatible_bindings(selected_bindings_preset);
+    update_bindings_presets();
 }
 
 void cafefm::update_all_bindings()
@@ -2725,28 +2726,31 @@ void cafefm::update_all_bindings()
         all_bindings.emplace(b.get_name(), b);
 }
 
-void cafefm::update_compatible_bindings()
+void cafefm::update_bindings_presets()
 {
     update_all_bindings();
 
-    compatible_bindings.clear();
-
-    if(!selected_controller) return;
-    for(auto& pair: all_bindings)
+    for(auto& data: available_controllers)
     {
-        unsigned comp = pair.second.rate_compatibility(selected_controller);
-        if(comp <= 2) compatible_bindings.emplace_back(pair.second);
+        data->presets.clear();
+        for(auto& pair: all_bindings)
+        {
+            unsigned comp = pair.second.rate_compatibility(
+                data->controller.get()
+            );
+            if(comp <= 2) data->presets.emplace_back(pair.second);
+        }
+
+        auto compare = [](const bindings& a, const bindings& b){
+            return a.get_name() < b.get_name();
+        };
+
+        std::sort(data->presets.begin(), data->presets.end(), compare);
+
+        if(data->presets.size() == 0) data->selected_preset = -1;
+        if(data->selected_preset > (int)data->presets.size())
+            data->selected_preset = data->presets.size() - 1;
     }
-
-    auto compare = [](const bindings& a, const bindings& b){
-        return a.get_name() < b.get_name();
-    };
-
-    std::sort(compatible_bindings.begin(), compatible_bindings.end(), compare);
-
-    if(compatible_bindings.size() == 0) selected_bindings_preset = -1;
-    if(selected_bindings_preset > (int)compatible_bindings.size())
-        selected_bindings_preset = compatible_bindings.size() - 1;
 }
 
 void cafefm::select_instrument(unsigned index)

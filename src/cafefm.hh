@@ -49,11 +49,19 @@ private:
     static constexpr unsigned CHANGE_REQUIRE_IMPORT = 1;
     static constexpr unsigned CHANGE_REQUIRE_RESET = 2;
 
+    struct controller_data
+    {
+        std::unique_ptr<class controller> controller;
+        int id;
+        std::vector<bindings> presets;
+        int selected_preset;
+        bindings binds;
+        bool active;
+    };
+
     void handle_controller(
-        controller* c, int axis_index, int button_index
+        controller_data* c, int axis_index, int button_index
     );
-    void detach_controller(unsigned index);
-    void set_controller_grab(bool grab);
 
     void gui_keyboard_grab();
     void gui_controller_manager();
@@ -99,13 +107,17 @@ private:
 
     void gui();
 
-    void select_controller(controller* c);
-    void select_compatible_bindings(unsigned index);
-    void save_current_bindings();
-    void create_new_bindings();
+    void connect_controller(controller* c);
+    void disconnect_controller(unsigned index);
+
+    void select_controller(controller_data* c);
+    void select_controller_preset(controller_data* c, unsigned index);
+    void deactivate_controller(controller_data* c);
+    void save_current_bindings(controller_data* c);
+    void create_new_bindings(controller_data* c);
     void delete_bindings(const std::string& name);
     void update_all_bindings();
-    void update_compatible_bindings();
+    void update_bindings_presets();
 
     void select_instrument(unsigned index);
     void save_current_instrument();
@@ -131,7 +143,6 @@ private:
     struct nk_font* huge_font;
     struct nk_image yellow_warn_img, gray_warn_img; 
     unsigned selected_tab;
-    int selected_bindings_preset;
     int selected_instrument_preset;
     bool bindings_delete_popup_open;
     bool instrument_delete_popup_open;
@@ -141,8 +152,12 @@ private:
     unsigned protip_index;
 
     midi_context midi;
-    std::vector<std::unique_ptr<controller>> available_controllers;
-    controller* selected_controller;
+
+    std::map<std::string, bindings> all_bindings;
+
+    std::vector<std::unique_ptr<controller_data>> available_controllers;
+    controller_data* selected_controller;
+    int controller_id_counter;
 
     // Some controllers have special gui features (mouse, keyboard) for
     // grabbing/detaching them.
@@ -158,10 +173,6 @@ private:
     instrument_state ins_state;
 
     options opts;
-
-    std::map<std::string, bindings> all_bindings;
-    std::vector<bindings> compatible_bindings;
-    bindings binds;
 };
 
 #endif
