@@ -639,7 +639,7 @@ void cafefm::handle_controller(
     }
 
     c->binds.act(
-        c->controller,
+        c->controller.get(),
         c->id,
         control,
         output ? &output->get_looper() : nullptr,
@@ -1828,7 +1828,7 @@ nk_color cafefm::gui_bind_background_color(bind& b)
 
     nk_color active = nk_rgb(30,25,23);
     double value = fabs(b.get_value(
-        control, selected_controller->controller.get()
+        control, selected_controller->controller.get(), selected_controller->id
     ));
     value = std::min(1.0, value);
     bg.r = round(lerp(bg.r, active.r, value));
@@ -2105,7 +2105,15 @@ void cafefm::gui_bindings_editor()
                     }
                 }
                 if(movement)
-                    binds.move_bind(changed_index, movement, control, true);
+                {
+                    binds.move_bind(
+                        changed_index,
+                        movement,
+                        selected_controller->id,
+                        control,
+                        true
+                    );
+                }
                 nk_style_set_font(ctx, &huge_font->handle);
                 if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
                     binds.create_new_bind(a.action);

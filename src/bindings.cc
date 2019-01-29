@@ -300,7 +300,11 @@ double bind::input_value(const controller* c, bool* is_signed) const
     return value;
 }
 
-double bind::get_value(const control_state& state, const controller* c) const
+double bind::get_value(
+    const control_state& state,
+    const controller* c,
+    uint32_t cid
+) const
 {
     bool is_signed = false;
     double v = input_value(c, &is_signed);
@@ -315,11 +319,11 @@ double bind::get_value(const control_state& state, const controller* c) const
 
     if(stacking)
     {
-        return state.get_stacking(id);
+        return state.get_stacking(cid, id);
     }
     else if(toggle)
     {
-        int prev_state = state.get_toggle_state(id);
+        int prev_state = state.get_toggle_state(cid, id);
         // Mealy state machine. States:
         // 0 - disabled, input inactive
         // 1 - enabled, input active
@@ -337,6 +341,7 @@ double bind::get_value(const control_state& state, const controller* c) const
 bool bind::update_value(
     control_state& state,
     const controller* c,
+    uint32_t cid,
     double& v
 ) const {
     bool is_signed = false;
@@ -344,9 +349,9 @@ bool bind::update_value(
     if(control == AXIS_THRESHOLD)
     {
         v = v > axis.threshold ? 1.0 : 0.0;
-        int prev_state = state.get_threshold_state(id);
+        int prev_state = state.get_threshold_state(cid, id);
         if(prev_state == v) return false;
-        state.set_threshold_state(id, v);
+        state.set_threshold_state(cid, id, v);
     }
     else if(control == AXIS_CONTINUOUS)
     {
@@ -360,20 +365,20 @@ bool bind::update_value(
     {
         // Stacking control uses toggle state to remove repeat presses from
         // thresholding.
-        int prev_state = state.get_toggle_state(id);
+        int prev_state = state.get_toggle_state(cid, id);
         bool d = v > 0.5;
-        int s = state.get_stacking(id);
+        int s = state.get_stacking(cid, id);
         if(prev_state == 0 && d)
         {
             s++;
-            state.set_stacking(id, s);
+            state.set_stacking(cid, id, s);
         }
-        state.set_toggle_state(id, (int)d);
+        state.set_toggle_state(cid, id, (int)d);
         v = s;
     }
     if(toggle)
     {
-        int prev_state = state.get_toggle_state(id);
+        int prev_state = state.get_toggle_state(cid, id);
         bool d = v > 0.5;
         // Mealy state machine. States:
         // 0 - disabled, input inactive
@@ -385,13 +390,13 @@ bool bind::update_value(
             if(d)
             {
                 v = 1.0;
-                state.set_toggle_state(id, 1);
+                state.set_toggle_state(cid, id, 1);
             }
             else v = 0.0;
         }
         else if(prev_state == 1)
         {
-            if(!d) state.set_toggle_state(id, 2);
+            if(!d) state.set_toggle_state(cid, id, 2);
             return false;
         }
         else if(prev_state == 2)
@@ -399,13 +404,13 @@ bool bind::update_value(
             if(d)
             {
                 v = 0.0;
-                state.set_toggle_state(id, 3);
+                state.set_toggle_state(cid, id, 3);
             }
             else v = 1.0;
         }
         else if(prev_state == 3)
         {
-            if(!d) state.set_toggle_state(id, 0);
+            if(!d) state.set_toggle_state(cid, id, 0);
             return false;
         }
     }
@@ -512,7 +517,7 @@ unsigned bindings::rate_compatibility(controller* c) const
     else return 4;
 }
 
-void bindings::cumulative_update(control_state& state)
+void bindings::cumulative_update(uint32_t cid, control_state& state)
 {
     for(const bind& b: binds)
     {
@@ -520,13 +525,16 @@ void bindings::cumulative_update(control_state& state)
         {
             // Loop controls cannot be cumulative, luckily, which is why
             // we can pass nullptr here and not worry about it.
-            handle_action(state, nullptr, b, state.get_cumulation(b.id));
+            handle_action(
+                cid, state, nullptr, b, state.get_cumulation(cid, b.id)
+            );
         }
     }
 }
 
 void bindings::act(
     controller* c,
+    uint32_t cid,
     control_state& state,
     looper* loop,
     int axis_index,
@@ -538,12 +546,12 @@ void bindings::act(
         if(!b.triggered(axis_index, button_index)) continue;
 
         double value = 0.0;
-        if(!b.update_value(state, c, value)) continue;
+        if(!b.update_value(state, c, cid, value)) continue;
 
         // Handle cumulative actions.
         if(b.cumulative)
         {
-            state.set_cumulation_speed(b.id, value);
+            state.set_cumulation_speed(cid, b.id, value);
             continue;
         }
 
@@ -553,7 +561,7 @@ void bindings::act(
         ) value = b.normalize(c, value);
 
         // Perform actual action.
-        handle_action(state, loop, b, value);
+        handle_action(cid, state, loop, b, value);
     }
 }
 
@@ -572,6 +580,7 @@ const std::vector<bind>& bindings::get_binds() const { return binds; }
 void bindings::move_bind(
     unsigned i,
     int movement,
+    uint32_t cid,
     control_state& state,
     bool same_action
 ){
@@ -579,7 +588,7 @@ void bindings::move_bind(
 
     bind& b = binds[i];
 
-    if(movement == -2) erase_bind(i, state);
+    if(movement == -2) erase_bind(i, cid, state);
     else if(movement == 1)
     {
         unsigned new_index = i;
@@ -624,10 +633,10 @@ void bindings::move_bind(
     }
 }
 
-void bindings::erase_bind(unsigned i, control_state& state)
+void bindings::erase_bind(unsigned i, uint32_t cid, control_state& state)
 {
     auto it = binds.begin() + i;
-    state.erase_action(it->id);
+    state.erase_action(cid, it->id);
     binds.erase(it);
 }
 
@@ -738,6 +747,7 @@ int bindings::handle_loop_event(
 }
 
 void bindings::handle_action(
+    uint32_t cid,
     control_state& state,
     looper* loop,
     const bind& b,
@@ -748,17 +758,18 @@ void bindings::handle_action(
     case bind::KEY:
         if(value)
         {
-            if(!state.is_active_key(b.id))
-                state.press_key(b.id, b.key_semitone, value);
-            else state.set_key_volume(b.id, value);
+            if(!state.is_active_key(cid, b.id))
+                state.press_key(cid, b.id, b.key_semitone, value);
+            else state.set_key_volume(cid, b.id, value);
         }
-        else state.release_key(b.id);
+        else state.release_key(cid, b.id);
         break;
     case bind::FREQUENCY_EXPT:
-        state.set_frequency_expt(b.id, b.frequency.max_expt * value);
+        state.set_frequency_expt(cid, b.id, b.frequency.max_expt * value);
         break;
     case bind::VOLUME_MUL:
         state.set_volume_mul(
+            cid,
             b.id,
             b.cumulative ?
                 pow(b.volume.max_mul, value):
@@ -768,6 +779,7 @@ void bindings::handle_action(
     case bind::PERIOD_FINE:
         state.set_period_fine(
             b.period.modulator_index,
+            cid,
             b.id,
             b.period.max_fine * value
         );
@@ -775,6 +787,7 @@ void bindings::handle_action(
     case bind::AMPLITUDE_MUL:
         state.set_amplitude_mul(
             b.amplitude.modulator_index,
+            cid,
             b.id,
             b.cumulative ? 
                 pow(b.amplitude.max_mul, value):
@@ -784,6 +797,7 @@ void bindings::handle_action(
     case bind::ENVELOPE_ADJUST:
         state.set_envelope_adjust(
             b.envelope.which,
+            cid,
             b.id,
             b.cumulative ? 
                 pow(b.envelope.max_mul, value):

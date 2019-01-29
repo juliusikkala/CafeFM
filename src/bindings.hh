@@ -152,11 +152,16 @@ struct bind
 
     double input_value(const controller* c, bool* is_signed = nullptr) const;
 
-    double get_value(const control_state& ctx, const controller* c) const;
+    double get_value(
+        const control_state& ctx,
+        const controller* c,
+        uint32_t cid
+    ) const;
     // Returns false if should be skipped
     bool update_value(
         control_state& ctx,
         const controller* c,
+        uint32_t cid,
         double& value
     ) const;
     double normalize(const controller* c, double value) const;
@@ -195,12 +200,13 @@ public:
     unsigned rate_compatibility(controller* c) const;
 
     // Called by control state whenever cumulative values have changed.
-    void cumulative_update(control_state& state);
+    void cumulative_update(uint32_t cid, control_state& state);
 
     // Applies controller inputs to control state and loops according to the
     // bindings.
     void act(
         controller* c,
+        uint32_t cid,
         control_state& state,
         looper* loop,
         int axis_index,
@@ -218,10 +224,11 @@ public:
     void move_bind(
         unsigned i,
         int movement,
+        uint32_t cid,
         control_state& state,
         bool same_action = true
     );
-    void erase_bind(unsigned i, control_state& state);
+    void erase_bind(unsigned i, uint32_t cid, control_state& state);
     size_t bind_count() const;
 
     json serialize() const;
@@ -238,6 +245,7 @@ private:
     );
 
     void handle_action(
+        uint32_t cid,
         control_state& state,
         looper* loop,
         const bind& b,
