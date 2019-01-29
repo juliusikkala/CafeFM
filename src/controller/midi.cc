@@ -204,6 +204,11 @@ bool midi_controller::poll(change_callback cb)
     return ctx->status[name];
 }
 
+bool midi_controller::potentially_inactive() const
+{
+    return name.find("Midi Through") != std::string::npos;
+}
+
 std::string midi_controller::get_type_name() const
 {
     return "MIDI input";

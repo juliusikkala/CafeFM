@@ -49,6 +49,9 @@ public:
     // controls. Defaults to true.
     virtual bool assign_bind_on_use() const;
 
+    // If true, this controller should not be auto-picked.
+    virtual bool potentially_inactive() const;
+
     virtual std::string get_type_name() const;
     virtual std::string get_device_name() const;
 

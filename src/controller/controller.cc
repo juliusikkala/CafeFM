@@ -39,6 +39,11 @@ bool controller::assign_bind_on_use() const
     return true;
 }
 
+bool controller::potentially_inactive() const
+{
+    return false;
+}
+
 std::string controller::get_type_name() const { return "Unknown"; }
 std::string controller::get_device_name() const { return "Unknown"; }
 

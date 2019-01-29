@@ -38,7 +38,7 @@ control_state::full_id control_state::create_id(
     controller_id cid,
     action_id aid
 ){
-    return ((uint64_t)cid) | ((uint64_t)aid)<<32;
+    return ((uint64_t)cid) | (((uint64_t)aid)<<32);
 }
 
 void control_state::split_id(full_id id, controller_id& cid, action_id& aid)
@@ -482,7 +482,7 @@ void control_state::apply(
     {
         auto old_it = it++;
         ins.set_voice_volume(old_it->first, old_it->second.volume);
-        for(action_id id: release_queue)
+        for(full_id id: release_queue)
         {
             if(old_it->second.id == id)
             {

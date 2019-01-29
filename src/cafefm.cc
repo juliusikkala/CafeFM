@@ -483,7 +483,19 @@ void cafefm::load()
     connect_controller(new keyboard());
     auto midi_controllers = midi.discover();
     for(auto& c: midi_controllers) connect_controller(c);
-    select_controller(available_controllers.back().get());
+
+    for(
+        auto it = available_controllers.rbegin();
+        it != available_controllers.rend();
+        ++it
+    ){
+        if(!(*it)->controller->potentially_inactive())
+        {
+            select_controller(it->get());
+            select_controller_preset(selected_controller, 0);
+            break;
+        }
+    }
 }
 
 void cafefm::unload()
@@ -1055,7 +1067,7 @@ void cafefm::gui_instrument_editor()
         if(nk_button_label(ctx, "Reset"))
         {
             fm->release_all_voices();
-            control.reset();
+            control.reset(selected_controller->id);
         }
 
         gui_controller_manager();
@@ -1875,8 +1887,6 @@ int cafefm::gui_bind(bind& b, unsigned index)
 
 void cafefm::gui_bindings_editor()
 {
-    bindings& binds = selected_controller->binds;
-
     nk_style_set_font(ctx, &small_font->handle);
     nk_layout_row_dynamic(ctx, INSTRUMENT_HEADER_HEIGHT, 1);
 
@@ -1935,9 +1945,9 @@ void cafefm::gui_bindings_editor()
         // Preset picker
         nk_label(ctx, "Preset:", NK_TEXT_LEFT);
 
-        std::string combo_label =
-            selected_controller->active ? "(Disconnected)" : "(None)";
-        if(selected_controller->selected_preset >= 0)
+        std::string combo_label = "(None)";
+        if(!selected_controller->active) combo_label = "(Disconnected)";
+        else if(selected_controller->selected_preset >= 0)
             combo_label = selected_controller->presets[
                 selected_controller->selected_preset
             ].get_name();
@@ -1984,8 +1994,17 @@ void cafefm::gui_bindings_editor()
             nk_combo_end(ctx);
         }
 
-        if(nk_button_label(ctx, "Disconnect"))
-            deactivate_controller(selected_controller);
+        if(selected_controller->active)
+        {
+            if(nk_button_label(ctx, "Disconnect"))
+            {
+                deactivate_controller(selected_controller);
+            }
+        }
+        else if(nk_button_label(ctx, "Connect"))
+        {
+            select_controller_preset(selected_controller, 0);
+        }
 
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, ww-316);
@@ -1994,16 +2013,22 @@ void cafefm::gui_bindings_editor()
         nk_layout_row_template_push_dynamic(ctx);
         nk_layout_row_template_end(ctx);
 
+        bindings& binds = selected_controller->binds;
+
         // Name editor
-        std::string current_name_str = binds.get_name();
+        std::string current_name_str =
+            selected_controller->active ? binds.get_name() : "";
         char current_name[MAX_BINDING_NAME_LENGTH+1] = {0};
         int current_name_len = current_name_str.size();
         strncpy(
             current_name, current_name_str.c_str(), MAX_BINDING_NAME_LENGTH
         );
         nk_edit_string(
-            ctx, NK_EDIT_SIMPLE, current_name, &current_name_len,
-            MAX_BINDING_NAME_LENGTH, nk_filter_default
+            ctx,
+            NK_EDIT_FIELD |
+                (selected_controller->active ? 0 : NK_EDIT_READ_ONLY),
+            current_name, &current_name_len, MAX_BINDING_NAME_LENGTH,
+            nk_filter_default
         );
         binds.set_name(
             std::string(current_name, current_name_len)
@@ -2073,52 +2098,62 @@ void cafefm::gui_bindings_editor()
     // Actual bindings section
     if(nk_group_begin(ctx, "Bindings Group", NK_WINDOW_BORDER))
     {
-        struct {
-            const char* title;
-            enum bind::action action;
-        } actions[] = {
-            {"Keys", bind::KEY},
-            {"Pitch", bind::FREQUENCY_EXPT},
-            {"Volume", bind::VOLUME_MUL},
-            {"Modulator period", bind::PERIOD_FINE},
-            {"Modulator amplitude", bind::AMPLITUDE_MUL},
-            {"Envelope", bind::ENVELOPE_ADJUST},
-            {"Loops", bind::LOOP_CONTROL}
-        };
-        unsigned id = 0;
-        for(auto a: actions)
+        bindings& binds = selected_controller->binds;
+
+        if(selected_controller->active)
         {
-            if(nk_tree_push_id(ctx, NK_TREE_TAB, a.title, NK_MAXIMIZED, id++))
+            struct {
+                const char* title;
+                enum bind::action action;
+            } actions[] = {
+                {"Keys", bind::KEY},
+                {"Pitch", bind::FREQUENCY_EXPT},
+                {"Volume", bind::VOLUME_MUL},
+                {"Modulator period", bind::PERIOD_FINE},
+                {"Modulator amplitude", bind::AMPLITUDE_MUL},
+                {"Envelope", bind::ENVELOPE_ADJUST},
+                {"Loops", bind::LOOP_CONTROL}
+            };
+            unsigned id = 0;
+            for(auto a: actions)
             {
-                nk_layout_row_dynamic(ctx, 35, 1);
-                int changed_index = -1;
-                int movement = 0;
-                for(unsigned i = 0; i < binds.bind_count(); ++i)
-                {
-                    auto& b = binds.get_bind(i);
-                    if(b.action != a.action) continue;
-                    int ret = gui_bind(b, i);
-                    if(ret != 0)
+                if(nk_tree_push_id(
+                    ctx,
+                    NK_TREE_TAB,
+                    a.title,
+                    NK_MAXIMIZED,
+                    id++
+                )){
+                    nk_layout_row_dynamic(ctx, 35, 1);
+                    int changed_index = -1;
+                    int movement = 0;
+                    for(unsigned i = 0; i < binds.bind_count(); ++i)
                     {
-                        changed_index = i;
-                        movement = ret;
+                        auto& b = binds.get_bind(i);
+                        if(b.action != a.action) continue;
+                        int ret = gui_bind(b, i);
+                        if(ret != 0)
+                        {
+                            changed_index = i;
+                            movement = ret;
+                        }
                     }
+                    if(movement)
+                    {
+                        binds.move_bind(
+                            changed_index,
+                            movement,
+                            selected_controller->id,
+                            control,
+                            true
+                        );
+                    }
+                    nk_style_set_font(ctx, &huge_font->handle);
+                    if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
+                        binds.create_new_bind(a.action);
+                    nk_style_set_font(ctx, &small_font->handle);
+                    nk_tree_pop(ctx);
                 }
-                if(movement)
-                {
-                    binds.move_bind(
-                        changed_index,
-                        movement,
-                        selected_controller->id,
-                        control,
-                        true
-                    );
-                }
-                nk_style_set_font(ctx, &huge_font->handle);
-                if(nk_button_symbol(ctx, NK_SYMBOL_PLUS))
-                    binds.create_new_bind(a.action);
-                nk_style_set_font(ctx, &small_font->handle);
-                nk_tree_pop(ctx);
             }
         }
 
@@ -2667,6 +2702,7 @@ void cafefm::deactivate_controller(controller_data* c)
 
     fm->release_all_voices();
     control.reset(c->id);
+    c->selected_preset = -1;
     c->active = false;
 }
 
@@ -2723,6 +2759,11 @@ void cafefm::delete_bindings(const std::string& name)
     if(it == all_bindings.end()) return;
 
     remove_bindings(it->second);
+    for(auto& data: available_controllers)
+    {
+        if(data->binds.get_name() == name && data->active)
+            create_new_bindings(data.get());
+    }
     update_bindings_presets();
 }
 

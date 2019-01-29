@@ -56,6 +56,8 @@ public:
 
     bool poll(change_callback cb = {}) override;
 
+    bool potentially_inactive() const override;
+
     std::string get_type_name() const override;
     std::string get_device_name() const override;
 
