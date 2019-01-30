@@ -1,6 +1,6 @@
 project(
   'CafeFM',
-  ['cpp'],
+  ['cpp', 'c'],
   default_options : [
     'cpp_std=c++1z',
     'buildtype=debugoptimized',
@@ -11,6 +11,7 @@ project(
 
 src = [
   'external/nuklear.cc',
+  'external/pffft.c',
   'src/audio.cc',
   'src/bindings.cc',
   'src/cafefm.cc',

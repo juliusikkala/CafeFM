@@ -22,6 +22,7 @@
 #include "controller/joystick.hh"
 #include "io.hh"
 #include "helpers.hh"
+#include "about.hh"
 #include <stdexcept>
 #include <string>
 #include <cstring>
@@ -2339,7 +2340,10 @@ void cafefm::gui_loops_editor()
 
 void cafefm::gui_options_editor()
 {
-    nk_layout_row_template_begin(ctx, 535);
+    static unsigned help_state = 0;
+    static unsigned about_state = 0;
+
+    nk_layout_row_template_begin(ctx, 555);
     nk_layout_row_template_push_dynamic(ctx);
     nk_layout_row_template_push_static(ctx, 600);
     nk_layout_row_template_push_dynamic(ctx);
@@ -2445,7 +2449,7 @@ void cafefm::gui_options_editor()
         if(nk_button_label(ctx, "Open recordings folder"))
             open_recordings_folder();
 
-        nk_layout_row_dynamic(ctx, 30, 1);
+        nk_layout_row_dynamic(ctx, 30, 3);
 
         if(nk_button_label(ctx, "Refresh all files"))
         {
@@ -2461,68 +2465,9 @@ void cafefm::gui_options_editor()
             }
         }
 
-        static unsigned help_state = 0;
         if(nk_button_label(ctx, "Help")) help_state = 1;
 
-        if(help_state)
-        {
-            struct nk_rect s = {0, 100, 300, 136};
-            s.x = 300-s.w/2;
-            const char* help_titles[] = {
-                "There is no help.",
-                "Press OK.",
-                "Go away.",
-                "...",
-                "-.-",
-                "Chapter 1. A game of cards.",
-                "Pick one.",
-                "Chapter 2. Foul play",
-                "I win.",
-                "Chapter 3. Go away.",
-                "Protip: save often.",
-                "P̧͉̩̗Ṛ͈͎̋͊̈ͨ͋A̝͍̠̫̘ͣ̃ͫͮĬ̸̜͖̦̭̙͈̝͂̐́̊ͪ̾Ŝ̟͎̮ͤ͋̓͡E̽̀ͩ̄ͯ̊̅҉̠ ͒͂͢Ẑ̭̘͇̻ͅA͓̻̝̜̮̲ͅL̩̭͇T̴̯͔͈̔́H̿̐ͬ҉̰̣Ōͦ͐͌ͨ͝R̴̝͎̮̜ͣ͆̋̓ͩ͑"
-            };
-
-            if(nk_popup_begin(
-                ctx, NK_POPUP_STATIC, help_titles[help_state-1],
-                NK_WINDOW_BORDER|NK_WINDOW_TITLE, s
-            )){
-                const char* help_messages[] = {
-                    "I have no advice to offer to you.",
-                    "No, really. The author didn't bother to write proper "
-                    "documentation, so there is nothing to show. Just press "
-                    "OK.",
-                    "Just press OK. This really goes nowhere.",
-                    "Really?",
-                    "What would you expect to see?",
-                    "Alright, let's play your stupid games. I'll show you four "
-                    "cards. Pick one and make a mental note.",
-                    "♠5, ♣9, ♦K, ♥Q",
-                    "Next, I'll remove exactly the card you were thinking of!",
-                    "♣C, ♥J, ♦4",
-                    "Wasn't funny? Who's the one clicking cancel just to see "
-                    "some shitty jokes?",
-                    "Do you really want to see what happens when you push a "
-                    "poor program over the edge?",
-                    "This."
-                };
-                nk_layout_row_dynamic(ctx, 50, 1);
-                nk_label_wrap(ctx, help_messages[help_state-1]);
-                nk_layout_row_dynamic(ctx, 30, 2);
-                if(nk_button_label(ctx, "OK"))
-                {
-                    help_state = 0;
-                    nk_popup_close(ctx);
-                }
-                if(nk_button_label(ctx, "Cancel"))
-                {
-                    help_state++;
-                    nk_popup_close(ctx);
-                }
-                nk_popup_end(ctx);
-            }
-            else instrument_delete_popup_open = false;
-        }
+        if(nk_button_label(ctx, "About")) about_state = 1;
 
         nk_layout_row_dynamic(ctx, 150, 1);
         if(nk_group_begin(
@@ -2553,9 +2498,94 @@ void cafefm::gui_options_editor()
         ctx, "Copyright 2018-2019 Julius Ikkala", NK_TEXT_LEFT, fade_color
     );
     nk_label_colored(
-        ctx, "0.2.0 Circular Cereal edition",
+        ctx, version_text,
         NK_TEXT_RIGHT, fade_color
     );
+
+    // Draw popups.
+
+    if(help_state)
+    {
+        struct nk_rect s = {0, 150, 300, 136};
+        s.x = ww/2-s.w/2;
+        const char* help_titles[] = {
+            "There is no help.",
+            "Press OK.",
+            "Go away.",
+            "...",
+            "-.-",
+            "Chapter 1. A game of cards.",
+            "Pick one.",
+            "Chapter 2. Foul play",
+            "I win.",
+            "Chapter 3. Go away.",
+            "Protip: save often.",
+            "P̧͉̩̗Ṛ͈͎̋͊̈ͨ͋A̝͍̠̫̘ͣ̃ͫͮĬ̸̜͖̦̭̙͈̝͂̐́̊ͪ̾Ŝ̟͎̮ͤ͋̓͡E̽̀ͩ̄ͯ̊̅҉̠ ͒͂͢Ẑ̭̘͇̻ͅA͓̻̝̜̮̲ͅL̩̭͇T̴̯͔͈̔́H̿̐ͬ҉̰̣Ōͦ͐͌ͨ͝R̴̝͎̮̜ͣ͆̋̓ͩ͑"
+        };
+
+        if(nk_popup_begin(
+            ctx, NK_POPUP_STATIC, help_titles[help_state-1],
+            NK_WINDOW_BORDER|NK_WINDOW_TITLE|NK_WINDOW_CLOSABLE, s
+        )){
+            const char* help_messages[] = {
+                "I have no advice to offer to you.",
+                "No, really. The author didn't bother to write proper "
+                "documentation, so there is nothing to show. Just press "
+                "OK.",
+                "Just press OK. This really goes nowhere.",
+                "Really?",
+                "What would you expect to see?",
+                "Alright, let's play your stupid games. I'll show you four "
+                "cards. Pick one and make a mental note.",
+                "♠5, ♣9, ♦K, ♥Q",
+                "Next, I'll remove exactly the card you were thinking of!",
+                "♣C, ♥J, ♦4",
+                "Wasn't funny? Who's the one clicking cancel just to see "
+                "some shitty jokes?",
+                "Do you really want to see what happens when you push a "
+                "poor program over the edge?",
+                "This."
+            };
+            nk_layout_row_dynamic(ctx, 50, 1);
+            nk_label_wrap(ctx, help_messages[help_state-1]);
+            nk_layout_row_dynamic(ctx, 30, 2);
+            if(nk_button_label(ctx, "OK"))
+            {
+                help_state = 0;
+                nk_popup_close(ctx);
+            }
+            if(nk_button_label(ctx, "Cancel"))
+            {
+                help_state++;
+                nk_popup_close(ctx);
+            }
+            nk_popup_end(ctx);
+        }
+        else help_state = 0;
+    }
+
+    if(about_state)
+    {
+        struct nk_rect s = {0, 5, 600, (float)wh-10};
+        s.x = ww/2-s.w/2;
+        if(nk_popup_begin(
+            ctx, NK_POPUP_STATIC, "About",
+            NK_WINDOW_TITLE|NK_WINDOW_CLOSABLE, s
+        )){
+            nk_layout_row_dynamic(ctx, 20, 1);
+            // For whatever reason, Nuklear doesn't do newlines... So do that
+            // manually.
+            const char* text = license_text;
+            while(*text != 0)
+            {
+                const char* text_end = strchr(text, '\n');
+                nk_text(ctx, text, text_end-text, NK_TEXT_LEFT);
+                text = text_end+1;
+            }
+            nk_popup_end(ctx);
+        }
+        else about_state = 0;
+    }
 }
 
 void cafefm::gui()

@@ -23,6 +23,9 @@
 #include <utility>
 #include <string>
 
+#define XSTRINGIFY(a) #a
+#define STRINGIFY(a) XSTRINGIFY(a)
+
 inline double lerp(double a, double b, double t) { return (1 - t) * a + t * b; }
 
 template<typename T>
