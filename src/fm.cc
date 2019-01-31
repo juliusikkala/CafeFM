@@ -737,55 +737,65 @@ void fm_synth::sort_oscillators()
 }
 
 fm_instrument::fm_instrument(uint64_t samplerate)
-: instrument(samplerate)
+:   instrument(samplerate), synth_updated(false),
+    write_index(0), read_index(0)
 {}
 
 void fm_instrument::set_synth(const fm_synth& s)
 {
-    bool compatible = synth.index_compatible(s);
-    // TODO: This might be unsafe, when the synth is compatible. That's because
-    // synthesize() might be called simultaneously while this is modified, and
-    // the vectors' internal pointers could possibly change in this call.
-    // It would be better to manually copy these. (If the synth isn't
-    // compatible, the audio output would be paused by the callee and
-    // synthesize() couldn't be running.)
-    synth = s;
-    if(compatible) return;
-
-    for(voice_id j = 0; j < states.size(); ++j)
+    if(synth[write_index].index_compatible(s))
+        synth[write_index] = s;
+    else
     {
-        states[j] = synth.start();
-        reset_voice(j);
+        write_index ^= 1;
+        synth[write_index] = s;
+
+        states[write_index].resize(states[write_index^1].size());
+        for(voice_id j = 0; j < states[write_index].size(); ++j)
+        {
+            states[write_index][j] = synth[write_index].start();
+            reset_voice(j);
+        }
+
+        synth_updated = true;
     }
 }
 
 const fm_synth& fm_instrument::get_synth()
 {
-    return synth;
+    return synth[write_index];
 }
 
 void fm_instrument::synthesize(int32_t* samples, unsigned sample_count) 
 {
+    if(synth_updated)
+    {
+        read_index ^= 1;
+        synth_updated = false;
+    }
+    fm_synth* syn = synth + read_index;
+    std::vector<fm_synth::state>* st = states + read_index;
+
     // This is done by duplication to avoid testing mode in inner loops.
 #define generate_samples(step_func) \
     for(unsigned i = 0; i < sample_count; ++i) \
     { \
         int64_t sum = 0; \
-        for(voice_id j = 0; j < states.size(); ++j) \
+        for(voice_id j = 0; j < states[read_index].size(); ++j) \
         { \
             step_voice(j); \
             int64_t volume_num = 0, volume_denom; \
             get_voice_volume(j, volume_num, volume_denom); \
             if(volume_num == 0) continue; \
-            synth.set_volume(states[j], volume_num, volume_denom); \
-            sum += synth. step_func (states[j]); \
+            synth[read_index].set_volume((*st)[j], volume_num, volume_denom); \
+            sum += syn-> step_func ((*st)[j]); \
         } \
         samples[i] = std::clamp( \
             sum, (int64_t)INT32_MIN, (int64_t)INT32_MAX \
         ); \
     }
 
-    switch(synth.get_modulation_mode())
+    switch(synth[read_index].get_modulation_mode())
     {
     case fm_synth::FREQUENCY:
         generate_samples(step_frequency)
@@ -799,18 +809,26 @@ void fm_instrument::synthesize(int32_t* samples, unsigned sample_count)
 
 void fm_instrument::refresh_voice(voice_id id)
 {
-    synth.set_frequency(states[id], get_frequency(id), get_samplerate());
+    synth[write_index].set_frequency(
+        states[write_index][id],
+        get_frequency(id),
+        get_samplerate()
+    );
 }
 
 void fm_instrument::reset_voice(voice_id id)
 {
-    synth.set_frequency(states[id], get_frequency(id), get_samplerate());
-    synth.reset(states[id]);
+    synth[write_index].set_frequency(
+        states[write_index][id],
+        get_frequency(id),
+        get_samplerate()
+    );
+    synth[write_index].reset(states[write_index][id]);
 }
 
 void fm_instrument::handle_polyphony(unsigned n)
 {
     if(n == 0) n = 1;
-    states.resize(n, synth.start());
+    states[write_index].resize(n, synth[write_index].start());
 }
 

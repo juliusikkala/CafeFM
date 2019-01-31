@@ -927,7 +927,7 @@ unsigned cafefm::gui_oscillator(
     unsigned mask = CHANGE_NONE;
 
     nk_style_set_font(ctx, &small_font->handle);
-    std::string title = (is_carrier ? "Carrier " : "Modulators ")
+    std::string title = (is_carrier ? "Carrier " : "Modulator ")
         + std::to_string(index);
     nk_window_show(ctx, title.c_str(), NK_SHOWN);
     int res = nk_group_begin(
@@ -938,7 +938,7 @@ unsigned cafefm::gui_oscillator(
     if(res == NK_WINDOW_HIDDEN)
     {
         erase = true;
-        mask |= CHANGE_REQUIRE_RESET;
+        mask |= CHANGE_REQUIRE_FINISH | CHANGE_REQUIRE_IMPORT;
     }
     else if(res)
     {
@@ -1360,7 +1360,7 @@ void cafefm::gui_instrument_editor()
             {
                 ins_state.synth.get_carriers().push_back(i);
             }
-            mask |= CHANGE_REQUIRE_RESET;
+            mask |= CHANGE_REQUIRE_FINISH | CHANGE_REQUIRE_IMPORT;
         }
 
         if(erase_index >= 0) ins_state.synth.erase_oscillator(erase_index);
@@ -1369,12 +1369,10 @@ void cafefm::gui_instrument_editor()
     }
 
     // Do necessary updates
-    if(mask & CHANGE_REQUIRE_RESET)
-    {
+    if(mask & CHANGE_REQUIRE_FINISH)
         ins_state.synth.finish_changes();
-        reset_fm();
-    }
-    else if(mask & CHANGE_REQUIRE_IMPORT)
+
+    if(mask & CHANGE_REQUIRE_IMPORT)
     {
         control.apply(*fm, master_volume, ins_state);
         fm->refresh_all_voices();

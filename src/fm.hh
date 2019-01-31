@@ -22,6 +22,8 @@
 #include "io.hh"
 #include "instrument.hh"
 #include <cmath>
+#include <mutex>
+#include <atomic>
 #include <cstddef>
 #include <type_traits>
 #include <utility>
@@ -201,8 +203,11 @@ protected:
     void handle_polyphony(unsigned n) override;
 
 private:
-    fm_synth synth;
-    std::vector<fm_synth::state> states;
+    // Double buffered synth changes to avoid skips.
+    std::atomic_bool synth_updated;
+    unsigned write_index, read_index;
+    fm_synth synth[2];
+    std::vector<fm_synth::state> states[2];
 };
 
 #endif
