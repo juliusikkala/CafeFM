@@ -63,6 +63,8 @@ namespace
             buffer.rbegin(), buffer.rbegin() + half, threshold
         ) - buffer.rbegin()) - 1;
 
+        if(end <= start) return prev_period;
+
         // Autocorrelation for the selected segment.
         // TODO: Do this in frequency space for that sweet, sweet n*log(n)
         unsigned len = end - start;
@@ -80,7 +82,7 @@ namespace
         // Peak picking algorithm.
         unsigned i = 0;
         // Skip lowering correlations.
-        while(corr[i] > corr[i+1]) ++i;
+        while(corr[i] > corr[i+1] && i + 2 < corr.size()) ++i;
 
         // Find highest peak from that point on.
         unsigned max_i = std::max_element(
@@ -95,6 +97,24 @@ namespace
             fabs(2*new_period - prev_period)/new_period > 0.1
         ) prev_period = (prev_period + new_period)*0.5;
         return prev_period;
+    }
+
+    // Using PEAK algorithm
+    float detect_level(const std::vector<float>& buffer, float samplerate)
+    {
+        constexpr float ta = 0.001;
+        constexpr float tr = 0.050;
+        float Ts = 1.0f / samplerate;
+        float AT = 1.0 - exp(-2.2 * Ts / ta);
+        float RT = 1.0 - exp(-2.2 * Ts / tr);
+
+        float x_peak = fabs(buffer[0]);
+        for(float x: buffer)
+        {
+            if(fabs(x) > x_peak) x_peak = (1.0 - AT) * x_peak + AT * fabs(x);
+            else x_peak = (1.0 - RT) * x_peak;
+        }
+        return x_peak;
     }
 }
 
@@ -148,7 +168,7 @@ std::vector<microphone*> microphone::discover()
     else return {};
 }
 
-bool microphone::poll(change_callback, bool active)
+bool microphone::poll(change_callback cb, bool active)
 {
     if(!active && was_active)
     {
@@ -170,6 +190,9 @@ bool microphone::poll(change_callback, bool active)
         analyzer_thread.reset(new std::thread(&microphone::analyzer, this));
     }
     was_active = active;
+
+    cb(this, 0, -1);
+    cb(this, 1, -1);
 
     return !!stream;
 }
@@ -274,6 +297,8 @@ void microphone::analyzer()
         }
 
         float period = detect_period(tmp, prev_period);
-        printf("%f Hz\n", samplerate/period);
+        float frequency = samplerate/period;
+        pitch = 12.0*log2f(frequency/440.0f);
+        volume = detect_level(tmp, samplerate);
     }
 }
