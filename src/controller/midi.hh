@@ -54,7 +54,7 @@ public:
     midi_controller(midi_controller&& other) = delete;
     ~midi_controller();
 
-    bool poll(change_callback cb = {}) override;
+    bool poll(change_callback cb = {}, bool active = true) override;
 
     bool potentially_inactive() const override;
 

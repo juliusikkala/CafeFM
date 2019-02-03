@@ -129,10 +129,10 @@ midi_controller::~midi_controller()
 {
 }
 
-bool midi_controller::poll(change_callback cb)
+bool midi_controller::poll(change_callback cb, bool active)
 {
     std::vector<uint8_t> m;
-    for(;;)
+    for(;active;)
     {
         m.clear();
         in.getMessage(&m);

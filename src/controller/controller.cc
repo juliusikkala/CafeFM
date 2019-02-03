@@ -28,7 +28,7 @@ bool controller::handle_event(const SDL_Event&, change_callback)
     return true;
 }
 
-bool controller::poll(change_callback)
+bool controller::poll(change_callback, bool)
 {
     return true;
 }

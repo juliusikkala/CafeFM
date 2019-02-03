@@ -20,16 +20,17 @@ src = [
   'src/controller/keyboard.cc',
   'src/controller/gamecontroller.cc',
   'src/controller/joystick.cc',
+  'src/controller/microphone.cc',
   'src/controller/midi.cc',
   'src/encoder.cc',
   'src/fm.cc',
   'src/helpers.cc',
   'src/instrument.cc',
+  'src/instrument_state.cc',
   'src/io.cc',
   'src/looper.cc',
   'src/main.cc',
   'src/options.cc',
-  'src/instrument_state.cc',
 ]
 
 cc = meson.get_compiler('cpp')

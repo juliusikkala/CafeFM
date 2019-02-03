@@ -20,6 +20,7 @@
 #include "controller/keyboard.hh"
 #include "controller/gamecontroller.hh"
 #include "controller/joystick.hh"
+#include "controller/microphone.hh"
 #include "io.hh"
 #include "helpers.hh"
 #include "about.hh"
@@ -540,6 +541,11 @@ bool cafefm::update(unsigned dt)
     for(auto& c: midi_controllers)
         connect_controller(c);
 
+    // Discover microphones
+    auto microphone_controllers = microphone::discover();
+    for(auto& c: microphone_controllers)
+        connect_controller(c);
+
     auto cb = [this](
         controller* c, int axis_index, int button_index
     ){
@@ -557,7 +563,7 @@ bool cafefm::update(unsigned dt)
     for(unsigned i = 0; i < available_controllers.size(); ++i)
     {
         auto& c = available_controllers[i];
-        if(!c->controller->poll(cb)) disconnect_controller(i);
+        if(!c->controller->poll(cb, c->active)) disconnect_controller(i);
     }
 
     // Handle SDL-related controllers
@@ -1734,7 +1740,17 @@ void cafefm::gui_bind_button(bind& b, bool discrete_only)
             b.wait_assign = true;
             latest_input_button = -1;
             latest_input_axis = -1;
-            keyboard_grabbed = true;
+            for(auto& data: available_controllers)
+            {
+                if(data->active)
+                {
+                    if(data->controller->get_type_name() == "Keyboard")
+                    {
+                        keyboard_grabbed = false;
+                        break;
+                    }
+                }
+            }
         }
         else if(b.wait_assign)
         {

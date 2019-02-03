@@ -42,7 +42,9 @@ public:
     // These should return false if controller is disconnected.
     // handle_event is allowed to (and should) ignore unrelated events.
     virtual bool handle_event(const SDL_Event& e, change_callback cb = {});
-    virtual bool poll(change_callback cb = {});
+    // If the controller is not active, it should avoid time-consuming
+    // updates and just check whether it's still connected.
+    virtual bool poll(change_callback cb = {}, bool active = true);
 
     // If false, input binds should be assigned with a drop-down instead of
     // waiting for the user to use the controller. Useful for overlapping
