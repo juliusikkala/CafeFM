@@ -93,4 +93,9 @@ inline int64_t lerp(
     return a + num * (b - a) / denom;
 }
 
+inline float lerp(float a, float b, float t)
+{
+    return (1 - t) * a + t * b;
+}
+
 #endif

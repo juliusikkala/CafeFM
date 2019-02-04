@@ -102,7 +102,7 @@ public:
 
     void reset();
     void reset(controller_id cid);
-    void update(controller_id cid, bindings& b, unsigned dt);
+    void update(controller_id cid, bindings& b, double dt);
 
     double total_freq_mul(double base_freq = 440.0) const;
     double total_volume_mul() const;

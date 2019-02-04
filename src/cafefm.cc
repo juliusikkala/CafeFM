@@ -134,7 +134,7 @@ namespace
 
         double normalized_input =
             is_signed ? input_value*0.5 + 0.5 : input_value;
-        cursor.w = normalized_input * cursor.w;
+        cursor.w = std::min(normalized_input, 1.0) * cursor.w;
 
         // Draw
 
@@ -498,6 +498,8 @@ void cafefm::load()
             break;
         }
     }
+
+    previous_update_time = std::chrono::steady_clock::now();
 }
 
 void cafefm::unload()
@@ -532,8 +534,14 @@ void cafefm::render()
     SDL_GL_SwapWindow(win);
 }
 
-bool cafefm::update(unsigned dt)
+bool cafefm::update()
 {
+    auto update_time = std::chrono::steady_clock::now();
+    double dt = std::chrono::duration<double>(
+        update_time - previous_update_time
+    ).count();
+    previous_update_time = update_time;
+
     bool quit = false;
 
     // Discover midi inputs
@@ -1050,7 +1058,7 @@ void cafefm::gui_instrument_editor()
 
         // Preset picker
         nk_label(ctx, "Preset:", NK_TEXT_LEFT);
-        std::string combo_label = "(None)";
+        std::string combo_label = "(New)";
         if(selected_instrument_preset >= 0)
             combo_label = all_instruments[selected_instrument_preset].name;
 
@@ -1960,7 +1968,7 @@ void cafefm::gui_bindings_editor()
         // Preset picker
         nk_label(ctx, "Preset:", NK_TEXT_LEFT);
 
-        std::string combo_label = "(None)";
+        std::string combo_label = "(New)";
         if(!selected_controller->active) combo_label = "(Disconnected)";
         else if(selected_controller->selected_preset >= 0)
             combo_label = selected_controller->presets[

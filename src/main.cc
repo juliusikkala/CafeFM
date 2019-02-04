@@ -66,7 +66,7 @@ int main(int argc, char** argv)
             unsigned dt = 0;
             unsigned ms_since_last_render = 0;
             unsigned last_time = SDL_GetTicks();
-            while(app.update(dt))
+            while(app.update())
             {
                 if(ms_since_last_render > 15)
                 {

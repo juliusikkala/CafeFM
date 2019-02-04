@@ -17,6 +17,7 @@
     along with CafeFM.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "microphone.hh"
+#include "../func.hh"
 #include <numeric>
 #define MIN_FREQUENCY 80
 
@@ -37,6 +38,16 @@ namespace
         return i;
     }
 
+    float calculate_rms(const std::vector<float>& buffer)
+    {
+        return sqrtf(
+            std::inner_product(
+                buffer.begin(), buffer.end(),
+                buffer.begin(), 0.0f
+            )/buffer.size()
+        );
+    }
+
     // Based on the ACF2+ algorithm:
     // http://hellanicus.lib.aegean.gr/bitstream/handle/11610/8650/file1.pdf
     // I'm not Greek, so I read the implementation from here:
@@ -52,6 +63,9 @@ namespace
     // output and remove unneeded features.
     float detect_period(const std::vector<float>& buffer, float& prev_period)
     {
+        // Avoid messy output with low signal
+        if(calculate_rms(buffer) < 0.1) return prev_period;
+
         unsigned half = buffer.size()/2;
         auto threshold = [](float v){ return fabs(v) < 0.2; };
 
@@ -93,17 +107,15 @@ namespace
         float new_period = quadratic_interpolation(max_i, corr);
 
         // Smooth output & octave jump protection
-        if(
-            fabs(2*new_period - prev_period)/new_period > 0.1
-        ) prev_period = (prev_period + new_period)*0.5;
+        prev_period = (prev_period + new_period)*0.5;
         return prev_period;
     }
 
     // Using PEAK algorithm
     float detect_level(const std::vector<float>& buffer, float samplerate)
     {
-        constexpr float ta = 0.001;
-        constexpr float tr = 0.050;
+        constexpr float ta = 0.010;
+        constexpr float tr = 0.200;
         float Ts = 1.0f / samplerate;
         float AT = 1.0 - exp(-2.2 * Ts / ta);
         float RT = 1.0 - exp(-2.2 * Ts / tr);
@@ -147,11 +159,24 @@ microphone::microphone(PaDeviceIndex index)
     head = buffer_samples = 0;
     analyzer_should_quit = false;
     analyzer_samples = ceil(samplerate/MIN_FREQUENCY);
+    pitch = 0.0f;
+    volume = 0.0f;
 }
 
 microphone::~microphone()
 {
-    if(stream) Pa_CloseStream(stream);
+    if(stream)
+    {
+        analyzer_should_quit = true;
+        Pa_CloseStream(stream);
+        analyzer_cv.notify_all();
+
+        if(analyzer_thread)
+        {
+            analyzer_thread->join();
+            analyzer_thread.reset();
+        }
+    }
 }
 
 std::vector<microphone*> microphone::discover()
@@ -170,6 +195,7 @@ std::vector<microphone*> microphone::discover()
 
 bool microphone::poll(change_callback cb, bool active)
 {
+    // Check activeness for disabling analyzer when disconnected
     if(!active && was_active)
     {
         analyzer_should_quit = true;

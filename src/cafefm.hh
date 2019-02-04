@@ -32,6 +32,7 @@
 #include "SDL_opengl.h"
 #include <memory>
 #include <map>
+#include <chrono>
 
 class cafefm
 {
@@ -42,9 +43,11 @@ public:
     void load();
     void unload();
     void render();
-    bool update(unsigned dt);
+    bool update();
 
 private:
+    using time_point = std::chrono::steady_clock::time_point;
+
     static constexpr unsigned CHANGE_NONE = 0;
     static constexpr unsigned CHANGE_REQUIRE_IMPORT = 1;
     static constexpr unsigned CHANGE_REQUIRE_FINISH = 2;
@@ -135,6 +138,7 @@ private:
     SDL_Window* win;
     int ww, wh;
     SDL_GLContext gl_ctx;
+    time_point previous_update_time;
 
     SDL_Surface* icon;
 

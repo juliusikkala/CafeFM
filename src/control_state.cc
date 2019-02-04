@@ -380,12 +380,12 @@ void control_state::reset(controller_id cid)
     }
 }
 
-void control_state::update(controller_id cid, bindings& b, unsigned dt)
+void control_state::update(controller_id cid, bindings& b, double dt)
 {
     bool changed = false;
     for(auto& pair: cumulative_state)
     {
-        double change = pair.second.second * dt / 1000.0;
+        double change = pair.second.second * dt;
         if(change != 0)
         {
             pair.second.first += change;
