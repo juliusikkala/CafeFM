@@ -145,9 +145,9 @@ void instrument::release_all_voices()
 
 void instrument::set_polyphony(unsigned n)
 {
+    handle_polyphony(n);
     if(voices.size() == n) return;
     voices.resize(n, {false, false, 0, 0, 0, 0, 0});
-    handle_polyphony(n);
 }
 
 unsigned instrument::get_polyphony() const

@@ -830,5 +830,6 @@ void fm_instrument::handle_polyphony(unsigned n)
 {
     if(n == 0) n = 1;
     states[write_index].resize(n, synth[write_index].start());
+    states[read_index].resize(n, synth[read_index].start());
 }
 

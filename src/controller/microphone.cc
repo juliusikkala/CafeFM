@@ -64,7 +64,7 @@ namespace
     float detect_period(const std::vector<float>& buffer, float& prev_period)
     {
         // Avoid messy output with low signal
-        if(calculate_rms(buffer) < 0.1) return prev_period;
+        if(calculate_rms(buffer) < 0.02) return prev_period;
 
         unsigned half = buffer.size()/2;
         auto threshold = [](float v){ return fabs(v) < 0.2; };
@@ -114,8 +114,8 @@ namespace
     // Using PEAK algorithm
     float detect_level(const std::vector<float>& buffer, float samplerate)
     {
-        constexpr float ta = 0.010;
-        constexpr float tr = 0.200;
+        constexpr float ta = 0.002;
+        constexpr float tr = 0.100;
         float Ts = 1.0f / samplerate;
         float AT = 1.0 - exp(-2.2 * Ts / ta);
         float RT = 1.0 - exp(-2.2 * Ts / tr);
