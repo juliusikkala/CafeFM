@@ -27,6 +27,7 @@
 #include "controller/controller.hh"
 #include "controller/midi.hh"
 #include "audio.hh"
+#include "visualizer.hh"
 #include "nuklear.hh"
 #include "SDL.h"
 #include "SDL_opengl.h"
@@ -177,6 +178,7 @@ private:
     instrument_state ins_state;
 
     options opts;
+    visualizer vis;
 };
 
 #endif

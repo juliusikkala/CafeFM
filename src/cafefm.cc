@@ -303,7 +303,8 @@ cafefm::cafefm()
 :   win(nullptr), bindings_delete_popup_open(false),
     instrument_delete_popup_open(false), save_recording_state(0),
     selected_controller(nullptr), controller_id_counter(0),
-    keyboard_grabbed(false), mouse_grabbed(false), master_volume(0.5)
+    keyboard_grabbed(false), mouse_grabbed(false), master_volume(0.5),
+    vis(1024)
 {
     SDL_GL_SetAttribute(
         SDL_GL_CONTEXT_FLAGS,
@@ -989,7 +990,7 @@ unsigned cafefm::gui_oscillator(
         float amplitude = fixed_propertyd(
             ctx, "#Amp", 0.0, old_amplitude, 16.0, 0.01, 0.01
         );
-        if(amplitude != old_amplitude)
+        if(fabs(amplitude-old_amplitude) > 0.005)
         {
             osc.set_amplitude(amplitude);
             mask |= CHANGE_REQUIRE_IMPORT;
@@ -1014,7 +1015,7 @@ unsigned cafefm::gui_oscillator(
             ctx, "#Fine", -128.0, period_fine, 128.0, 0.001, 0.001, 3
         );
 
-        if(new_period_fine != period_fine)
+        if(fabs(period_fine-new_period_fine) > 0.0005)
         {
             osc.set_period_fine(new_period_fine);
             mask |= CHANGE_REQUIRE_IMPORT;
@@ -1260,6 +1261,15 @@ void cafefm::gui_instrument_editor()
     {
         mask |= gui_adsr();
 
+        // Visualizer
+        nk_layout_row_dynamic(ctx, 120, 1);
+        if(nk_group_begin(
+            ctx, "Visualizer", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
+        )){
+            vis.render(ctx);
+            nk_group_end(ctx);
+        }
+
         fm_synth::layout layout = ins_state.synth.generate_layout();
 
         int erase_index = -1;
@@ -1390,6 +1400,12 @@ void cafefm::gui_instrument_editor()
     {
         control.apply(*fm, master_volume, ins_state);
         fm->refresh_all_voices();
+    }
+
+    if(mask)
+    {
+        ins_state.synth.update_period_lookup();
+        vis.start_update(ins_state.synth);
     }
 }
 
@@ -2963,6 +2979,9 @@ void cafefm::reset_fm(bool refresh_only)
     output->stop();
     output->set_instrument(*fm);
     output->start();
+
+    ins_state.synth.update_period_lookup();
+    vis.start_update(ins_state.synth);
 }
 
 void cafefm::apply_options(const options& new_opts)

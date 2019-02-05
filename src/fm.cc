@@ -337,6 +337,14 @@ void fm_synth::update_period_lookup()
     }
 }
 
+double fm_synth::get_total_carrier_amplitude() const
+{
+    double total = 0.0;
+    for(unsigned c: carriers)
+        total += oscillators[c].amp_num / (double)oscillators[c].amp_denom;
+    return total;
+}
+
 void fm_synth::limit_total_carrier_amplitude()
 {
     double total = 0.0;
@@ -528,6 +536,31 @@ int64_t fm_synth::step_phase(state& s) const
     int64_t x = 0;
     for(unsigned m: carriers) x += s.states[m].output;
     return s.amp_num*x/s.amp_denom;
+}
+
+void fm_synth::synthesize(
+    state& s,
+    int32_t* samples,
+    unsigned sample_count
+) const {
+#define generate_samples(step_func) \
+    for(unsigned i = 0; i < sample_count; ++i) \
+    { \
+        samples[i] = std::clamp( \
+            step_func(s), (int64_t)INT32_MIN, (int64_t)INT32_MAX \
+        ); \
+    }
+
+    switch(mode)
+    {
+    case FREQUENCY:
+        generate_samples(step_frequency)
+        break;
+    case PHASE:
+        generate_samples(step_phase)
+        break;
+    }
+#undef generate_samples
 }
 
 void fm_synth::set_frequency(

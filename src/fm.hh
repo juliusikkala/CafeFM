@@ -141,6 +141,8 @@ public:
     // Call this after you are finished modifying the period of any oscillator.
     // finish_changes() also calls this.
     void update_period_lookup();
+
+    double get_total_carrier_amplitude() const;
     void limit_total_carrier_amplitude();
 
     struct layout
@@ -166,6 +168,7 @@ public:
     int64_t step_phase(state& s) const;
     // Call this if mode == FREQUENCY
     int64_t step_frequency(state& s) const;
+    void synthesize(state& s, int32_t* samples, unsigned sample_count) const;
     void set_frequency(state& s, double frequency, uint64_t samplerate) const;
     void set_volume(state& s, int64_t volume_num, int64_t volume_denom) const;
 

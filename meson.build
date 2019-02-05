@@ -31,6 +31,7 @@ src = [
   'src/looper.cc',
   'src/main.cc',
   'src/options.cc',
+  'src/visualizer.cc',
 ]
 
 cc = meson.get_compiler('cpp')
