@@ -23,6 +23,7 @@ src = [
   'src/controller/microphone.cc',
   'src/controller/midi.cc',
   'src/encoder.cc',
+  'src/filter.cc',
   'src/fm.cc',
   'src/helpers.cc',
   'src/instrument.cc',
