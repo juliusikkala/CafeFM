@@ -73,6 +73,7 @@ private:
     unsigned gui_oscillator_type(oscillator::func& type, bool down = true);
     unsigned gui_modulation_mode();
     unsigned gui_adsr();
+    unsigned gui_filter();
     unsigned gui_oscillator(
         oscillator& osc,
         unsigned index,

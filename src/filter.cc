@@ -17,7 +17,15 @@
     along with CafeFM.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "filter.hh"
+#include "helpers.hh"
 #define DENOM 16
+
+namespace
+{
+    const char* const filter_type_strings[] = {
+        "NONE", "LOW_PASS", "HIGH_PASS", "BAND_PASS"
+    };
+}
 
 filter::filter(
     const std::vector<float>& feedforward_coef,
@@ -35,6 +43,18 @@ filter::filter(
         this->feedforward_coef[i] = feedforward_coef[i + 1] * (1 << DENOM);
     for(unsigned i = 0; i < feedback_coef.size(); ++i)
         this->feedback_coef[i] = -feedback_coef[i + 1] * (1 << DENOM);
+}
+
+filter::filter(filter&& other)
+:   feedforward_first(other.feedforward_first),
+    feedback_first(other.feedback_first),
+    feedforward_coef(std::move(other.feedforward_coef)),
+    feedback_coef(std::move(other.feedback_coef)),
+    input_head(other.input_head),
+    input(std::move(other.input)),
+    output_head(other.output_head),
+    output(std::move(other.output))
+{
 }
 
 int32_t filter::push(int32_t sample)
@@ -69,4 +89,47 @@ int32_t filter::push(int32_t sample)
     input[input_head++] = sample;
     output[output_head++] = output_sample;
     return output_sample;
+}
+
+filter_state::filter_state()
+: type(NONE), f0(200), bandwidth(100), order(32)
+{
+}
+
+filter filter_state::design(uint64_t)
+{
+    return filter({}, {});
+}
+
+json filter_state::serialize() const
+{
+    json j;
+
+    j["type"] = filter_type_strings[(unsigned)type];
+
+    if(type != NONE)
+    {
+        j["f0"] = f0;
+        j["bandwidth"] = bandwidth;
+        j["order"] = order;
+    }
+
+    return j;
+}
+
+bool filter_state::deserialize(const json& j)
+{
+    std::string type_str = j.at("type").get<std::string>();
+    int type_i = find_string_arg(
+        type_str.c_str(),
+        filter_type_strings,
+        sizeof(filter_type_strings)/sizeof(*filter_type_strings)
+    );
+    if(type_i < 0) type = NONE;
+    else type = (enum filter_type)type_i;
+
+    f0 = j.value("f0", 200.0);
+    bandwidth = j.value("bandwidth", 100.0);
+    order = j.value("order", 32);
+    return true;
 }

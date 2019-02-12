@@ -930,6 +930,98 @@ unsigned cafefm::gui_adsr()
     return mask;
 }
 
+unsigned cafefm::gui_filter()
+{
+    unsigned mask = CHANGE_NONE;
+    static const char* filter_labels[] = {
+        "None", "Low pass", "High pass", "Band pass"
+    };
+
+    nk_layout_row_dynamic(ctx, 40, 1);
+    if(nk_group_begin(
+        ctx, "Filter", NK_WINDOW_NO_SCROLLBAR|NK_WINDOW_BORDER
+    )){
+        nk_layout_row_template_begin(ctx, 30);
+        nk_layout_row_template_push_static(ctx, 45);
+        nk_layout_row_template_push_static(ctx, 120);
+        switch(ins_state.filter.type)
+        {
+        case filter_state::NONE:
+            break;
+        case filter_state::LOW_PASS:
+        case filter_state::HIGH_PASS:
+            nk_layout_row_template_push_static(ctx, 140);
+            nk_layout_row_template_push_static(ctx, 140);
+            break;
+        case filter_state::BAND_PASS:
+            nk_layout_row_template_push_static(ctx, 140);
+            nk_layout_row_template_push_static(ctx, 140);
+            nk_layout_row_template_push_static(ctx, 140);
+            break;
+        }
+        nk_layout_row_template_end(ctx);
+
+        nk_label(ctx, "Filter:", NK_TEXT_LEFT);
+
+        filter_state::filter_type old_type = ins_state.filter.type;
+        ins_state.filter.type = (filter_state::filter_type)nk_combo(
+            ctx,
+            filter_labels,
+            sizeof(filter_labels)/sizeof(const char*),
+            old_type,
+            20,
+            nk_vec2(120, 200)
+        );
+
+        int order = ins_state.filter.order;
+        nk_property_int(ctx, "#Order", 0, (int*)&order, 1000, 1, 1);
+        if((unsigned)order != ins_state.filter.order)
+        {
+            ins_state.filter.order = order;
+            mask |= CHANGE_REQUIRE_IMPORT;
+        }
+
+        switch(ins_state.filter.type)
+        {
+        case filter_state::LOW_PASS:
+        case filter_state::HIGH_PASS:
+            {
+            double new_f0 = fixed_propertyd(
+                ctx, "#Cutoff", 0, ins_state.filter.f0, 44100.0, 1, 1, 1
+            );
+            if(new_f0 != ins_state.filter.f0)
+            {
+                ins_state.filter.f0 = new_f0;
+                mask |= CHANGE_REQUIRE_IMPORT;
+            }
+            }
+            break;
+        default:
+            {
+            double new_f0 = fixed_propertyd(
+                ctx, "#Center", 0, ins_state.filter.f0, 44100.0, 1, 1, 1
+            );
+            if(new_f0 != ins_state.filter.f0)
+            {
+                ins_state.filter.f0 = new_f0;
+                mask |= CHANGE_REQUIRE_IMPORT;
+            }
+            double new_bandwidth = fixed_propertyd(
+                ctx, "#Width", 0, ins_state.filter.bandwidth, 44100.0, 1, 1, 1
+            );
+            if(new_bandwidth != ins_state.filter.bandwidth)
+            {
+                ins_state.filter.bandwidth = new_bandwidth;
+                mask |= CHANGE_REQUIRE_IMPORT;
+            }
+            }
+            break;
+        }
+        nk_group_end(ctx);
+    }
+    return mask;
+}
+
 unsigned cafefm::gui_oscillator(
     oscillator& osc,
     unsigned index,
@@ -1269,6 +1361,9 @@ void cafefm::gui_instrument_editor()
             vis.render(ctx);
             nk_group_end(ctx);
         }
+
+        // Filter
+        mask |= gui_filter();
 
         fm_synth::layout layout = ins_state.synth.generate_layout();
 

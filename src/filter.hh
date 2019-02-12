@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <vector>
+#include "io.hh"
 
 class filter
 {
@@ -30,7 +31,7 @@ public:
         const std::vector<float>& feedback_coef
     );
     filter(const filter& other) = delete;
-    filter(filter&& other) = delete;
+    filter(filter&& other);
 
     int32_t push(int32_t sample);
 
@@ -43,6 +44,28 @@ private:
     std::vector<int32_t> input;
     unsigned output_head;
     std::vector<int32_t> output;
+};
+
+struct filter_state
+{
+    filter_state();
+
+    enum filter_type
+    {
+        NONE = 0,
+        LOW_PASS,
+        HIGH_PASS,
+        BAND_PASS
+    } type;
+
+    double f0;
+    double bandwidth;
+    unsigned order;
+
+    filter design(uint64_t samplerate);
+
+    json serialize() const;
+    bool deserialize(const json& j);
 };
 
 #endif

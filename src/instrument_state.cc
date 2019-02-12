@@ -53,6 +53,8 @@ json instrument_state::serialize(uint64_t samplerate) const
     e["release_length"] = adsr.release_length/(double)samplerate;
     j["envelope"] = e;
 
+    j["filter"] = filter.serialize();
+
     return j;
 }
 
@@ -78,6 +80,9 @@ bool instrument_state::deserialize(const json& j, uint64_t samplerate)
         adsr.attack_length = attack_length * samplerate;
         adsr.decay_length = decay_length * samplerate;
         adsr.release_length = release_length * samplerate;
+
+        if(j.count("filter")) filter.deserialize(j.at("filter"));
+        else filter = filter_state();
     }
     catch(...)
     {

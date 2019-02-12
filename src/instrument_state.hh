@@ -20,6 +20,7 @@
 #define CAFEFM_INSTRUMENT_STATE_HH
 #include "fm.hh"
 #include "io.hh"
+#include "filter.hh"
 
 struct instrument_state
 {
@@ -30,6 +31,7 @@ struct instrument_state
     double tuning_frequency;
     bool write_lock;
     fs::path path;
+    filter_state filter;
 
     instrument_state(uint64_t samplerate = 44100);
 
