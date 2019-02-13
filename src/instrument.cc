@@ -202,6 +202,16 @@ void instrument::set_max_volume_skip(double max_volume_skip)
     if(this->max_volume_skip <= 0) this->max_volume_skip = 1;
 }
 
+void instrument::set_filter(filter&& f)
+{
+    used_filter.reset(new filter(std::move(f)));
+}
+
+void instrument::clear_filter()
+{
+    used_filter.reset();
+}
+
 void instrument::copy_state(const instrument& other)
 {
     unsigned polyphony = voices.size();
@@ -299,6 +309,15 @@ void instrument::step_voice(voice_id id)
         }
     }
     update_voice_volume(v);
+}
+
+void instrument::apply_filter(int32_t* samples, unsigned sample_count)
+{
+    // TODO: Consider using try_mutex
+    if(!used_filter) return;
+
+    for(unsigned i = 0; i < sample_count; ++i)
+        samples[i] = used_filter->push(samples[i]);
 }
 
 void instrument::refresh_all_voices()

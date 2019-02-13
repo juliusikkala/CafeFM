@@ -972,13 +972,15 @@ unsigned cafefm::gui_filter()
             20,
             nk_vec2(120, 200)
         );
+        if(ins_state.filter.type != old_type)
+            mask |= CHANGE_REQUIRE_RESET;
 
         int order = ins_state.filter.order;
         nk_property_int(ctx, "#Order", 0, (int*)&order, 1000, 1, 1);
         if((unsigned)order != ins_state.filter.order)
         {
             ins_state.filter.order = order;
-            mask |= CHANGE_REQUIRE_IMPORT;
+            mask |= CHANGE_REQUIRE_RESET;
         }
 
         switch(ins_state.filter.type)
@@ -992,7 +994,7 @@ unsigned cafefm::gui_filter()
             if(new_f0 != ins_state.filter.f0)
             {
                 ins_state.filter.f0 = new_f0;
-                mask |= CHANGE_REQUIRE_IMPORT;
+                mask |= CHANGE_REQUIRE_RESET;
             }
             }
             break;
@@ -1004,7 +1006,7 @@ unsigned cafefm::gui_filter()
             if(new_f0 != ins_state.filter.f0)
             {
                 ins_state.filter.f0 = new_f0;
-                mask |= CHANGE_REQUIRE_IMPORT;
+                mask |= CHANGE_REQUIRE_RESET;
             }
             double new_bandwidth = fixed_propertyd(
                 ctx, "#Width", 0, ins_state.filter.bandwidth, 44100.0, 1, 1, 1
@@ -1012,7 +1014,7 @@ unsigned cafefm::gui_filter()
             if(new_bandwidth != ins_state.filter.bandwidth)
             {
                 ins_state.filter.bandwidth = new_bandwidth;
-                mask |= CHANGE_REQUIRE_IMPORT;
+                mask |= CHANGE_REQUIRE_RESET;
             }
             }
             break;
@@ -1496,6 +1498,9 @@ void cafefm::gui_instrument_editor()
         control.apply(*fm, master_volume, ins_state);
         fm->refresh_all_voices();
     }
+
+    if(mask & CHANGE_REQUIRE_RESET)
+        reset_fm();
 
     if(mask)
     {
@@ -3065,6 +3070,8 @@ void cafefm::reset_fm(bool refresh_only)
     std::unique_ptr<fm_instrument> new_fm;
     
     new_fm.reset(ins_state.create_instrument(opts.samplerate));
+    if(ins_state.filter.type != filter_state::NONE)
+        new_fm->set_filter(ins_state.filter.design(opts.samplerate));
     new_fm->set_volume(master_volume);
 
     if(fm) new_fm->copy_state(*fm);

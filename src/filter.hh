@@ -30,7 +30,7 @@ public:
         const std::vector<float>& feedforward_coef,
         const std::vector<float>& feedback_coef
     );
-    filter(const filter& other) = delete;
+    filter(const filter& other);
     filter(filter&& other);
 
     int32_t push(int32_t sample);

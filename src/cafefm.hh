@@ -52,6 +52,7 @@ private:
     static constexpr unsigned CHANGE_NONE = 0;
     static constexpr unsigned CHANGE_REQUIRE_IMPORT = 1;
     static constexpr unsigned CHANGE_REQUIRE_FINISH = 2;
+    static constexpr unsigned CHANGE_REQUIRE_RESET = 4;
 
     struct controller_data
     {

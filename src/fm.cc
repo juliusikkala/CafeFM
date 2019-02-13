@@ -838,6 +838,8 @@ void fm_instrument::synthesize(int32_t* samples, unsigned sample_count)
         break;
     }
 #undef generate_samples
+
+    apply_filter(samples, sample_count);
 }
 
 void fm_instrument::refresh_voice(voice_id id)

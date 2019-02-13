@@ -20,6 +20,8 @@
 #define CAFEFM_INSTRUMENT_HH
 #include <vector>
 #include <cstdint>
+#include <memory>
+#include "filter.hh"
 
 struct envelope
 {
@@ -86,6 +88,9 @@ public:
     // How much volume can change in a second.
     void set_max_volume_skip(double max_volume_skip);
 
+    void set_filter(filter&& f);
+    void clear_filter();
+
     void copy_state(const instrument& other);
 
     virtual void synthesize(int32_t* samples, unsigned sample_count) = 0;
@@ -105,6 +110,7 @@ protected:
     double get_frequency(voice_id id) const;
     void get_voice_volume(voice_id id, int64_t& num, int64_t& denom);
     void step_voice(voice_id id);
+    void apply_filter(int32_t* samples, unsigned sample_count);
 
     virtual void refresh_voice(voice_id id) = 0;
     virtual void reset_voice(voice_id id) = 0;
@@ -120,6 +126,8 @@ private:
     int64_t volume_num, volume_denom;
     int64_t max_volume_skip;
     uint64_t samplerate;
+
+    std::unique_ptr<filter> used_filter;
 };
 
 #endif

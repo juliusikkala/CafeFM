@@ -45,15 +45,23 @@ filter::filter(
         this->feedback_coef[i] = -feedback_coef[i + 1] * (1 << DENOM);
 }
 
+filter::filter(const filter& other)
+:   feedforward_first(other.feedforward_first),
+    feedback_first(other.feedback_first),
+    feedforward_coef(other.feedforward_coef),
+    feedback_coef(other.feedback_coef),
+    input_head(other.input_head), input(other.input),
+    output_head(other.output_head), output(other.output)
+{
+}
+
 filter::filter(filter&& other)
 :   feedforward_first(other.feedforward_first),
     feedback_first(other.feedback_first),
     feedforward_coef(std::move(other.feedforward_coef)),
     feedback_coef(std::move(other.feedback_coef)),
-    input_head(other.input_head),
-    input(std::move(other.input)),
-    output_head(other.output_head),
-    output(std::move(other.output))
+    input_head(other.input_head), input(std::move(other.input)),
+    output_head(other.output_head), output(std::move(other.output))
 {
 }
 
@@ -98,6 +106,7 @@ filter_state::filter_state()
 
 filter filter_state::design(uint64_t)
 {
+    printf("TODO: Should design filter!\n");
     return filter({}, {});
 }
 
