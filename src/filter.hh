@@ -27,8 +27,8 @@ class filter
 {
 public:
     explicit filter(
-        const std::vector<float>& feedforward_coef,
-        const std::vector<float>& feedback_coef
+        const std::vector<double>& feedforward_coef,
+        const std::vector<double>& feedback_coef
     );
     filter(const filter& other);
     filter(filter&& other);
@@ -36,14 +36,13 @@ public:
     int32_t push(int32_t sample);
 
 private:
-    int32_t feedforward_first;
-    int32_t feedback_first;
-    std::vector<int32_t> feedforward_coef;
-    std::vector<int32_t> feedback_coef;
+    double feedforward_first;
+    std::vector<double> feedforward_coef;
+    std::vector<double> feedback_coef;
     unsigned input_head;
-    std::vector<int32_t> input;
+    std::vector<double> input;
     unsigned output_head;
-    std::vector<int32_t> output;
+    std::vector<double> output;
 };
 
 struct filter_state
