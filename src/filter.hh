@@ -54,7 +54,8 @@ struct filter_state
         NONE = 0,
         LOW_PASS,
         HIGH_PASS,
-        BAND_PASS
+        BAND_PASS,
+        BAND_STOP,
     } type;
 
     double f0;

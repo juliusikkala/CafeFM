@@ -24,7 +24,7 @@
 namespace
 {
     const char* const filter_type_strings[] = {
-        "NONE", "LOW_PASS", "HIGH_PASS", "BAND_PASS"
+        "NONE", "LOW_PASS", "HIGH_PASS", "BAND_PASS", "BAND_STOP"
     };
 
     void butterworth_lowpass(
@@ -176,6 +176,70 @@ namespace
         for(unsigned i = 0; i <= order; ++i)
             c[2*i] = (i&1)?-tmp[i]:tmp[i];
     }
+
+    void butterworth_bandstop(
+        unsigned order,
+        double cutoff,
+        double bandwidth,
+        std::vector<double>& d,
+        std::vector<double>& c
+    ){
+        std::vector<std::complex<double>> a;
+        cutoff = M_PI * cutoff;
+        bandwidth = M_PI * bandwidth;
+
+        double cc = cos(cutoff);
+        double sb = sin(bandwidth), cb = cos(bandwidth);
+        double s2b = sin(2*bandwidth), c2b = cos(2*bandwidth);
+        double tb = tan(bandwidth);
+
+        std::complex<double> scaling(1.0, 0.0);
+        a.resize(2*order, 0);
+
+        for(unsigned i = 0; i < order; ++i)
+        {
+            double pole = M_PI * (2 * i + 1) / (2 * order);
+            double sp = sin(pole), cp = cos(pole);
+            std::complex<double> poled(sp, cp);
+            double m = 1.0 + s2b*sp;
+            auto r = std::complex<double>(c2b, -s2b*cp)/m;
+            auto t = -2.0*cc*std::complex(cb+sb*sp, -sb*cp)/m;
+
+            if(i != 0) a[2*i+1] += r * a[2*i-1];
+
+            for(unsigned j = 2*i; j > 1; --j)
+                a[j] += t * a[j-1] + r * a[j-2];
+
+            a[1] += t * a[0] + r;
+            a[0] += t;
+
+            scaling = scaling * tb + scaling * poled;
+        }
+
+        double scale = 1.0 / scaling.real();
+
+        d.resize(2*order+1);
+        d[0] = 1.0;
+        for(unsigned i = 0; i < 2*order; ++i)
+            d[i+1] = a[i].real();
+
+        c.resize(2*order+1, 0.0);
+
+        double alpha = -2.0 * cc / cb;
+        c[0] = 1.0;
+        c[1] = alpha;
+        c[2] = 1.0;
+      
+        for(unsigned i = 1; i < order; ++i)
+        {
+            c[2*i+2] += c[2*i];
+            for(unsigned j = 2*i; j > 1; --j)
+                c[j+1] += alpha * c[j] + c[j-1];
+            c[2] += alpha * c[1] + 1.0;
+            c[1] += alpha;
+        }
+        for(unsigned i = 0; i < 2*order+1; ++i) c[i] *= scale;
+    }
 }
 
 filter::filter(
@@ -193,16 +257,6 @@ filter::filter(
         this->feedforward_coef[i] = feedforward_coef[i + 1]/feedback_first;
     for(unsigned i = 0; i < this->feedback_coef.size(); ++i)
         this->feedback_coef[i] = -feedback_coef[i + 1]/feedback_first;
-
-    /*
-    printf("A: ");
-    for(unsigned i = 0; i < feedback_coef.size(); ++i)
-        printf("%e, ", feedback_coef[i]);
-    printf("\nB: ");
-    for(unsigned i = 0; i < feedforward_coef.size(); ++i)
-        printf("%e, ", feedforward_coef[i]);
-    printf("\n");
-    */
 }
 
 filter::filter(const filter& other)
@@ -281,6 +335,9 @@ filter filter_state::design(uint64_t samplerate)
         return filter(x, y);
     case BAND_PASS:
         butterworth_bandpass(order, cutoff, bw, y, x);
+        return filter(x, y);
+    case BAND_STOP:
+        butterworth_bandstop(order, cutoff, bw, y, x);
         return filter(x, y);
     default:
         return filter({}, {});

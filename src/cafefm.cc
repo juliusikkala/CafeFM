@@ -934,7 +934,7 @@ unsigned cafefm::gui_filter()
 {
     unsigned mask = CHANGE_NONE;
     static const char* filter_labels[] = {
-        "None", "Low pass", "High pass", "Band pass"
+        "None", "Low pass", "High pass", "Band pass", "Band stop"
     };
 
     nk_layout_row_dynamic(ctx, 40, 1);
@@ -944,6 +944,7 @@ unsigned cafefm::gui_filter()
         nk_layout_row_template_begin(ctx, 30);
         nk_layout_row_template_push_static(ctx, 45);
         nk_layout_row_template_push_static(ctx, 120);
+        int max_order = 12;
         switch(ins_state.filter.type)
         {
         case filter_state::NONE:
@@ -954,6 +955,13 @@ unsigned cafefm::gui_filter()
             nk_layout_row_template_push_static(ctx, 140);
             break;
         case filter_state::BAND_PASS:
+            max_order = 4;
+            nk_layout_row_template_push_static(ctx, 140);
+            nk_layout_row_template_push_static(ctx, 140);
+            nk_layout_row_template_push_static(ctx, 140);
+            break;
+        case filter_state::BAND_STOP:
+            max_order = 4;
             nk_layout_row_template_push_static(ctx, 140);
             nk_layout_row_template_push_static(ctx, 140);
             nk_layout_row_template_push_static(ctx, 140);
@@ -976,7 +984,8 @@ unsigned cafefm::gui_filter()
             mask |= CHANGE_REQUIRE_RESET;
 
         int order = ins_state.filter.order;
-        nk_property_int(ctx, "#Order", 3, (int*)&order, 12, 1, 1);
+        if(order > max_order) order = max_order;
+        nk_property_int(ctx, "#Order", 3, (int*)&order, max_order, 1, 1);
         if((unsigned)order != ins_state.filter.order)
         {
             ins_state.filter.order = order;
