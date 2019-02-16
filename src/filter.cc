@@ -71,6 +71,53 @@ namespace
             c[order-i] = c[i];
         }
     }
+
+    void butterworth_highpass(
+        unsigned order,
+        double cutoff,
+        std::vector<double>& d,
+        std::vector<double>& c
+    ){
+        std::vector<std::complex<double>> a;
+        cutoff = M_PI * cutoff;
+        double sc = sin(cutoff), cc = cos(cutoff);
+
+        a.resize(order, 0);
+        for(unsigned i = 0; i < order; ++i)
+        {
+            double pole = M_PI * (2 * i + 1) / (2 * order);
+            std::complex<double> r(-cc, -sc * cos(pole));
+            r /= (1.0 + sc * sin(pole));
+            for(unsigned j = i; j > 0; --j) a[j] += r*a[j-1];
+            a[0] += r;
+        }
+
+        d.resize(order+1);
+        d[0] = 1.0;
+        for(unsigned i = 0; i < order; ++i )
+            d[i+1] = a[i].real();
+
+        double scale = 1.0;
+        for(unsigned i = 0; i < order/2; ++i)
+        {
+            double pole = M_PI * (2 * i + 1) / (2 * order);
+            scale *= 1.0 + sc * sin(pole);
+        }
+
+        sc = sin(cutoff * 0.5f); cc = cos(cutoff * 0.5f);
+
+        if(order & 1) scale *= sc + cc;
+        scale = pow(cc, order) / scale;
+
+        c.resize(order+1, scale);
+        for(unsigned i = 1; i <= order/2; ++i)
+        {
+            c[i] = (order-i+1)*c[i-1]/i;
+            c[order-i] = c[i];
+        }
+
+        for(unsigned i = 0; i <= order; ++i) if(i&1) c[i] = -c[i];
+    }
 }
 
 filter::filter(
@@ -88,6 +135,14 @@ filter::filter(
         this->feedforward_coef[i] = feedforward_coef[i + 1]/feedback_first;
     for(unsigned i = 0; i < this->feedback_coef.size(); ++i)
         this->feedback_coef[i] = -feedback_coef[i + 1]/feedback_first;
+
+    printf("A: ");
+    for(unsigned i = 0; i < feedback_coef.size(); ++i)
+        printf("%e, ", feedback_coef[i]);
+    printf("\nB: ");
+    for(unsigned i = 0; i < feedforward_coef.size(); ++i)
+        printf("%e, ", feedforward_coef[i]);
+    printf("\n");
 }
 
 filter::filter(const filter& other)
@@ -159,6 +214,9 @@ filter filter_state::design(uint64_t samplerate)
         return filter({}, {});
     case LOW_PASS:
         butterworth_lowpass(order, cutoff, y, x);
+        return filter(x, y);
+    case HIGH_PASS:
+        butterworth_highpass(order, cutoff, y, x);
         return filter(x, y);
     default:
         printf("TODO: Should design filter!\n");

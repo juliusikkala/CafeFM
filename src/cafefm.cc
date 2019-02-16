@@ -976,7 +976,7 @@ unsigned cafefm::gui_filter()
             mask |= CHANGE_REQUIRE_RESET;
 
         int order = ins_state.filter.order;
-        nk_property_int(ctx, "#Order", 0, (int*)&order, 1000, 1, 1);
+        nk_property_int(ctx, "#Order", 3, (int*)&order, 12, 1, 1);
         if((unsigned)order != ins_state.filter.order)
         {
             ins_state.filter.order = order;
