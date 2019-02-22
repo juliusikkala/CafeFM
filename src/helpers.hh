@@ -45,4 +45,12 @@ std::vector<std::string> generate_note_list(
     int min_semitone, int max_semitone
 );
 
+unsigned determine_pffft_compatible_size_min(
+    unsigned buffer_size, unsigned a, unsigned b, unsigned c, unsigned d
+);
+
+unsigned determine_pffft_compatible_size_max(
+    unsigned buffer_size, unsigned a, unsigned b, unsigned c, unsigned d
+);
+
 #endif

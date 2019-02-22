@@ -31,6 +31,7 @@ src = [
   'src/io.cc',
   'src/looper.cc',
   'src/main.cc',
+  'src/mimicker.cc',
   'src/options.cc',
   'src/visualizer.cc',
 ]

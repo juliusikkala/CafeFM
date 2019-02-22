@@ -55,3 +55,76 @@ std::vector<std::string> generate_note_list(
         res.push_back(generate_semitone_name(min_semitone));
     return res;
 }
+
+unsigned determine_pffft_compatible_size_min(
+    unsigned buffer_size, unsigned a, unsigned b, unsigned c, unsigned d
+) {
+    if(d >= buffer_size) return d;
+
+    unsigned out = 0;
+    if(b == 0)
+    {
+        out = determine_pffft_compatible_size_min(buffer_size, a+1, b, c, d*2);
+        out = std::min(determine_pffft_compatible_size_min(
+            buffer_size, a, b+1, c, d*3
+        ), out);
+        out = std::min(determine_pffft_compatible_size_min(
+            buffer_size, a, b, c+1, d*5
+        ), out);
+    }
+    else if(c == 0)
+    {
+        out = determine_pffft_compatible_size_min(buffer_size, a, b+1, c, d*3);
+        out = std::min(
+            determine_pffft_compatible_size_min(buffer_size, a, b, c+1, d*5),
+            out
+        );
+    }
+    else
+    {
+        out = determine_pffft_compatible_size_min(
+            buffer_size, a, b, c+1, d*5
+        );
+    }
+    return out;
+}
+
+unsigned determine_pffft_compatible_size_max(
+    unsigned buffer_size, unsigned a, unsigned b, unsigned c, unsigned d
+) {
+    unsigned out = d;
+    if(b == 0)
+    {
+        if(d*2 <= buffer_size)
+            out = determine_pffft_compatible_size_max(
+                buffer_size, a+1, b, c, d*2
+            );
+        if(d*3 <= buffer_size)
+            out = std::max(determine_pffft_compatible_size_max(
+                buffer_size, a, b+1, c, d*3
+            ), out);
+        if(d*5 <= buffer_size)
+            out = std::max(determine_pffft_compatible_size_max(
+                buffer_size, a, b, c+1, d*5
+            ), out);
+    }
+    else if(c == 0)
+    {
+        if(d*3 <= buffer_size)
+            out = determine_pffft_compatible_size_max(
+                buffer_size, a, b+1, c, d*3
+            );
+        if(d*5 <= buffer_size)
+            out = std::max(determine_pffft_compatible_size_max(
+                buffer_size, a, b, c+1, d*5
+            ), out);
+    }
+    else
+    {
+        if(d*5 <= buffer_size)
+            out = determine_pffft_compatible_size_max(
+                buffer_size, a, b, c+1, d*5
+            );
+    }
+    return out;
+}

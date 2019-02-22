@@ -64,7 +64,7 @@ namespace
     float detect_period(const std::vector<float>& buffer, float& prev_period)
     {
         // Avoid messy output with low signal
-        if(calculate_rms(buffer) < 0.02) return prev_period;
+        if(calculate_rms(buffer) < 0.05) return prev_period;
 
         unsigned half = buffer.size()/2;
         auto threshold = [](float v){ return fabs(v) < 0.2; };

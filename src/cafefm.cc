@@ -21,6 +21,7 @@
 #include "controller/gamecontroller.hh"
 #include "controller/joystick.hh"
 #include "controller/microphone.hh"
+#include "mimicker.hh"
 #include "io.hh"
 #include "helpers.hh"
 #include "about.hh"
@@ -588,6 +589,18 @@ bool cafefm::update()
         case SDL_QUIT:
             handled = true;
             quit = true;
+            break;
+        case SDL_DROPFILE:
+            try
+            {
+                ins_state.synth = mimic_sample(e.drop.file);
+                reset_fm();
+            }
+            catch(const std::runtime_error& err)
+            {
+                std::cerr << err.what() << std::endl;
+            }
+            SDL_free(e.drop.file);
             break;
         case SDL_WINDOWEVENT:
             if(e.window.event == SDL_WINDOWEVENT_RESIZED)

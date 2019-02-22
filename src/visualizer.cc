@@ -18,47 +18,21 @@
 */
 #include "visualizer.hh"
 #include "fm.hh"
+#include "helpers.hh"
 #include "nuklear.hh"
 #include <future>
 #include <complex>
 
 namespace
 {
-    unsigned determine_compatible_size(
-        unsigned buffer_size, unsigned a, unsigned b, unsigned c, unsigned d
-    ){
-        if(d >= buffer_size) return d;
-
-        unsigned out = 0;
-        if(b == 0)
-        {
-            out = determine_compatible_size(buffer_size, a+1, b, c, d*2);
-            out = std::min(
-                determine_compatible_size(buffer_size, a, b+1, c, d*3), out
-            );
-            out = std::min(
-                determine_compatible_size(buffer_size, a, b, c+1, d*5), out
-            );
-        }
-        else if(c == 0)
-        {
-            out = determine_compatible_size(buffer_size, a, b+1, c, d*3);
-            out = std::min(
-                determine_compatible_size(buffer_size, a, b, c+1, d*5), out
-            );
-        }
-        else
-        {
-            out = determine_compatible_size(buffer_size, a, b, c+1, d*5);
-        }
-        return out;
-    }
 }
 
 visualizer::visualizer(unsigned buffer_size)
 {
     // Align buffer size.
-    this->buffer_size = determine_compatible_size(buffer_size, 5, 0, 0, 1<<5);
+    this->buffer_size = determine_pffft_compatible_size_min(
+        buffer_size, 5, 0, 0, 1<<5
+    );
     setup = pffft_new_setup(this->buffer_size, PFFFT_REAL);
     current.period = 0;
     current.time.resize(buffer_size, 0);
@@ -169,9 +143,9 @@ void visualizer::start_update(const fm_synth& synth)
     incoming = std::async(std::launch::async, [&, synth](){
         std::vector<int32_t> samples(buffer_size, 0);
         unsigned period = buffer_size > 128 ? 128 : buffer_size;
-        fm_synth::state s = synth.start(
-            1.0/synth.get_total_carrier_amplitude()
-        );
+        float total_amplitude = synth.get_total_carrier_amplitude();
+        float volume = total_amplitude > 1.0 ? 1.0/total_amplitude : 1.0;
+        fm_synth::state s = synth.start(volume);
         s.period_num = 4294967296.0/period;
         s.period_denom = 1;
         synth.synthesize(s, samples.data(), buffer_size);
