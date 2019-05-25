@@ -16,6 +16,7 @@
     You should have received a copy of the GNU General Public License
     along with CafeFM.  If not, see <http://www.gnu.org/licenses/>.
 */
+#define _USE_MATH_DEFINES
 #include "filter.hh"
 #include "helpers.hh"
 #include <cmath>

@@ -17,6 +17,7 @@
     along with CafeFM.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "helpers.hh"
+#include <algorithm>
 
 namespace
 {

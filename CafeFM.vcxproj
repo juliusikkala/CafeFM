@@ -144,6 +144,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="external\nuklear.cc" />
+    <ClCompile Include="external\pffft.c" />
     <ClCompile Include="src\audio.cc" />
     <ClCompile Include="src\bindings.cc" />
     <ClCompile Include="src\cafefm.cc" />
@@ -151,9 +152,11 @@
     <ClCompile Include="src\controller\gamecontroller.cc" />
     <ClCompile Include="src\controller\joystick.cc" />
     <ClCompile Include="src\controller\keyboard.cc" />
+    <ClCompile Include="src\controller\microphone.cc" />
     <ClCompile Include="src\controller\midi.cc" />
     <ClCompile Include="src\control_state.cc" />
     <ClCompile Include="src\encoder.cc" />
+    <ClCompile Include="src\filter.cc" />
     <ClCompile Include="src\fm.cc" />
     <ClCompile Include="src\helpers.cc" />
     <ClCompile Include="src\instrument.cc" />
@@ -161,14 +164,18 @@
     <ClCompile Include="src\io.cc" />
     <ClCompile Include="src\looper.cc" />
     <ClCompile Include="src\main.cc" />
+    <ClCompile Include="src\mimicker.cc" />
     <ClCompile Include="src\options.cc" />
+    <ClCompile Include="src\visualizer.cc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="external\json.hpp" />
     <ClInclude Include="external\nuklear.h" />
     <ClInclude Include="external\nuklear.hh" />
     <ClInclude Include="external\nuklear_sdl_gl3.h" />
+    <ClInclude Include="external\pffft.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="src\about.hh" />
     <ClInclude Include="src\audio.hh" />
     <ClInclude Include="src\bindings.hh" />
     <ClInclude Include="src\cafefm.hh" />
@@ -176,9 +183,11 @@
     <ClInclude Include="src\controller\gamecontroller.hh" />
     <ClInclude Include="src\controller\joystick.hh" />
     <ClInclude Include="src\controller\keyboard.hh" />
+    <ClInclude Include="src\controller\microphone.hh" />
     <ClInclude Include="src\controller\midi.hh" />
     <ClInclude Include="src\control_state.hh" />
     <ClInclude Include="src\encoder.hh" />
+    <ClInclude Include="src\filter.hh" />
     <ClInclude Include="src\fm.hh" />
     <ClInclude Include="src\func.hh" />
     <ClInclude Include="src\helpers.hh" />
@@ -186,7 +195,9 @@
     <ClInclude Include="src\instrument_state.hh" />
     <ClInclude Include="src\io.hh" />
     <ClInclude Include="src\looper.hh" />
+    <ClInclude Include="src\mimicker.hh" />
     <ClInclude Include="src\options.hh" />
+    <ClInclude Include="src\visualizer.hh" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="cafefm.rc" />

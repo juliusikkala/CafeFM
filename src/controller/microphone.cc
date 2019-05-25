@@ -19,6 +19,7 @@
 #include "microphone.hh"
 #include "../func.hh"
 #include <numeric>
+#include <algorithm>
 #define MIN_FREQUENCY 80
 
 namespace
